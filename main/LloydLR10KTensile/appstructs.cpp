@@ -1725,7 +1725,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
                 ImVec2 rmin = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, ImPlot::GetPlotLimits().Y.Max));
                 ImVec2 rmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
 
-                const ImU32 colorFilledRect = IM_COL32(171, 255, 183, 60); // RGBA
+                const ImU32 colorFilledRect = IM_COL32(0, 0, 0, 166); // RGBA
                 const ImU32 colorFilledText = IM_COL32(171, 255, 183, 220); // RGBA
                 const ImU32 colorEndLine = ImGui::ColorConvertFloat4ToU32(crosshairColor);
 
