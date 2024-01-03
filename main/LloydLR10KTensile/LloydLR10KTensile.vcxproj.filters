@@ -1,0 +1,277 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="sources">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="SimpleXlsxWriter">
+      <UniqueIdentifier>{8430480a-ab01-4006-b973-4e043e4b91c4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JSON for Modern C++">
+      <UniqueIdentifier>{63e583d7-d261-4458-81d5-033c2f13a77a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImPlot">
+      <UniqueIdentifier>{77edb475-45f2-4f7c-a4c8-8e6900d9aebe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImGUI">
+      <UniqueIdentifier>{a82cba23-9de0-45c2-b1e3-2eb1666702de}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImFileBrowser">
+      <UniqueIdentifier>{db29c7c5-9efb-4557-bb81-f0875da9c838}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Effects">
+      <UniqueIdentifier>{527e3b24-d45a-4a76-a1dd-7fb1b7a71be2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SimpleXlsxWriter\source">
+      <UniqueIdentifier>{5c8ec9cf-3227-4d72-baca-70b2085d1f66}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImPlot\source">
+      <UniqueIdentifier>{8b6341b8-d887-4625-b2fd-f3bc193f8e10}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImGUI\source">
+      <UniqueIdentifier>{218e8ce2-4889-4b3a-8070-14068e4326d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImGUI\misc">
+      <UniqueIdentifier>{ec0db146-04a2-4432-abcb-fef24d4307ad}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImGUI\misc\cpp">
+      <UniqueIdentifier>{fc5f5d77-3ce4-4eae-a7ca-ccbfb35b9f2a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Videos">
+      <UniqueIdentifier>{e902932f-1e7d-44a1-a39c-1a2d75cf633a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="appstructs.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="common.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="LR10KBufferMessage.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Xlsx\Chart.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Xlsx\Chartsheet.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\XLSXColors\clsRGBColorRecord.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scratch\clsScratchTable.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Xlsx\Drawing.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\PathManager.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Xlsx\SimpleXlsxDef.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Xlsx\Workbook.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Xlsx\Worksheet.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\XLSXColors\XLSXColorLib.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Xlsx\XlsxHeaders.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Zip\zip.cpp">
+      <Filter>SimpleXlsxWriter\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\implot.cpp">
+      <Filter>ImPlot\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\implot_demo.cpp">
+      <Filter>ImPlot\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\implot_items.cpp">
+      <Filter>ImPlot\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imgui.cpp">
+      <Filter>ImGUI\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imgui_demo.cpp">
+      <Filter>ImGUI\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imgui_draw.cpp">
+      <Filter>ImGUI\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\backends\imgui_impl_win32.cpp">
+      <Filter>ImGUI\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imgui_tables.cpp">
+      <Filter>ImGUI\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\imgui_widgets.cpp">
+      <Filter>ImGUI\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\misc\cpp\imgui_stdlib.cpp">
+      <Filter>ImGUI\misc\cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="LR10KDecryption.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="RingBuffer.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_ImageLoader.h" />
+    <ClCompile Include="main_dx11.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_ImageLoader.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\backends\imgui_impl_dx11.cpp">
+      <Filter>ImGUI\source</Filter>
+    </ClCompile>
+    <ClCompile Include="LR10KController.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\imconfig.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imgui.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imgui_internal.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\nlohmann\json.hpp">
+      <Filter>JSON for Modern C++</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\nlohmann\json_fwd.hpp">
+      <Filter>JSON for Modern C++</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Zip\zip.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\XMLWriter.hpp">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Xlsx\XlsxHeaders.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\XLSXColors\XLSXColorLib.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Xlsx\Worksheet.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Xlsx\Workbook.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Xlsx\SimpleXlsxDef.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scratch\clsScratchTable.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\XLSXColors\clsRGBColorRecord.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\UTF8Encoder.hpp">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Xlsx\Chart.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Xlsx\Chartsheet.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\implot.h">
+      <Filter>ImPlot</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\implot_internal.h">
+      <Filter>ImPlot</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\imfilebrowser.h">
+      <Filter>ImFileBrowser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Xlsx\Drawing.h">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\PathManager.hpp">
+      <Filter>SimpleXlsxWriter</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\backends\imgui_impl_win32.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="styles.h" />
+    <ClInclude Include="LR10KBufferMessage.h" />
+    <ClInclude Include="common.h" />
+    <ClInclude Include="appstructs.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="init.h" />
+    <ClInclude Include="..\..\misc\cpp\imgui_stdlib.h">
+      <Filter>ImGUI\misc\cpp</Filter>
+    </ClInclude>
+    <ClInclude Include="LR10KDecryption.h" />
+    <ClInclude Include="..\..\stb_image.h" />
+    <ClInclude Include="..\..\backends\imgui_impl_dx11.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="LR10KController.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\misc\debuggers\imgui.natvis">
+      <Filter>ImGUI</Filter>
+    </None>
+    <None Include="..\..\misc\debuggers\imgui.natstepfilter">
+      <Filter>ImGUI</Filter>
+    </None>
+    <None Include="..\README.txt">
+      <Filter>ImGUI</Filter>
+    </None>
+    <None Include="..\..\docs\Doxyfile" />
+  </ItemGroup>
+  <ItemGroup>
+    <Media Include="effects\endTest.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\saveFileSuccess.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\startTest.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\buttonClick0.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\buttonClick1.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="videos\LR10K_COMPLETEATEST.mp4">
+      <Filter>Videos</Filter>
+    </Media>
+    <Media Include="videos\LR10K_GUI.mp4">
+      <Filter>Videos</Filter>
+    </Media>
+    <Media Include="videos\LR10K_SETUP.mp4">
+      <Filter>Videos</Filter>
+    </Media>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="LloydLR10KTensile.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="USN-symbol_lilla.ico" />
+    <Image Include="USN-symbol_hvit.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\misc\cpp\README.txt">
+      <Filter>ImGUI\misc\cpp</Filter>
+    </Text>
+  </ItemGroup>
+</Project>
