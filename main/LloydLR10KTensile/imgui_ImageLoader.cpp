@@ -79,8 +79,11 @@ bool LoadTextureFromFile_dx11(ID3D11Device* g_pd3dDevice, const char* filename, 
     g_pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, out_srv);
     pTexture->Release();
 
-    *out_width = image_width;
-    *out_height = image_height;
+    if (out_width != nullptr && out_height != nullptr)
+    {
+        *out_width = image_width;
+        *out_height = image_height;
+    }
     stbi_image_free(image_data);
 
     return true;

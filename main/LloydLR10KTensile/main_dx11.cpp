@@ -234,14 +234,20 @@ int main(int, char**)
     bool showCalculatorToggler = false;
     bool showConsoleToggler = false;
 
-    bool loadingApplication = true;
-    float loadingTime = 1.8f;
+    // Used for bootloader and splash screen
+    bool loadingApplication1 = true;
+    bool loadingApplication2 = true;
+    float loadingTime1 = 2.8f;
+    float loadingTime2 = 1.8f;
 
     int my_image_width = 0;
     int my_image_height = 0;
-    ID3D11ShaderResourceView* my_texture = NULL;
-    bool ret = LoadTextureFromFile_dx11(g_pd3dDevice, "usn-background-1.jpg", &my_texture, &my_image_width, &my_image_height);
-    IM_ASSERT(ret);
+    ID3D11ShaderResourceView* bootloaderBackgroundTexture = NULL;
+    ID3D11ShaderResourceView* usnBackgroundTexture = NULL;
+    bool ret1 = LoadTextureFromFile_dx11(g_pd3dDevice, "bootbackground_start.png", &bootloaderBackgroundTexture, &my_image_width, &my_image_height);
+    bool ret2 = LoadTextureFromFile_dx11(g_pd3dDevice, "usn-background-1.jpg", &usnBackgroundTexture, &my_image_width, &my_image_height);
+    IM_ASSERT(ret1);
+    IM_ASSERT(ret2);
 
     // This is used everywhere in functions, and is the only place where it gets defined - other than that it is "injected"
     TabControl::TabTestDataClass* tabData;
@@ -336,7 +342,7 @@ int main(int, char**)
                 LR10KAppGlobals::m_pThreadPlotAxisUpdater_PauseUpdate2.store(false);
         }
 
-        if (!loadingApplication)
+        if (!loadingApplication1 && !loadingApplication2)
         {
             // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
             if (show_demo_window)
@@ -415,11 +421,18 @@ int main(int, char**)
                 ImGuiCustomResetValuesIfCrossedLimit();
             }
         }
-        // Splash screen at load
-        else
+        // Bootloader screen at load
+        else if (!loadingApplication1)
         {
             ImVec2 windowSize = GetWindowSize();
-            ImGuiCustomSplashScreenAtBoot_dx11(my_texture, windowSize.x, windowSize.y);
+            ImGuiCustomSplashScreenAtBoot_dx11(usnBackgroundTexture, windowSize.x, windowSize.y);
+            
+        }
+        // Splash screen at load
+        else if (loadingApplication1)
+        {
+            ImVec2 windowSize = GetWindowSize();
+            ImGuiCustomSplashScreenAtBoot_dx11(bootloaderBackgroundTexture, windowSize.x, windowSize.y);
         }
 
         // Rendering
@@ -439,9 +452,11 @@ int main(int, char**)
         g_pSwapChain->Present(1, 0); // Present with vsync
         //g_pSwapChain->Present(0, 0); // Present without vsync
 
-        // (custom) Remove splash screen after some time (in seconds)
-        if (loadingApplication && ImGui::GetTime() > loadingTime)
-            loadingApplication = false;
+        // (custom) Remove bootloader and splash screen after some time (in seconds)
+        if (loadingApplication1 && ImGui::GetTime() > loadingTime1)
+            loadingApplication1 = false;
+        else if (!loadingApplication1 && ImGui::GetTime() > (loadingTime1 + loadingTime2))
+            loadingApplication2 = false;
     }
 
     // Cleanup

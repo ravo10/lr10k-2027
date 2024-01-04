@@ -1483,7 +1483,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
 
     // Extensometer
     ImGui::BeginDisabled(true);
-        ImGui::SeparatorText("Extensometer (*Ikkje ferdig)");
+        ImGui::SeparatorText("Extensometer (*Not complete)");
         ImGui::Text("Range:");
         ImGui::BeginDisabled(LR10KAppGlobals::enable_extensiomter == 1);
             if (ImGui::InputFloat("##Extensometer Range", &LR10KAppGlobals::extensiometerRange, (1.0f * unitConv_dist), (5.0f * unitConv_dist), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::extensiometerRange)))
