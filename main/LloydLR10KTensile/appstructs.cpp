@@ -2916,12 +2916,12 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         return;
     }
 
-    ImGui::Text("Video training tutorials (mandatory to complete for saftey reasons):");
+    ImGui::Text("Video training tutorials:\n(\"Setup\" and \"Completing a test\" are mandatory to complete for saftey reasons!)");
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.051f, 0.815f, 0.931f, 0.8f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.051f, 0.815f, 0.931f, 0.9f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.051f, 0.815f, 0.931f, 0.85f));
     if (ImGui::Button("GUI", { 200, 35 }))
-        Extra::tools.PlayVideo("videos\\LR10K_GUI.mp4");
+        Extra::tools.PlayVideo("videos\\lr10k_gui.mp4");
     ImGui::SetItemTooltip("This will make the user aware of what functions exists in the application.\nIt will also give an overview over every settings available for software and for LR 10K.");
     ImGui::PopStyleColor(3);
     ImGui::SameLine();
@@ -2930,7 +2930,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.964f, 0.882f, 0.040f, 0.9f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.964f, 0.882f, 0.040f, 0.85f));
     if (ImGui::Button("Setup", { 200, 35 }))
-        Extra::tools.PlayVideo("videos\\LR10K_SETUP.mp4");
+        Extra::tools.PlayVideo("videos\\lr10k_setup.mp4");
     ImGui::SetItemTooltip("This will walk the user through how to setup LR 10K with the software.\nIt will also give an overview over what settings are suggested and roughly\nwhat is best for what material.");
     ImGui::PopStyleColor(3);
     ImGui::SameLine();
@@ -2939,7 +2939,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.040f, 0.964f, 0.353f, 0.9f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.040f, 0.964f, 0.353f, 0.85f));
     if (ImGui::Button("Completing a test", { 200, 35 }))
-        Extra::tools.PlayVideo("videos\\LR10K_COMPLETEATEST.mp4");
+        Extra::tools.PlayVideo("videos\\lr10k_completeatest.mp4");
     ImGui::SetItemTooltip("This will tell what the user needs to think about before clicking \"Start Test\".\nIt will also show how to handle test data when a test is finished to get a complete test.");
     ImGui::PopStyleColor(3);
 
