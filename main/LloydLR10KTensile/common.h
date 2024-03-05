@@ -258,6 +258,9 @@ namespace defaultValuesGUI {
 
     //! \details Used for disabling the toogle graph button or when user wants to save (need to calculate first)
     inline extern bool invalidStressDataNotUpdated = false;
+
+    //! \details Used to reset translation GUI if the crosshead e.g. suddenly stops
+    inline extern bool resetNavigationGUIButtons = false;
 }
 
 /**

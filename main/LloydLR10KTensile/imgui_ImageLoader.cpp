@@ -22,22 +22,22 @@
 #include "imgui.h"
 
 // Simple helper function to load an image into a DX9 texture with common settings
-bool LoadTextureFromFile_dx9(LPDIRECT3DDEVICE9 g_pd3dDevice, const char* filename, PDIRECT3DTEXTURE9* out_texture, int* out_width, int* out_height)
-{
-    // Load texture from disk
-    PDIRECT3DTEXTURE9 texture;
-    HRESULT hr = D3DXCreateTextureFromFileA(g_pd3dDevice, filename, &texture);
-    if (hr != S_OK)
-        return false;
-
-    // Retrieve description of the texture surface so we can access its size
-    D3DSURFACE_DESC my_image_desc;
-    texture->GetLevelDesc(0, &my_image_desc);
-    *out_texture = texture;
-    *out_width = (int)my_image_desc.Width;
-    *out_height = (int)my_image_desc.Height;
-    return true;
-}
+//bool LoadTextureFromFile_dx9(LPDIRECT3DDEVICE9 g_pd3dDevice, const char* filename, PDIRECT3DTEXTURE9* out_texture, int* out_width, int* out_height)
+//{
+//    // Load texture from disk
+//    PDIRECT3DTEXTURE9 texture;
+//    HRESULT hr = D3DXCreateTextureFromFileA(g_pd3dDevice, filename, &texture);
+//    if (hr != S_OK)
+//        return false;
+//
+//    // Retrieve description of the texture surface so we can access its size
+//    D3DSURFACE_DESC my_image_desc;
+//    texture->GetLevelDesc(0, &my_image_desc);
+//    *out_texture = texture;
+//    *out_width = (int)my_image_desc.Width;
+//    *out_height = (int)my_image_desc.Height;
+//    return true;
+//}
 
 // Simple helper function to load an image into a DX11 texture with common settings
 bool LoadTextureFromFile_dx11(ID3D11Device* g_pd3dDevice, const char* filename, ID3D11ShaderResourceView** out_srv, int* out_width, int* out_height)
@@ -90,26 +90,26 @@ bool LoadTextureFromFile_dx11(ID3D11Device* g_pd3dDevice, const char* filename, 
 }
 
 // Used for loading a custom splash screen at load
-void ImGuiCustomSplashScreenAtBoot_dx9(PDIRECT3DTEXTURE9 my_texture, int my_image_width, int my_image_height)
-{
-    ImGuiWindowFlags flags = 0;
-    flags |= ImGuiWindowFlags_NoDocking;
-    flags |= ImGuiWindowFlags_NoDecoration;
-    flags |= ImGuiWindowFlags_NoInputs;
-    flags |= ImGuiWindowFlags_NoResize;
-    flags |= ImGuiWindowFlags_NoMove;
-    flags |= ImGuiWindowFlags_NoScrollbar;
-    flags |= ImGuiWindowFlags_NoBackground;
-
-    my_image_width += 15;
-    my_image_height += 15;
-
-    ImGui::Begin("##Splash Screen Load", nullptr, flags);
-    ImGui::SetWindowPos(ImVec2(-10, -10));
-    ImGui::SetWindowSize(ImVec2(my_image_width, my_image_height));
-    ImGui::Image((void*)my_texture, ImVec2(my_image_width, my_image_height));
-    ImGui::End();
-}
+//void ImGuiCustomSplashScreenAtBoot_dx9(PDIRECT3DTEXTURE9 my_texture, int my_image_width, int my_image_height)
+//{
+//    ImGuiWindowFlags flags = 0;
+//    flags |= ImGuiWindowFlags_NoDocking;
+//    flags |= ImGuiWindowFlags_NoDecoration;
+//    flags |= ImGuiWindowFlags_NoInputs;
+//    flags |= ImGuiWindowFlags_NoResize;
+//    flags |= ImGuiWindowFlags_NoMove;
+//    flags |= ImGuiWindowFlags_NoScrollbar;
+//    flags |= ImGuiWindowFlags_NoBackground;
+//
+//    my_image_width += 15;
+//    my_image_height += 15;
+//
+//    ImGui::Begin("##Splash Screen Load", nullptr, flags);
+//    ImGui::SetWindowPos(ImVec2(-10, -10));
+//    ImGui::SetWindowSize(ImVec2(my_image_width, my_image_height));
+//    ImGui::Image((void*)my_texture, ImVec2(my_image_width, my_image_height));
+//    ImGui::End();
+//}
 
 void ImGuiCustomSplashScreenAtBoot_dx11(ID3D11ShaderResourceView* my_texture, int my_image_width, int my_image_height)
 {

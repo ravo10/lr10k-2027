@@ -2725,12 +2725,20 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
             disableControl[3] = false;
         };
 
+    // Check if machine suddenly stopped, becuase of maybe overload of 50 N when jogging down or up
+    if (defaultValuesGUI::resetNavigationGUIButtons)
+    {
+        defaultValuesGUI::resetNavigationGUIButtons = false;
+        disableAllControls();
+    }
+
     // -------------------------------------------------------------------------
     // ------------------------------- Key Press -------------------------------
     // -------------------------------------------------------------------------
 
     static bool GoingUP = false;
     static bool GoingDOWN = false;
+    static bool TranslationFastKeyIsPressed = false;
 
     if (tabData->test_unfinished_test_started)
     {
@@ -2773,10 +2781,16 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_F4))
         {
-            if (GoingUP)
-                LR10KControlSystem::Translation_FASTUP_press(tabData);
-            if (GoingDOWN)
-                LR10KControlSystem::Translation_FASTDOWN_press(tabData);
+            // We only want to execute this one time
+            if (!TranslationFastKeyIsPressed)
+            {
+                TranslationFastKeyIsPressed = true;
+
+                if (GoingUP)
+                    LR10KControlSystem::Translation_FASTUP_press(tabData);
+                if (GoingDOWN)
+                    LR10KControlSystem::Translation_FASTDOWN_press(tabData);
+            }
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_F5))
         {
@@ -2799,8 +2813,10 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
             if (GoingDOWN)
                 LR10KControlSystem::Translation_FASTDOWN_release();
 
+            // Reset
             GoingUP = false;
             GoingDOWN = false;
+            TranslationFastKeyIsPressed = false;
         }
 
         if (

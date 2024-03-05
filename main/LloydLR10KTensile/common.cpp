@@ -2510,6 +2510,7 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
                     if (abs(LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad()) > 50.0f)
                     {
                         _LR10KController.w_Stop();
+                        defaultValuesGUI::resetNavigationGUIButtons = true;
                     }
                 }
             }
@@ -4930,13 +4931,13 @@ void AppConsole::ExecCommand(TabControl::TabTestDataClass* tabData, const char* 
             else
                 AddLog("[error] Could not move up...");
         }
-        /*else if (Stricmp(command_line, "FUP") == 0)
+        else if (Stricmp(command_line, "FUP") == 0)
         {
-            if (LR10KControlSystem::Translation_FASTUP())
+            if (LR10KControlSystem::Translation_FASTUP_press(tabData))
                 AddLog("[translation] Moving FAST UP");
             else
                 AddLog("[error] Could not move fast up...");
-        }*/
+        }
         else if (Stricmp(command_line, "DOWN") == 0)
         {
             if (LR10KControlSystem::Translation_DOWN(tabData))
@@ -4944,13 +4945,13 @@ void AppConsole::ExecCommand(TabControl::TabTestDataClass* tabData, const char* 
             else
                 AddLog("[error] Could not move down...");
         }
-        /*else if (Stricmp(command_line, "FDOWN") == 0)
+        else if (Stricmp(command_line, "FDOWN") == 0)
         {
-            if (LR10KControlSystem::Translation_FASTDOWN())
+            if (LR10KControlSystem::Translation_FASTDOWN_press(tabData))
                 AddLog("[translation] Moving FAST DOWN");
             else
                 AddLog("[error] Could not move fast down...");
-        }*/
+        }
         else if (Stricmp(command_line, "STOP") == 0)
         {
             if (LR10KControlSystem::Translation_STOP(tabData))
