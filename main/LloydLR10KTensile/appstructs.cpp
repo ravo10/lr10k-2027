@@ -1268,20 +1268,6 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, boo
             else
                 ImGui::Text("COM%d", LR10KAppGlobals::connectedComPortNumber);
 
-            // ------------------------
-            // View the Application version
-            // ------------------------
-            std::string strV = "app. version: ";
-            strV.append(LR10KAppVersion);
-
-            // Calc text size
-            std::string strMenu = "Menu";
-            ImVec2 stMenuSize = ImGui::CalcTextSize(strMenu.c_str());
-
-            // Float left
-            ImGui::SameLine(0 + stMenuSize.x + 20);
-            ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 0.50f, 0.60f }), strV.c_str());
-
             ImGui::EndMainMenuBar();
         }
     }
