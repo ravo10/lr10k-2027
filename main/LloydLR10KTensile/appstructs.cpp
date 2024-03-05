@@ -1143,6 +1143,16 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, boo
                     mainGUIGlobals::openPopupCloseApp = true;
                 }
 
+                // ------------------------
+                // View the Application version
+                // ------------------------
+                ImGui::Separator();
+
+                std::string strV = "Application Version: ";
+                strV.append(LR10KAppVersion);
+
+                ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 0.50f, 0.90f }), strV.c_str());
+
                 ImGui::EndMenu();
             }
 

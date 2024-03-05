@@ -35,7 +35,7 @@ if (appDataFolderPath.first)
 }*/
 // And insert: #include "..\init.h" in "imgui.h".
 // 
-static const char* LR10KAppVersion = "1.0.1"; //!< App version - E.g.: 1.0.0
+static const char* LR10KAppVersion = "1.0.2 [05.03.2024]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
 
 
 // ###############################################--------------------------------------------------------------------------------------------------------------

@@ -27,6 +27,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_0CB330ABAF3349ECAF2BAA650EE9720C"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_11FF099D180BD7A670147296B18B868B"
         "OwnerKey" = "8:_452657B327F7411A8DDD49E4A79FA22C"
         "MsmSig" = "8:_UNDEFINED"
@@ -63,7 +69,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_51D98749E5284F56922C1A0A6527C88E"
+        "MsmKey" = "8:_5206BB4657C14FFB95430E9F329D5D07"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -99,7 +105,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_6E5688671C7748BA96F78777C5DDB5E8"
+        "MsmKey" = "8:_6EB56FF82FC441828FE83A569B6DB708"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -136,12 +142,6 @@
         "Entry"
         {
         "MsmKey" = "8:_972376DABD6A4F35A395AFDA2036E590"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_A58B0C2DC0774D6D910A65567F2FE9E0"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -332,6 +332,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0CB330ABAF3349ECAF2BAA650EE9720C"
+            {
+            "SourcePath" = "8:..\\LloydLR10KTensile\\videos\\LR10K_COMPLETEATEST.mp4"
+            "TargetName" = "8:LR10K_COMPLETEATEST.mp4"
+            "Tag" = "8:"
+            "Folder" = "8:_C3107A01F1FE42D38A57DF7B9A507D97"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_11FF099D180BD7A670147296B18B868B"
             {
             "SourcePath" = "8:api-ms-win-crt-utility-l1-1-0.dll"
@@ -432,10 +452,10 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_51D98749E5284F56922C1A0A6527C88E"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_5206BB4657C14FFB95430E9F329D5D07"
             {
-            "SourcePath" = "8:..\\LloydLR10KTensile\\videos\\lr10k_completeatest.mp4"
-            "TargetName" = "8:lr10k_completeatest.mp4"
+            "SourcePath" = "8:..\\LloydLR10KTensile\\videos\\LR10K_SETUP.mp4"
+            "TargetName" = "8:LR10K_SETUP.mp4"
             "Tag" = "8:"
             "Folder" = "8:_C3107A01F1FE42D38A57DF7B9A507D97"
             "Condition" = "8:"
@@ -552,10 +572,10 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6E5688671C7748BA96F78777C5DDB5E8"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6EB56FF82FC441828FE83A569B6DB708"
             {
-            "SourcePath" = "8:..\\LloydLR10KTensile\\videos\\lr10k_setup.mp4"
-            "TargetName" = "8:lr10k_setup.mp4"
+            "SourcePath" = "8:..\\LloydLR10KTensile\\videos\\LR10K_GUI.mp4"
+            "TargetName" = "8:LR10K_GUI.mp4"
             "Tag" = "8:"
             "Folder" = "8:_C3107A01F1FE42D38A57DF7B9A507D97"
             "Condition" = "8:"
@@ -678,26 +698,6 @@
             "TargetName" = "8:saveFileSuccess.wav"
             "Tag" = "8:"
             "Folder" = "8:_757CB52310CE459ABE019E9D159D6359"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_A58B0C2DC0774D6D910A65567F2FE9E0"
-            {
-            "SourcePath" = "8:..\\..\\..\\Video\\lr10k_gui.mp4"
-            "TargetName" = "8:lr10k_gui.mp4"
-            "Tag" = "8:"
-            "Folder" = "8:_C3107A01F1FE42D38A57DF7B9A507D97"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -990,15 +990,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:LLOYD LR 10K Unofficial Control Software"
-        "ProductCode" = "8:{103E30BC-4DE9-413D-9FCD-C21505737279}"
-        "PackageCode" = "8:{679A2D27-DD0B-40FD-B0AC-E0F14B8CC8DB}"
+        "ProductCode" = "8:{03F9C76E-9543-442B-867A-D7E1F45077CA}"
+        "PackageCode" = "8:{5765EF4F-9499-49DB-AA69-50E79E6CA777}"
         "UpgradeCode" = "8:{686F73AC-8F49-4304-A938-A8A02E890844}"
         "AspNetVersion" = "8:2.0.50727.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:FALSE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:1.0.1"
+        "ProductVersion" = "8:1.0.2"
         "Manufacturer" = "8:USN"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://github.com/ravo10/lr10k"
