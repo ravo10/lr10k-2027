@@ -828,7 +828,9 @@ std::pair<std::vector<double>, std::vector<double>> AppMainExcel::InsertLineCell
     // Keep control over how many points are added for each crucial point, so it doesn't repeat
     bool crucialPointIndexControlHaveAddedPoint[4]{ false, false, false, false };
 
+    // *****
     // "Remove" the plot data was not included because of offset extension set
+    // *****
     RollingBuffer filteredPlotData = RollingBuffer();
     for (int i = 0; i < plotData->Data.size(); i++)
     {
@@ -927,6 +929,10 @@ std::pair<std::vector<double>, std::vector<double>> AppMainExcel::InsertLineCell
 
         if (!haveAlreadyAddedData || !addNominalStressStrainValues)
         {
+            // If user has filterd something out, then the offset position will be taken into account here visually for extension in millimeter (not stress - already done in calc.-function)
+            if (!stressData && defaultValuesGUI::offsetZeroPointExtensionAxis > 0)
+                dataPlot.x -= defaultValuesGUI::offsetZeroPointExtensionAxis;
+
             if (dataPlot.y == 0)
             {
                 sheet->BeginRow()
@@ -1373,7 +1379,14 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
     // Add more points to the end to expand the graph as it is adjusted/shown in the LR 10K app graph
     // TODO:: Might have to be adjusted for the LR 10K machine stepper - Taking into account the speed set by user | Edit: Seems fine
     RollingBuffer tensileData = tabData.LR10KTensileData;
-    ImVec2 lastPoint = tensileData.Data[tensileData.Data.Size - 1];
+
+    //// Take into account that the extension should be changed in Excel sheet for millimeter. It does it automatically for stress calc. (it is in the calc-functions)
+    //for (size_t i = 0; i < tensileData.Data.size(); i++)
+    //{
+    //    tensileData.Data[i].x -= defaultValuesGUI::offsetZeroPointExtensionAxis;
+    //}
+
+    ImVec2 lastPoint = tensileData.Data[tensileData.Data.size() - 1];
     float incrementer = 0.01f;
     while (lastPoint.x + incrementer < LR10KAppGlobals::testing_plot_only_extensionAxis.load())
     {

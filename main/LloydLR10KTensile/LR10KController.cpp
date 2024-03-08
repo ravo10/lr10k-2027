@@ -369,5 +369,7 @@ Need to test and adjust software against new functionallity:
 * Kan legge til bruddkontraksjonen; bare for runde prøvestaver (side 25)
 * 
 * Ny verdi etter lagring er ikkje nøyaktig...?
+* Må trekke frå nytt null punkt frå extension på export av Excel-ark (defaultValuesGUI::offsetZeroPointExtensionAxis) | 
+* Konvertere filter verdi frå mm til inches når ein bytter SI-enhet | 
 *
 */
