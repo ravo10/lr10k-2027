@@ -15,8 +15,8 @@ The software tries to mimic the same functionalities that the DOS software: **Ll
 
 ### Releases & Changelogs
 
-v1.0.3 : Minor update to Excel output, where the extension in millimeter is set to the new zero point configured in software.
-v1.0.2 : Fixed critical bug, that makes the software crash when navigating up/down, then fast up/down.
+v1.0.3 : Minor update to Excel output, where the extension in millimeter is set to the new zero point configured in software.  
+v1.0.2 : Fixed critical bug, that makes the software crash when navigating up/down, then fast up/down.  
 v1.0.1 : Added more features, such as automated saving procedure.  
 v1.0.0 : Basic functionallity.  
 
