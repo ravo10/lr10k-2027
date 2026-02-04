@@ -970,6 +970,7 @@ CODE
 // System includes
 #include <stdio.h>      // vsnprintf, sscanf, printf
 #include <stdint.h>     // intptr_t
+#include <iostream>
 
 // [Windows] On non-Visual Studio compilers, we default to IMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS unless explicitly enabled
 #if defined(_WIN32) && !defined(_MSC_VER) && !defined(IMGUI_ENABLE_WIN32_DEFAULT_IME_FUNCTIONS) && !defined(IMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS)
@@ -1298,22 +1299,6 @@ ImGuiIO::ImGuiIO()
     DisplaySize = ImVec2(-1.0f, -1.0f);
     DeltaTime = 1.0f / 60.0f;
     IniSavingRate = 5.0f;
-
-    // This has a custom path that is being generated above for LR10K Project, since it is being installed.
-    std::pair<bool, std::string> appDataFolderPath = GetLocalAppDataFolderLR10K();
-
-    if (appDataFolderPath.first)
-    {
-        // Get the Local AppData path and add "imgui.ini" to it
-        std::string path = appDataFolderPath.second;
-        path.append("imgui.ini"); // Important: "imgui.ini" is relative to current working dir, most apps will want to lock this to an absolute path (e.g. same path as executables).
-
-        // Create a clean char copy (is necessary)
-        char* pathNew;
-        pathNew = CopyString(path.c_str(), path.size());
-
-        IniFilename = pathNew;
-    }
 
     LogFilename = "imgui_log.txt";
 #ifndef IMGUI_DISABLE_OBSOLETE_KEYIO

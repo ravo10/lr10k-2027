@@ -180,6 +180,27 @@ int main(int, char**)
     //io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;     // FIXME-DPI: Experimental. THIS CURRENTLY DOESN'T WORK AS EXPECTED. DON'T USE IN USER APP!
     //io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports; // FIXME-DPI: Experimental.
 
+    // Set custom ini filename location
+    // Needs to be before "ImGui::NewFrame();" and after "ImGui::CreateContext();"
+    if (appData.first)
+    {
+        // Get the Local AppData path and add "imgui.ini" to it (appData.second)
+        // Important: "imgui.ini" is relative to current working dir,
+        // most apps will want to lock this to an absolute path (e.g. same path as executables).
+        std::string iniFilePath = appData.second + "imgui.ini";
+        char* iniFilePathChar = CopyString(iniFilePath.c_str(), static_cast<int>(iniFilePath.size()));
+        io.IniFilename = iniFilePathChar;
+
+        std::cout << "ImGuiIO::ImGuiIO: Using custom ImGui ini path: " << iniFilePathChar << std::endl;
+    }
+    else
+    {
+        io.IniFilename = nullptr; // Disable automatic .ini saving/loading
+    }
+
+    // This has a custom path that is being generated above for LR10K Project, since it is being installed.
+    std::pair<bool, std::string> appDataFolderPath = GetLocalAppDataFolderLR10K();
+
     // Try and make the font crispier
     io.DisplayFramebufferScale = { 8, 8 };     // *8
     io.FontGlobalScale = 0.125f;       // Underneath, the font size is set to *8 the normal
