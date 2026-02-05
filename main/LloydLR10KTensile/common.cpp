@@ -618,6 +618,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             ImGui::Text("Different calculated stress underneath");
             ImGui::PopFont();
 
+            // If it is tensile or compression
             bool condition1 = tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked);
             bool condition2 = !tabData->tension && 1 == tabData->compressionOptionPicked;
 
@@ -649,7 +650,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::Separator();
                     ImGui::PopFont();
 
-                    ImGui::SeparatorText("Young's Modulus (E-module):");
+                    ImGui::SeparatorText("Young's Modulus (E-module)");
                     str2 = "Young's modulus: E-module = %0.3f ";
                     str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
                     ImGui::TextColored(colorText2, str2.c_str(), tabData->calcYoungsModulus);
@@ -726,13 +727,15 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::Separator();
                     ImGui::PopFont();
 
-                    str = "UTS_bend: %0.2f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
-                    ImGui::Separator();
-                    str = "Young's modulus,\nE_bend = %0.3f ";
+                    ImGui::SeparatorText("Young's Modulus (E-module)");
+                    str = "Young's modulus: E-module Bending = %0.3f ";
                     str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
                     ImGui::TextColored(colorText2, str.c_str(), tabData->calcYoungsModulus);
+
+                    ImGui::SeparatorText("UTS Bending");
+                    str = "Ultimate Tensile Strength: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
 
                     ImGui::EndTabItem();
                 }
@@ -743,7 +746,8 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::Separator();
                     ImGui::PopFont();
 
-                    str = "Moment_bend: %0.2f ";
+                    ImGui::SeparatorText("Bending Moment");
+                    str = "Moment (Force*Arm): %0.2f ";
                     str.append(LR10KAppGlobals::GetUnitOption<const char*>(1)).append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Nmm or lbf * in
                     ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[2]);
 
@@ -756,11 +760,13 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::Separator();
                     ImGui::PopFont();
 
-                    std::string str = "Load_bend: %0.2f ";
+                    ImGui::SeparatorText("Bending Load");
+                    std::string str = "Load: %0.2f ";
                     str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
                     ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[0]);
-                    ImGui::Separator();
-                    str = "Travel_bend: %0.2f ";
+
+                    ImGui::SeparatorText("Bending Travel");
+                    str = "Travel: %0.2f ";
                     str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
                     ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[1]);
 
