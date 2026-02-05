@@ -31,7 +31,7 @@ struct AppMain
         @param enableSound      - 
         @param show_demo_window - 
     **/
-    void Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, bool* showCalculator, bool* enableSound, bool* show_demo_window);
+    void Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, bool* show_demo_window);
 };
 
 /**
@@ -47,8 +47,10 @@ struct AppMainWidgets {
                 in percentage. (old machines can show wrong load)
         @param tabData           -
         @param disableMainThings - 
+        @param p_open - 
+        @param extern_windowFlags - 
     **/
-    void SettingsWindowDraw(TabControl::TabTestDataClass* tabData, bool disableMainThings);
+    void SettingsWindowDraw(TabControl::TabTestDataClass* tabData, bool disableMainThings, bool* p_open, ImGuiWindowFlags extern_windowFlags = 0);
 
     /**
         @brief Here one can see the current load and extension live in a plot,
@@ -85,8 +87,10 @@ struct AppMainWidgets {
                 completed. It will contain i.e. yielding, tensile and
                 full rupture load and extension.
         @param tabData -
+        @param p_open -
+        @param extern_windowFlags -
     **/
-    void QuickReportWindowDraw(TabControl::TabTestDataClass* tabData);
+    void QuickReportWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open, ImGuiWindowFlags extern_windowFlags = 0);
 
     /**
         @brief This window is used to write or modify a description of the current test active.

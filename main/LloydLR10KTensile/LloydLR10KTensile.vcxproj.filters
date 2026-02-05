@@ -124,17 +124,19 @@
     <ClCompile Include="RingBuffer.cpp">
       <Filter>sources</Filter>
     </ClCompile>
-    <ClCompile Include="imgui_ImageLoader.h" />
-    <ClCompile Include="main_dx11.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="imgui_ImageLoader.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\backends\imgui_impl_dx11.cpp">
       <Filter>ImGUI\source</Filter>
     </ClCompile>
     <ClCompile Include="LR10KController.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\backends\imgui_ImageLoader_dx12.cpp">
+      <Filter>ImGUI\source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\backends\imgui_impl_dx12.cpp">
+      <Filter>ImGUI\source</Filter>
+    </ClCompile>
+    <ClCompile Include="main_old.cpp">
       <Filter>sources</Filter>
     </ClCompile>
   </ItemGroup>
@@ -223,6 +225,15 @@
       <Filter>ImGUI</Filter>
     </ClInclude>
     <ClInclude Include="LR10KController.h" />
+    <ClInclude Include="..\..\backends\imgui_ImageLoader_dx12.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\backends\imgui_impl_dx12.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\backends\stb_image.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\misc\debuggers\imgui.natvis">

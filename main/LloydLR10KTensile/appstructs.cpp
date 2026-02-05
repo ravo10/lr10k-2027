@@ -15,6 +15,7 @@
 
 #include "LR10KController.h"
 inline LR10KController _LR10KController; //!< A global scope to gain access to the LR 10K Controller logic.
+AppWindowStates g_WindowStates; //!< Create the variable in memory.
 
 // -----------------------------------------------------------------------------
 // ------------------------------- Extra Widgets -------------------------------
@@ -605,17 +606,17 @@ TabControl::TabTestDataClass* AppMainFileSystem::LoadJSONDataFromFileForANewTab(
 // ------------------------------------ Main -----------------------------------
 // -----------------------------------------------------------------------------
 
-void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, bool* showCalculator, bool* enableSound, bool* show_demo_window)
+void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, bool* show_demo_window)
 {
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(600, 750), ImGuiCond_FirstUseEver);
 
-    // Flags wont apply when docked...
-    ImGuiWindowFlags window_flags = 0;
-    window_flags |= ImGuiWindowFlags_NoTitleBar;
-    window_flags |= ImGuiWindowFlags_NoDecoration;
-    window_flags |= ImGuiWindowFlags_NoBackground;
-    window_flags |= ImGuiWindowFlags_NoMove;
+    //// Flags wont apply when docked...
+    //ImGuiWindowFlags window_flags = 0;
+    //window_flags |= ImGuiWindowFlags_NoTitleBar;
+    //window_flags |= ImGuiWindowFlags_NoDecoration;
+    //window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+    //window_flags |= ImGuiWindowFlags_NoMove;
 
     auto saveLogic = [tabData]() {
         // Save data from the current test GUI to a text file (if a test is not started or test has started and is finished)
@@ -773,10 +774,28 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, boo
 
     // -------------------------------------------------------------------
 
+    // 1. Force this window to always render on the Main Viewport (The main OS window)
+    ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+
+    // 2. Setup flags to make it static (Locked in place)
+    ImGuiWindowFlags tabulate_flags =   ImGuiWindowFlags_NoDocking |
+                                        ImGuiWindowFlags_NoTitleBar |
+                                        ImGuiWindowFlags_NoCollapse |
+                                        ImGuiWindowFlags_NoResize |
+                                        ImGuiWindowFlags_NoMove |
+                                        ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                        ImGuiWindowFlags_NoNavFocus;
+
+    // 3. (Optional) Force the position/size if it's a header bar
+    // This snaps it to the top of the main window
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x, viewport->WorkSize.y));
+
     bool openPopup = false;
 
     // Wait to draw until tabData is made
-    if (tabData != nullptr && ImGui::Begin("Tabulate", nullptr, window_flags))
+    if (tabData != nullptr && ImGui::Begin("Tabulate", nullptr, tabulate_flags))
     {
         if (mainGUIGlobals::useDemoMode)
         {
@@ -786,8 +805,23 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, boo
 
         // Add a menu bar
         if (ImGui::BeginMainMenuBar()) {
+            // Documentation/help
+            ImGui::PushID("##Menu Buttons");
+            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.05f, 0.92f, 0.95f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.05f, 1.1f, 0.95f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.05f, 0.7f, 0.95f));
+            if (ImGui::Button("Help"))
+            {
+                // Open a documentation/help window
+                g_WindowStates.show_docs = !g_WindowStates.show_docs;
+            }
+            ImGui::PopStyleColor(3);
+            ImGui::PopID();
+
+            ImGui::Separator();
+
             // Add File menu
-            if (ImGui::BeginMenu("Menu"))
+            if (ImGui::BeginMenu("File"))
             {
                 ImGui::SeparatorText("Data Management");
 
@@ -826,17 +860,16 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, boo
 
                 // Warning if user wants to save and stresses are not calculated
                 bool warningStressesAreNotCalculated = tabData->LR10KTensileDataNominal.Data.size() <= 0;
-                const char* warningStressesChar = "You can save after\ncalculating stresses";
 
                 ImGui::BeginDisabled(!tabData->unsavedThingsInTab || tabData->current_temp_preSaveLocation == "" || defaultValuesGUI::invalidStressDataNotUpdated);
-                if (ImGui::MenuItem(warningStressesAreNotCalculated ? warningStressesChar : "Save (.lr10k and .xlsx)", "Ctrl+S"))
+                if (ImGui::MenuItem(warningStressesAreNotCalculated ? "Save (.lr10k and .xlsx)\nafter stress calc." : "Save (.lr10k and .xlsx)", "Ctrl+S"))
                     saveLogic();
                 ImGui::EndDisabled();
 
                 ImGui::Separator();
 
                 ImGui::BeginDisabled(!tabData->unsavedThingsInTab || defaultValuesGUI::invalidStressDataNotUpdated);
-                if (ImGui::MenuItem(warningStressesAreNotCalculated ? warningStressesChar : "Save File As...", "Ctrl+Alt+S"))
+                if (ImGui::MenuItem(warningStressesAreNotCalculated ? "Save File As after\nafter stress calc." : "Save File As...", "Ctrl+Alt+S"))
                 {
                     // Save data from the current test GUI to a text file (if a test is not started or test has started and is finished)
                     if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
@@ -847,7 +880,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, boo
                 }
 
                 // Save results as a .XLSX file
-                if (ImGui::MenuItem(warningStressesAreNotCalculated ? warningStressesChar : "Save Excel Book As...", "Ctrl+Alt+E", false, (!disableSaveToExcel && !defaultValuesGUI::invalidStressDataNotUpdated)))
+                if (ImGui::MenuItem(warningStressesAreNotCalculated ? "Save Excel Book\nafter stress calc." : "Save Excel Book As...", "Ctrl+Alt+E", false, (!disableSaveToExcel && !defaultValuesGUI::invalidStressDataNotUpdated)))
                 {
                     PlaySoundEffect("buttonClick0");
                     fileBrowserSaveXlsx.Open();
@@ -858,281 +891,11 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, boo
 
                 // Undo crucial point.
                 ImGui::BeginDisabled(tabData->plot_dataPoints.size() < 1);
-                ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
+                ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
                 if (ImGui::MenuItem("Undo Point", "Ctrl+Z"))
                     TabControl::CrucialPointsUndoPoint(tabData);
                 ImGui::PopItemFlag();
                 ImGui::EndDisabled();
-
-                ImGui::Separator();
-
-                // Add Configuration menu
-                if (ImGui::BeginMenu("Configuration"))
-                {
-                    // ---------------------------
-                    // Connect to a COM port
-                    ImGui::SeparatorText("COM ports available");
-
-                    //List all COM ports available
-                    std::pair<PULONG, ULONG> allComPorts = LR10KCOMSystem::FindAllCOMPorts();
-
-                    // List all ports
-                    ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
-                    if (allComPorts.second > 0)
-                    {
-                        for (int i = 0; i < allComPorts.second; i++)
-                        {
-                            ULONG comPort = allComPorts.first[i];
-
-                            // COM port name
-                            std::string name = "COM";
-                            name.append(std::to_string(comPort));
-
-                            if (ImGui::MenuItem(name.c_str(), nullptr, (LR10KAppGlobals::connectedComPortNumber == comPort)))
-                            {
-                                DockingApps::console.AddLog("Trying to set or switch to COM%d port...", comPort);
-                                LR10KCOMSystem::TryConnectingToCOMPort(comPort);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        ImGui::TextColored(ImVec4(0.060f, 1.0f, 1.0f, 1.0f), "No COM ports found on computer\nCheck if any are disabled!");
-                        ImGui::Spacing();
-
-                        // If the user pulls out a USB cable, then this will disconnect automatically
-                        if (LR10KAppGlobals::readyToConnectToLR10K && LR10KCOMSystem::CheckIfCOMIsConnected())
-                        {
-                            LR10KCOMSystem::TryDisconnectingFromCurrCOMPort();
-                            LR10KControlSystem::TryDisconnectFromLR10K();
-                        }
-                    }
-                    ImGui::Separator();
-                    if (ImGui::MenuItem("Disconnect COM", nullptr, nullptr, LR10KAppGlobals::readyToConnectToLR10K && LR10KCOMSystem::CheckIfCOMIsConnected()))
-                    {
-                        LR10KCOMSystem::TryDisconnectingFromCurrCOMPort();
-                    }
-
-                    // Connect to LR 10K
-                    ImGui::SeparatorText("LLOYD LR 10K Tensile Machine");
-                    if (ImGui::MenuItem("Connect PC", nullptr, LR10KAppGlobals::configurationDone, (LR10KAppGlobals::readyToConnectToLR10K && !LR10KAppGlobals::configurationDone && !LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load() && LR10KCOMSystem::CheckIfCOMIsConnected())))
-                    {
-                        // -------------------------------------------------------------------------
-                        // --------------------- Start connecting to the LR 10K --------------------
-                        // -------------------------------------------------------------------------
-
-                        // Create a new thread seperate from main thread
-                        LR10KDataDeEncryptionSystem::m_pThreadConnectingToLR10K = std::make_unique<std::thread>(LR10KDataDeEncryptionSystem::ConnectingToLR10K);
-                        // Let the thread run independently detached from main
-                        LR10KDataDeEncryptionSystem::m_pThreadConnectingToLR10K->detach();
-                    }
-
-                    if (mainGUIGlobals::showPopUp_ConnectionTimeout)
-                    {
-                        mainGUIGlobals::showPopUp_ConnectionTimeout = false;
-
-                        // Show a message
-                        ImGui::OpenPopup(mainGUIGlobals::popUpID_ConnectionTimout);
-                    }
-
-                    // (If connecting fails) Always center this window when appearing (is put here, since it needs to be in the same ID Stack as the button)
-                    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-                    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-                    // PopUp
-                    if (ImGui::BeginPopupModal(mainGUIGlobals::popUpID_ConnectionTimout, NULL, ImGuiWindowFlags_AlwaysAutoResize))
-                    {
-                        ImGui::Text("Could not connect to LR 10K - Have you pressed \"Remote control\" on unit?");
-                        ImGui::NewLine();
-
-                        if (ImGui::Button("Abort", ImVec2(120, 0)))
-                            ImGui::CloseCurrentPopup();
-                        ImGui::SetItemDefaultFocus();
-
-                        ImGui::EndPopup();
-                    }
-
-                    if (ImGui::MenuItem("Disconnect PC", nullptr, nullptr, LR10KAppGlobals::configurationDone && !LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load() && LR10KCOMSystem::CheckIfCOMIsConnected()))
-                    {
-                        LR10KControlSystem::TryDisconnectFromLR10K();
-                    }
-
-                    ImGui::Separator();
-                    if (ImGui::MenuItem("Send live data to PC (def.)", nullptr, LR10KAppGlobals::sendingLiveDataFromLR10K, LR10KAppGlobals::configurationDone && LR10KCOMSystem::CheckIfCOMIsConnected()))
-                    {
-                        if (!LR10KAppGlobals::sendingLiveDataFromLR10K)
-                            LR10KControlSystem::TellLR10KToSendData();
-                        else
-                            LR10KControlSystem::TellLR10KToStopSendingData();
-                    }
-                    if (ImGui::MenuItem("Get status from LR 10K (log)", nullptr, nullptr, LR10KAppGlobals::configurationDone && LR10KCOMSystem::CheckIfCOMIsConnected()))
-                    {
-                        LR10KControlSystem::GetCurrReportFromLR10K();
-                    }
-                    ImGui::PopItemFlag();
-
-                    ImGui::EndMenu();
-                }
-
-                // Add Options menu
-                if (ImGui::BeginMenu("Options"))
-                {
-                    ImGui::PushItemFlag(ImGuiItemFlags_SelectableDontClosePopup, true);
-
-                    // GUI
-                    ImGui::SeparatorText("GUI");
-
-                    if (ImGui::MenuItem("Sound", nullptr, enableSound))
-                        DockingApps::mainFileSystem.SaveApplicationSettings();
-                    if (ImGui::MenuItem("Hotkey Tips", nullptr, &LR10KAppGlobals::showHotkeyTips))
-                        DockingApps::mainFileSystem.SaveApplicationSettings();
-
-                    if (ImGui::BeginMenu("Theme"))
-                    {
-                        AppMainFileSystem* mainFileSystem = &DockingApps::mainFileSystem;
-
-                        if (ImGui::MenuItem("Default", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Default ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Default;       ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("USN Dark", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::USNDark ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::USNDark;       ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("USN Light", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::USNLight ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::USNLight;      ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Comfy", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Comfy ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Comfy;         ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Discord", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::DiscordDark ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::DiscordDark;   ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Future", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::FutureDark ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::FutureDark;    ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Cherry", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Cherry ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Cherry;        ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Classic Steam", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::ClassicSteam ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::ClassicSteam;  ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Enemymouse", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Enemymouse ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Enemymouse;    ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Gold", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Gold ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Gold;          ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Green Font", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::GreenFont ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::GreenFont;     ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Light", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Light ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Light;         ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Material Flat", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::MaterialFlat ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::MaterialFlat;  ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Photoshop", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Photoshop ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Photoshop;     ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Soft Cherry", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::SoftCherry ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::SoftCherry;    ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                        if (ImGui::MenuItem("Visual Studio", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::VisualStudio ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::VisualStudio;  ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-
-                        ImGui::EndMenu();
-                    }
-
-                    // Show or hide extra panels
-                    ImGui::Separator();
-
-                    // Extra panels options
-                    if (ImGui::MenuItem("Calculator", nullptr, showCalculator))
-                        DockingApps::mainFileSystem.SaveApplicationSettings();
-                    if (ImGui::MenuItem("Console", nullptr, showConsole))
-                        DockingApps::mainFileSystem.SaveApplicationSettings();
-
-                    // Units convertion
-                    if (ImGui::BeginMenu("Unit type", !tabData->test_unfinished_test_started))
-                    {
-                        bool opt1 = ImGui::MenuItem("SI", nullptr, LR10KAppGlobals::unitsConvertionIndex == 0);
-                        bool opt2 = ImGui::MenuItem("English Engineering", nullptr, LR10KAppGlobals::unitsConvertionIndex == 1);
-
-                        if (opt1)
-                            LR10KAppGlobals::unitsConvertionIndex = 0;
-                        if (opt2)
-                            LR10KAppGlobals::unitsConvertionIndex = 1;
-
-                        // Convert to new unit, and save to tab
-                        if (opt1 || opt2)
-                        {
-                            tabData->ConvertUnitsToNewUnit(tabData, LR10KAppGlobals::unitsConvertionIndex);
-                            DockingApps::mainFileSystem.SaveApplicationSettings();
-
-                            PlaySoundEffect("buttonClick0");
-                        }
-
-                        ImGui::EndMenu();
-                    }
-
-                    ImGui::Separator();
-                    if (ImGui::MenuItem("Fullscreen (restart req.)", nullptr, mainGUIGlobals::fullScreen))
-                    {
-                        mainGUIGlobals::fullScreen = !mainGUIGlobals::fullScreen;
-                        DockingApps::mainFileSystem.SaveApplicationSettings();
-                    }
-                    if (ImGui::MenuItem("High DPI (restart req.)", nullptr, mainGUIGlobals::enableDPIAwareness))
-                    {
-                        mainGUIGlobals::enableDPIAwareness = !mainGUIGlobals::enableDPIAwareness;
-                        DockingApps::mainFileSystem.SaveApplicationSettings();
-                    }
-
-                    if (ImGui::BeginMenu("Defaults & Resets"))
-                    {
-                        if (ImGui::Selectable("Reset dialog boxes"))
-                        {
-                            mainGUIGlobals::ignoreSavingPrompt = false;
-                            mainGUIGlobals::ignoreSavingPrompt2 = false;
-
-                            // Save settings
-                            bool save = DockingApps::mainFileSystem.SaveApplicationSettings();
-
-                            if (save)
-                                DockingApps::console.AddLog("* Successfully reset dialog boxes");
-                            else
-                                DockingApps::console.AddLog("[error] Could not successfully reset dialog boxes...");
-                        }
-                        if (ImGui::Selectable("Default settings & setup"))
-                        {
-                            // (Reset the docking...) Reset the imgui config file and default values.
-                            json defaultSettings = DockingApps::mainFileSystem.ProduceJSONSettingsFromGUISettings(true);
-
-                            // Insert default into GUI
-                            DockingApps::mainFileSystem.InsertJSONSettingsToGUISettings(defaultSettings);
-
-                            // Save default settings
-                            bool save = DockingApps::mainFileSystem.SaveApplicationSettingsToFile(defaultSettings);
-
-                            if (save)
-                                DockingApps::console.AddLog("* Successfully reset to default settings!");
-                            else
-                                DockingApps::console.AddLog("[error] Could not successfully reset to default settings...");
-
-                            // Reset docking
-                            std::pair<bool, std::string> appData = GetLocalAppDataFolderLR10K();
-                            if (appData.first)
-                            {
-                                if (!DockingApps::mainFileSystem.CreateImguiConfigurationFile(appData.second, true))
-                                    DockingApps::console.AddLog("[error] Reset ImGui Docking file: Error creating the ImGui configuration file...");
-                                else
-                                    DockingApps::console.AddLog("* Reset of ImGui Docking file successful! Copied new ImGui init.-file to\n AppData folder");
-                            }
-                            else DockingApps::console.AddLog("[error] Reset ImGui Docking file: Error getting \"AppData\" path for settings storage...");
-
-                            // Reset theme
-                            ImGuiCustomThemeLoadCorrectTheme(&DockingApps::mainFileSystem);
-                        }
-
-                        ImGui::EndMenu();
-                    }
-
-                    ImGui::SeparatorText("LR 10K Simulation");
-
-                    if (ImGui::BeginMenu("Demo Mode"))
-                    {
-                        if (ImGui::MenuItem("Activate", nullptr, mainGUIGlobals::useDemoMode))
-                            mainGUIGlobals::useDemoMode = !mainGUIGlobals::useDemoMode;
-                        if (ImGui::MenuItem("Live load", nullptr, mainGUIGlobals::useDemoModeLiveLoad, LR10KAppGlobals::configurationDone))
-                            mainGUIGlobals::useDemoModeLiveLoad = !mainGUIGlobals::useDemoModeLiveLoad;
-                        if (ImGui::MenuItem("Live extension", nullptr, mainGUIGlobals::useDemoModeLiveExtension, LR10KAppGlobals::configurationDone))
-                            mainGUIGlobals::useDemoModeLiveExtension = !mainGUIGlobals::useDemoModeLiveExtension;
-
-                        ImGui::EndMenu();
-                    }
-
-                    ImGui::PopItemFlag();
-
-                    // ImGUI panels
-                    ImGui::SeparatorText("ImGui");
-                    ImGui::MenuItem("Demo", nullptr, show_demo_window);
-
-                    ImGui::EndMenu();
-                }
-
-                // Documentation/help
-                if (ImGui::Selectable("Help"))
-                {
-                    // Open a documentation/help window
-                    mainGUIGlobals::showDocs = !mainGUIGlobals::showDocs;
-                }
 
                 ImGui::Separator();
 
@@ -1156,9 +919,284 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, boo
                 ImGui::EndMenu();
             }
 
+            ImGui::Separator();
+
+            if (ImGui::BeginMenu("View"))
+            {
+                // Toggle the booleans inside the struct
+                ImGui::MenuItem("Settings", NULL, &g_WindowStates.show_settings);
+                ImGui::MenuItem("Calculator", NULL, &g_WindowStates.show_calculator);
+                ImGui::MenuItem("Quick Report", NULL, &g_WindowStates.show_quick_report);
+                ImGui::MenuItem("Console", NULL, &g_WindowStates.show_console);
+                ImGui::EndMenu();
+            }
+
+            ImGui::Separator();
+
+            // Add Configuration menu
+            if (ImGui::BeginMenu("Configuration"))
+            {
+                // ---------------------------
+                // Connect to a COM port
+                ImGui::SeparatorText("Connect/Disconnect to COM");
+
+                //List all COM ports available
+                std::pair<PULONG, ULONG> allComPorts = LR10KCOMSystem::FindAllCOMPorts();
+
+                // List all ports
+                ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
+                if (allComPorts.second > 0)
+                {
+                    for (int i = 0; i < allComPorts.second; i++)
+                    {
+                        ULONG comPort = allComPorts.first[i];
+
+                        // COM port name
+                        std::string name = "COM";
+                        name.append(std::to_string(comPort));
+
+                        if (ImGui::MenuItem(name.c_str(), nullptr, (LR10KAppGlobals::connectedComPortNumber == comPort)))
+                        {
+                            DockingApps::console.AddLog("Trying to set or switch to COM%d port...", comPort);
+                            LR10KCOMSystem::TryConnectingToCOMPort(comPort);
+                        }
+                    }
+                }
+                else
+                {
+                    ImGui::TextColored(ImVec4(0.060f, 1.0f, 1.0f, 1.0f), "No COM ports found on computer\nCheck if any are disabled!");
+                    ImGui::Spacing();
+
+                    // If the user pulls out a USB cable, then this will disconnect automatically
+                    if (LR10KAppGlobals::readyToConnectToLR10K && LR10KCOMSystem::CheckIfCOMIsConnected())
+                    {
+                        LR10KCOMSystem::TryDisconnectingFromCurrCOMPort();
+                        LR10KControlSystem::TryDisconnectFromLR10K();
+                    }
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Disconnect COM", nullptr, nullptr, LR10KAppGlobals::readyToConnectToLR10K && LR10KCOMSystem::CheckIfCOMIsConnected()))
+                {
+                    LR10KCOMSystem::TryDisconnectingFromCurrCOMPort();
+                }
+
+                // Connect to LR 10K
+                ImGui::SeparatorText("LLOYD LR 10K Tensile Machine");
+                if (ImGui::MenuItem("Connect PC", nullptr, LR10KAppGlobals::configurationDone, (LR10KAppGlobals::readyToConnectToLR10K && !LR10KAppGlobals::configurationDone && !LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load() && LR10KCOMSystem::CheckIfCOMIsConnected())))
+                {
+                    // -------------------------------------------------------------------------
+                    // --------------------- Start connecting to the LR 10K --------------------
+                    // -------------------------------------------------------------------------
+
+                    // Create a new thread seperate from main thread
+                    LR10KDataDeEncryptionSystem::m_pThreadConnectingToLR10K = std::make_unique<std::thread>(LR10KDataDeEncryptionSystem::ConnectingToLR10K);
+                    // Let the thread run independently detached from main
+                    LR10KDataDeEncryptionSystem::m_pThreadConnectingToLR10K->detach();
+                }
+
+                if (mainGUIGlobals::showPopUp_ConnectionTimeout)
+                {
+                    mainGUIGlobals::showPopUp_ConnectionTimeout = false;
+
+                    // Show a message
+                    ImGui::OpenPopup(mainGUIGlobals::popUpID_ConnectionTimout);
+                }
+
+                // (If connecting fails) Always center this window when appearing (is put here, since it needs to be in the same ID Stack as the button)
+                ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+                ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+                // PopUp
+                if (ImGui::BeginPopupModal(mainGUIGlobals::popUpID_ConnectionTimout, NULL, ImGuiWindowFlags_AlwaysAutoResize))
+                {
+                    ImGui::Text("Could not connect to LR 10K - Have you pressed \"Remote control\" on unit?");
+                    ImGui::NewLine();
+
+                    if (ImGui::Button("Abort", ImVec2(120, 0)))
+                        ImGui::CloseCurrentPopup();
+                    ImGui::SetItemDefaultFocus();
+
+                    ImGui::EndPopup();
+                }
+
+                if (ImGui::MenuItem("Disconnect PC", nullptr, nullptr, LR10KAppGlobals::configurationDone && !LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load() && LR10KCOMSystem::CheckIfCOMIsConnected()))
+                {
+                    LR10KControlSystem::TryDisconnectFromLR10K();
+                }
+
+                ImGui::Separator();
+                if (ImGui::MenuItem("Send live data to PC (def.)", nullptr, LR10KAppGlobals::sendingLiveDataFromLR10K, LR10KAppGlobals::configurationDone && LR10KCOMSystem::CheckIfCOMIsConnected()))
+                {
+                    if (!LR10KAppGlobals::sendingLiveDataFromLR10K)
+                        LR10KControlSystem::TellLR10KToSendData();
+                    else
+                        LR10KControlSystem::TellLR10KToStopSendingData();
+                }
+                if (ImGui::MenuItem("Get status from LR 10K (log)", nullptr, nullptr, LR10KAppGlobals::configurationDone && LR10KCOMSystem::CheckIfCOMIsConnected()))
+                {
+                    LR10KControlSystem::GetCurrReportFromLR10K();
+                }
+                ImGui::PopItemFlag();
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::Separator();
+
+            // Add Options menu
+            if (ImGui::BeginMenu("Options"))
+            {
+                ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
+
+                // GUI
+                ImGui::SeparatorText("GUI");
+
+                if (ImGui::MenuItem("Sound", nullptr, enableSound))
+                    DockingApps::mainFileSystem.SaveApplicationSettings();
+                if (ImGui::MenuItem("Hotkey Tips", nullptr, &LR10KAppGlobals::showHotkeyTips))
+                    DockingApps::mainFileSystem.SaveApplicationSettings();
+
+                if (ImGui::BeginMenu("Theme"))
+                {
+                    AppMainFileSystem* mainFileSystem = &DockingApps::mainFileSystem;
+
+                    if (ImGui::MenuItem("Default", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Default ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Default;       ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("USN Dark", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::USNDark ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::USNDark;       ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("USN Light", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::USNLight ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::USNLight;      ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Comfy", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Comfy ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Comfy;         ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Discord", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::DiscordDark ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::DiscordDark;   ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Future", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::FutureDark ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::FutureDark;    ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Cherry", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Cherry ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Cherry;        ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Classic Steam", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::ClassicSteam ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::ClassicSteam;  ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Enemymouse", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Enemymouse ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Enemymouse;    ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Gold", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Gold ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Gold;          ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Green Font", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::GreenFont ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::GreenFont;     ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Light", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Light ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Light;         ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Material Flat", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::MaterialFlat ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::MaterialFlat;  ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Photoshop", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Photoshop ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Photoshop;     ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Soft Cherry", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::SoftCherry ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::SoftCherry;    ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    if (ImGui::MenuItem("Visual Studio", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::VisualStudio ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::VisualStudio;  ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+
+                    ImGui::EndMenu();
+                }
+
+                // Show or hide extra panels
+                ImGui::Separator();
+
+                // Units convertion
+                if (ImGui::BeginMenu("Unit type", !tabData->test_unfinished_test_started))
+                {
+                    bool opt1 = ImGui::MenuItem("SI", nullptr, LR10KAppGlobals::unitsConvertionIndex == 0);
+                    bool opt2 = ImGui::MenuItem("English Engineering", nullptr, LR10KAppGlobals::unitsConvertionIndex == 1);
+
+                    if (opt1)
+                        LR10KAppGlobals::unitsConvertionIndex = 0;
+                    if (opt2)
+                        LR10KAppGlobals::unitsConvertionIndex = 1;
+
+                    // Convert to new unit, and save to tab
+                    if (opt1 || opt2)
+                    {
+                        tabData->ConvertUnitsToNewUnit(tabData, LR10KAppGlobals::unitsConvertionIndex);
+                        DockingApps::mainFileSystem.SaveApplicationSettings();
+
+                        PlaySoundEffect("buttonClick0");
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::Separator();
+                if (ImGui::MenuItem("Fullscreen (restart req.)", nullptr, mainGUIGlobals::fullScreen))
+                {
+                    mainGUIGlobals::fullScreen = !mainGUIGlobals::fullScreen;
+                    DockingApps::mainFileSystem.SaveApplicationSettings();
+                }
+                if (ImGui::MenuItem("High DPI (restart req.)", nullptr, mainGUIGlobals::enableDPIAwareness))
+                {
+                    mainGUIGlobals::enableDPIAwareness = !mainGUIGlobals::enableDPIAwareness;
+                    DockingApps::mainFileSystem.SaveApplicationSettings();
+                }
+
+                if (ImGui::BeginMenu("Defaults & Resets"))
+                {
+                    if (ImGui::Selectable("Reset dialog boxes"))
+                    {
+                        mainGUIGlobals::ignoreSavingPrompt = false;
+                        mainGUIGlobals::ignoreSavingPrompt2 = false;
+
+                        // Save settings
+                        bool save = DockingApps::mainFileSystem.SaveApplicationSettings();
+
+                        if (save)
+                            DockingApps::console.AddLog("* Successfully reset dialog boxes");
+                        else
+                            DockingApps::console.AddLog("[error] Could not successfully reset dialog boxes...");
+                    }
+                    if (ImGui::Selectable("Default settings & setup"))
+                    {
+                        // (Reset the docking...) Reset the imgui config file and default values.
+                        json defaultSettings = DockingApps::mainFileSystem.ProduceJSONSettingsFromGUISettings(true);
+
+                        // Insert default into GUI
+                        DockingApps::mainFileSystem.InsertJSONSettingsToGUISettings(defaultSettings);
+
+                        // Save default settings
+                        bool save = DockingApps::mainFileSystem.SaveApplicationSettingsToFile(defaultSettings);
+
+                        if (save)
+                            DockingApps::console.AddLog("* Successfully reset to default settings!");
+                        else
+                            DockingApps::console.AddLog("[error] Could not successfully reset to default settings...");
+
+                        // Reset docking
+                        std::pair<bool, std::string> appData = GetLocalAppDataFolderLR10K();
+                        if (appData.first)
+                        {
+                            if (!DockingApps::mainFileSystem.CreateImguiConfigurationFile(appData.second, true))
+                                DockingApps::console.AddLog("[error] Reset ImGui Docking file: Error creating the ImGui configuration file...");
+                            else
+                                DockingApps::console.AddLog("* Reset of ImGui Docking file successful! Copied new ImGui init.-file to\n AppData folder");
+                        }
+                        else DockingApps::console.AddLog("[error] Reset ImGui Docking file: Error getting \"AppData\" path for settings storage...");
+
+                        // Reset theme
+                        ImGuiCustomThemeLoadCorrectTheme(&DockingApps::mainFileSystem);
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::SeparatorText("LR 10K Simulation");
+
+                if (ImGui::BeginMenu("Demo Mode"))
+                {
+                    if (ImGui::MenuItem("Activate", nullptr, mainGUIGlobals::useDemoMode))
+                        mainGUIGlobals::useDemoMode = !mainGUIGlobals::useDemoMode;
+                    if (ImGui::MenuItem("Live load", nullptr, mainGUIGlobals::useDemoModeLiveLoad, LR10KAppGlobals::configurationDone))
+                        mainGUIGlobals::useDemoModeLiveLoad = !mainGUIGlobals::useDemoModeLiveLoad;
+                    if (ImGui::MenuItem("Live extension", nullptr, mainGUIGlobals::useDemoModeLiveExtension, LR10KAppGlobals::configurationDone))
+                        mainGUIGlobals::useDemoModeLiveExtension = !mainGUIGlobals::useDemoModeLiveExtension;
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::PopItemFlag();
+
+                // ImGUI panels
+                ImGui::SeparatorText("ImGui");
+                ImGui::MenuItem("Demo", nullptr, show_demo_window);
+
+                ImGui::EndMenu();
+            }
+
             // -----------------------------------------------------------------
             // ------------------------ View hotkey menu -----------------------
             // -----------------------------------------------------------------
+
+            // Add spacing/separators for grouping
+            ImGui::Separator();
+
             if (LR10KAppGlobals::showHotkeyTips)
             {
                 std::string strHotkeys = "F1 (STOP) F2 (UP) F3 (DOWN) F4 (FAST) F5 (RETURN) F6 (ZERO) F7 (GO)";
@@ -1294,9 +1332,12 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* showConsole, boo
 // ---------------------------------- Widgets ----------------------------------
 // -----------------------------------------------------------------------------
 
-void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, bool disableMainThings)
+void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, bool disableMainThings, bool* p_open, ImGuiWindowFlags extern_windowFlags)
 {
     if (tabData == nullptr) return;
+
+    ImGuiWindowFlags window_flags = 0;
+    window_flags |= extern_windowFlags;
 
     // E.g. mm and in
     const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8);
@@ -1308,7 +1349,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
 
     bool disableTestSettingsAdjustments = ((tabData->test_running_test && tabData->test_unfinished_test_started) || tabData->test_finished);
 
-    ImGui::Begin("Settings", nullptr);
+    ImGui::Begin("Settings", p_open, window_flags);
     ImGui::BeginDisabled(disableMainThings);
 
     ImGui::Spacing();
@@ -1332,62 +1373,18 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
         PlaySoundEffect("buttonClick1");
         DockingApps::mainFileSystem.SaveApplicationSettings();
     }
+    ImGui::SameLine();
     ImGui::SetItemTooltip("Only needed for Jog Speed change; all changes will be applied when a new test is started.");
 
     ImGui::PopStyleColor(3);
     ImGui::PopID();
     ImGui::EndDisabled();
 
-    // Insert vertical sliders for adjusting speed etc
-    ImGui::SeparatorText("Speed & Load Cell error");
 
-    // If the user wants to update the graph after a test is finished.
-    ImGui::BeginDisabled(!tabData->test_finished);
-    if (ImGui::Button("Update finished test"))
-    {
-        if (LR10KAppGlobals::testing_speedAndPlotMinValuesActual != 0)
-        {
-            // Adjust for load error
-            DockingApps::calculator.AdaptTabDataForLoadError(tabData);
-
-            // Calculate stresses
-            DockingApps::calculator.CalculateStressPoints(tabData);
-            DockingApps::calculator.CalculateStresses(tabData);
-
-            // Update graph
-            TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
-        }
-    }
-    ImGui::SetItemTooltip("This will update the load error.");
-    ImGui::EndDisabled();
-    ImGui::Spacing();
-
-    ImGui::BeginGroup();
-    bool acceptChanges = !tabData->test_unfinished_test_started && !tabData->test_finished;
-    bool acceptChanges2 = !tabData->test_running_test && !tabData->test_unfinished_test_started;
-
-    std::string str = " ";
-    str.append(LR10KAppGlobals::GetUnitOption<const char*>(2));
-
-    // --- Test Speed 1/Crosshead Vertical Slider ---
-    ImGui::BeginDisabled(disableTestSettingsAdjustments);
-    Extra::widgets.widgetCreate_VerticalSlider(tabData, 0, "crosshead_speed", "##Crosshead Speed", 60, 0.276f /*Green*/, "Crosshead Speed: ", str.c_str(), acceptChanges);
-    ImGui::EndDisabled();
-    // --- Jog Speed Vertical Slider ---
-    ImGui::SameLine();
-    ImGui::BeginDisabled(disableTestSettingsAdjustments);
-    Extra::widgets.widgetCreate_VerticalSlider(tabData, 1, "jog_speed", "##Jog Speed", 60, 0.447f /*Teal*/, "Jog Speed: ", str.c_str(), acceptChanges); // !disableTestSettingsAdjustments
-    ImGui::EndDisabled();
-    // --- Load Adjustment Vertical Slider ---
-    ImGui::SameLine();
-    Extra::widgets.widgetCreate_VerticalSlider(tabData, 2, "load_adjustment", "##Load Adjustment", 60, 0.0f /*Red*/, "Load Error Adjustment: ", " %% load error", acceptChanges2);
-    ImGui::EndGroup();
 
     // Insert buttons to control if it should either be a tension or compression load
-    ImGui::SeparatorText("Load Cell");
     ImGui::BeginDisabled(disableTestSettingsAdjustments);
     const char* loadType = LR10KAppGlobals::tensionTesting ? "Uses Tension" : "Uses Compression";
-    ImGui::Spacing();
     if (ImGui::Button(loadType, { 234, 50 }) && !tabData->test_unfinished_test_started)
     {
         LR10KAppGlobals::tensionTesting = !LR10KAppGlobals::tensionTesting;
@@ -1395,7 +1392,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
 
         PlaySoundEffect("buttonClick0");
 
-                DockingApps::mainFileSystem.SaveApplicationSettings();
+        DockingApps::mainFileSystem.SaveApplicationSettings();
     }
     ImGui::SetItemTooltip("Click to change the load type");
 
@@ -1413,89 +1410,180 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
     }
 
     ImGui::EndDisabled();
-
     ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Text("You can step fast\nby Ctrl+Click.");
-    ImGui::Separator();
 
-    // The limits that gets sent to the LR 10K
-    ImGui::SeparatorText("Limits inside LR 10K");
-    ImGui::Text("Fulfilled load limit\nwill End Test.\n\nExt. >> above ext. limit\nwill Pause Test.");
-    ImGui::Separator();
-    ImGui::Text("(Ext. <= 5 => 0.001)\n(< 5 Ext. < 60 => 0.01)\n(60 < Ext. < 600 => 0.1)\n(Ext. > 600 => 0.0)");
-    ImGui::Separator();
-    ImGui::Spacing();
-    ImGui::BeginDisabled(disableTestSettingsAdjustments);
-    ImGui::Text("Load limit\nfrom zero point:");
-    if (ImGui::InputFloat("##LoadLimitInsideLR10K", &LR10KAppGlobals::maximumLoadAllowedInsideLR10K, (10.0f * unitConv_force), (100.0f * unitConv_force), "%.1f"))
+    // ------------------------------------------------------------------
+    // TABS
+    // ------------------------------------------------------------------
+    ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_Reorderable;
+    tab_bar_flags |= ImGuiTabBarFlags_TabListPopupButton;
+
+    std::string str = " ";
+
+    if (ImGui::BeginTabBar("LR10KSettingsTabs", tab_bar_flags))
     {
-        float value = LR10KAppGlobals::maximumLoadAllowedInsideLR10K;
-
-        if (value < 0.0f)
-            value = 0.0f;
-        else if (value > 10000.0f * unitConv_force)
-            value = 10000.0f * unitConv_force;
-        LR10KAppGlobals::maximumLoadAllowedInsideLR10K = value;
-
-        DockingApps::mainFileSystem.SaveApplicationSettings();
-    }
-    ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(1));
-    ImGui::Text("Extension limit\nfrom zero point:");
-    if (ImGui::InputFloat("##ExtensionLimitInsideLR10K", &LR10KAppGlobals::maximumExtensionAllowedInsideLR10K, (0.5f * unitConv_dist), (5.0f * unitConv_dist), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::maximumExtensionAllowedInsideLR10K)))
-    {
-        float value = LR10KAppGlobals::maximumExtensionAllowedInsideLR10K;
-
-        if (value < 0.0f)
-            value = 0.0f;
-        else if (value > 1000.0f * unitConv_dist)
-            value = 1000.0f * unitConv_dist;
-        LR10KAppGlobals::maximumExtensionAllowedInsideLR10K = value;
-
-        DockingApps::mainFileSystem.SaveApplicationSettings();
-    }
-    ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
-    ImGui::EndDisabled();
-
-    DockingApps::mutexControl.BreakDetection();
-    // The break detection threshold from UTS
-    ImGui::SeparatorText("Break Detection");
-    float breakThreshold = LR10KAppGlobals::breakThreshold.load() * 100;
-    ImGui::BeginDisabled(disableTestSettingsAdjustments);
-    ImGui::BeginDisabled(LR10KAppGlobals::enable_breakThreshold.load() == 1);
-        ImGui::Text("Will End Test when %.0f %%\nof maximum load. (UTS)", LR10KAppGlobals::breakThreshold.load() * 100);
-        if (ImGui::InputFloat("##Break detection", &breakThreshold, (1.0f), (5.0f), "%.0f"))
+        // --------------------
+        // SPEED & LOAD CELL
+        // --------------------
+        if (ImGui::BeginTabItem("Speed & Load Cell"))
         {
-            if (breakThreshold < 0.0f)
-                breakThreshold = 0.0f;
-            else if (breakThreshold > 100.0f)
-                breakThreshold = 100.0f;
+            // Insert vertical sliders for adjusting speed etc
+            ImGui::SeparatorText("Speed & Load Cell error");
 
-            LR10KAppGlobals::breakThreshold.store(breakThreshold / 100);
-            DockingApps::mutexControl.breakThresholdStatusChanged.notify_all();
-            DockingApps::mainFileSystem.SaveApplicationSettings();
+            ImGui::Separator();
+            ImGui::Text("You can step fast by Ctrl+Click.");
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // If the user wants to update the graph after a test is finished.
+            ImGui::BeginDisabled(!tabData->test_finished);
+            if (ImGui::Button("Update finished test"))
+            {
+                if (LR10KAppGlobals::testing_speedAndPlotMinValuesActual != 0)
+                {
+                    // Adjust for load error
+                    DockingApps::calculator.AdaptTabDataForLoadError(tabData);
+
+                    // Calculate stresses
+                    DockingApps::calculator.CalculateStressPoints(tabData);
+                    DockingApps::calculator.CalculateStresses(tabData);
+
+                    // Update graph
+                    TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
+                }
+            }
+            ImGui::SetItemTooltip("This will update the load error.");
+            ImGui::EndDisabled();
+            ImGui::Spacing();
+
+            ImGui::BeginGroup();
+            bool acceptChanges = !tabData->test_unfinished_test_started && !tabData->test_finished;
+            bool acceptChanges2 = !tabData->test_running_test && !tabData->test_unfinished_test_started;
+
+            str = " ";
+            str.append(LR10KAppGlobals::GetUnitOption<const char*>(2));
+
+            // --- Test Speed 1/Crosshead Vertical Slider ---
+            ImGui::BeginDisabled(disableTestSettingsAdjustments);
+            Extra::widgets.widgetCreate_VerticalSlider(tabData, 0, "crosshead_speed", "##Crosshead Speed", 60, 0.276f /*Green*/, "Crosshead Speed: ", str.c_str(), acceptChanges);
+            ImGui::EndDisabled();
+            // --- Jog Speed Vertical Slider ---
+            ImGui::SameLine();
+            ImGui::BeginDisabled(disableTestSettingsAdjustments);
+            Extra::widgets.widgetCreate_VerticalSlider(tabData, 1, "jog_speed", "##Jog Speed", 60, 0.447f /*Teal*/, "Jog Speed: ", str.c_str(), acceptChanges); // !disableTestSettingsAdjustments
+            ImGui::EndDisabled();
+            // --- Load Adjustment Vertical Slider ---
+            ImGui::SameLine();
+            Extra::widgets.widgetCreate_VerticalSlider(tabData, 2, "load_adjustment", "##Load Adjustment", 60, 0.0f /*Red*/, "Load Error Adjustment: ", " %% load error", acceptChanges2);
+            ImGui::EndGroup();
+
+            ImGui::Spacing();
+
+            ImGui::EndTabItem();
         }
-        ImGui::SameLine(); ImGui::Text("%%");
-    ImGui::EndDisabled();
-    int pointerBreakThresholdEnabled = LR10KAppGlobals::enable_breakThreshold.load();
-    bool manual = ImGui::RadioButton("Manual", &pointerBreakThresholdEnabled, 0); ImGui::SameLine();
-    bool automatic = ImGui::RadioButton("Automatic", &pointerBreakThresholdEnabled, 1);
-    ImGui::SetItemTooltip("Will be when load gets above\n15 N, then lower than 15 N.");
-    if (manual || automatic)
-    {
-        LR10KAppGlobals::enable_breakThreshold.store(pointerBreakThresholdEnabled);
-        DockingApps::mutexControl.enable_breakThresholdStatusChanged.notify_all();
-        DockingApps::mainFileSystem.SaveApplicationSettings();
-    }
-    ImGui::EndDisabled();
+        // --------------------
+        // LIMITS LR 10K
+        // --------------------
+        if (ImGui::BeginTabItem("Limits inside LR 10K"))
+        {
+            // The limits that gets sent to the LR 10K
+            ImGui::SeparatorText("Limits inside LR 10K");
 
-    ImGui::EndDisabled();
+            ImGui::BeginDisabled(disableTestSettingsAdjustments);
+            ImGui::Text("Load limit\nfrom zero point:");
+            if (ImGui::InputFloat("##LoadLimitInsideLR10K", &LR10KAppGlobals::maximumLoadAllowedInsideLR10K, (10.0f * unitConv_force), (100.0f * unitConv_force), "%.1f"))
+            {
+                float value = LR10KAppGlobals::maximumLoadAllowedInsideLR10K;
 
-    // Extensometer
-    ImGui::BeginDisabled(true);
-        ImGui::SeparatorText("Extensometer (*Not complete)");
-        ImGui::Text("Range:");
-        ImGui::BeginDisabled(LR10KAppGlobals::enable_extensiomter == 1);
+                if (value < 0.0f)
+                    value = 0.0f;
+                else if (value > 10000.0f * unitConv_force)
+                    value = 10000.0f * unitConv_force;
+                LR10KAppGlobals::maximumLoadAllowedInsideLR10K = value;
+
+                DockingApps::mainFileSystem.SaveApplicationSettings();
+            }
+            ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(1));
+            ImGui::Text("Extension limit\nfrom zero point:");
+            if (ImGui::InputFloat("##ExtensionLimitInsideLR10K", &LR10KAppGlobals::maximumExtensionAllowedInsideLR10K, (0.5f * unitConv_dist), (5.0f * unitConv_dist), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::maximumExtensionAllowedInsideLR10K)))
+            {
+                float value = LR10KAppGlobals::maximumExtensionAllowedInsideLR10K;
+
+                if (value < 0.0f)
+                    value = 0.0f;
+                else if (value > 1000.0f * unitConv_dist)
+                    value = 1000.0f * unitConv_dist;
+                LR10KAppGlobals::maximumExtensionAllowedInsideLR10K = value;
+
+                DockingApps::mainFileSystem.SaveApplicationSettings();
+            }
+            ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+            ImGui::EndDisabled();
+
+            ImGui::Spacing();
+
+            ImGui::SeparatorText("Notes:");
+
+            ImGui::Text("Fulfilled load limit\nwill End Test.\n\nExt. >> above ext. limit\nwill Pause Test.");
+            ImGui::Separator();
+            ImGui::Text("(Ext. <= 5 => 0.001)\n(< 5 Ext. < 60 => 0.01)\n(60 < Ext. < 600 => 0.1)\n(Ext. > 600 => 0.0)");
+
+            ImGui::Spacing();
+
+            ImGui::EndTabItem();
+        }
+        // --------------------
+        // BREAK DETECTION
+        // --------------------
+        if (ImGui::BeginTabItem("Break Detection"))
+        {
+            DockingApps::mutexControl.BreakDetection();
+            // The break detection threshold from UTS
+            ImGui::SeparatorText("Break Detection");
+            float breakThreshold = LR10KAppGlobals::breakThreshold.load() * 100;
+            ImGui::BeginDisabled(disableTestSettingsAdjustments);
+            ImGui::BeginDisabled(LR10KAppGlobals::enable_breakThreshold.load() == 1);
+            ImGui::Text("Will End Test when %.0f %%\nof maximum load. (UTS)", LR10KAppGlobals::breakThreshold.load() * 100);
+            if (ImGui::InputFloat("##Break detection", &breakThreshold, (1.0f), (5.0f), "%.0f"))
+            {
+                if (breakThreshold < 0.0f)
+                    breakThreshold = 0.0f;
+                else if (breakThreshold > 100.0f)
+                    breakThreshold = 100.0f;
+
+                LR10KAppGlobals::breakThreshold.store(breakThreshold / 100);
+                DockingApps::mutexControl.breakThresholdStatusChanged.notify_all();
+                DockingApps::mainFileSystem.SaveApplicationSettings();
+            }
+            ImGui::SameLine(); ImGui::Text("%%");
+            ImGui::EndDisabled();
+            int pointerBreakThresholdEnabled = LR10KAppGlobals::enable_breakThreshold.load();
+            bool manual = ImGui::RadioButton("Manual", &pointerBreakThresholdEnabled, 0); ImGui::SameLine();
+            bool automatic = ImGui::RadioButton("Automatic", &pointerBreakThresholdEnabled, 1);
+            ImGui::SetItemTooltip("Will be when load gets above\n15 N, then lower than 15 N.");
+            if (manual || automatic)
+            {
+                LR10KAppGlobals::enable_breakThreshold.store(pointerBreakThresholdEnabled);
+                DockingApps::mutexControl.enable_breakThresholdStatusChanged.notify_all();
+                DockingApps::mainFileSystem.SaveApplicationSettings();
+            }
+            ImGui::EndDisabled();
+            ImGui::Spacing();
+
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndDisabled(); // End for "Disable main things"
+
+        // --------------------
+        // EXTENSIOMETER
+        // --------------------
+        if (ImGui::BeginTabItem("Extensiometer"))
+        {
+            ImGui::BeginDisabled(true);
+            ImGui::SeparatorText("Extensometer (*Not complete)");
+            ImGui::Text("Range:");
+            ImGui::BeginDisabled(LR10KAppGlobals::enable_extensiomter == 1);
             if (ImGui::InputFloat("##Extensometer Range", &LR10KAppGlobals::extensiometerRange, (1.0f * unitConv_dist), (5.0f * unitConv_dist), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::extensiometerRange)))
             {
                 if (LR10KAppGlobals::extensiometerRange < 0.0f)
@@ -1505,50 +1593,73 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
 
                 DockingApps::mainFileSystem.SaveApplicationSettings();
             }
-        ImGui::EndDisabled();
-        // Temporary for display....
-        LR10KAppGlobals::enable_extensiomter = 1;
+            ImGui::EndDisabled();
+            // Temporary for display....
+            LR10KAppGlobals::enable_extensiomter = 1;
 
-        bool disable = ImGui::RadioButton("Disable", &LR10KAppGlobals::enable_extensiomter, 0); ImGui::SameLine();
-        bool enable = ImGui::RadioButton("Enable", &LR10KAppGlobals::enable_extensiomter, 1);
-        if (disable || enable)
-        {
-            // Add something here ....
+            bool disable = ImGui::RadioButton("Disable", &LR10KAppGlobals::enable_extensiomter, 0); ImGui::SameLine();
+            bool enable = ImGui::RadioButton("Enable", &LR10KAppGlobals::enable_extensiomter, 1);
+            if (disable || enable)
+            {
+                // Add something here ....
 
-            DockingApps::mainFileSystem.SaveApplicationSettings();
+                DockingApps::mainFileSystem.SaveApplicationSettings();
+            }
+            ImGui::EndDisabled();
+            ImGui::Spacing();
+
+            ImGui::EndTabItem();
         }
-    ImGui::EndDisabled();
+        // --------------------
+        // ZERO P. & SAFTEY
+        // --------------------
+        if (ImGui::BeginTabItem("Zero Point & Saftey"))
+        {
+            ImGui::BeginDisabled(disableTestSettingsAdjustments);
 
-    ImGui::BeginDisabled(disableTestSettingsAdjustments);
+            ImGui::SeparatorText("Zero Point");
+            ImGui::Text("Not saved in settings.\nApplies only to software.");
+            ImGui::Checkbox("Set new on Start Test", &LR10KAppGlobals::setZeroPointOnStarTest);
+            ImGui::SetItemTooltip("Is useful if one has to force down the crosshead\nat start, and it results in a disturbance of the load.");
 
-    ImGui::SeparatorText("Zero Point");
-    ImGui::Text("Not saved in settings.\nApplies only to software.");
-    ImGui::Checkbox("Set new on Start Test", &LR10KAppGlobals::setZeroPointOnStarTest);
-    ImGui::SetItemTooltip("Is useful if one has to force down the crosshead\nat start, and it results in a disturbance of the load.");
+            ImGui::SeparatorText("Saftey");
+            ImGui::Text("Not saved in settings.\nApplies only to software.");
+            ImGui::Checkbox("Translation load blocker", &LR10KAppGlobals::stopTranslationOfCrossheadSaftey);
+            ImGui::SetItemTooltip("Will stop the crosshead from translating when the\nload limit exceeds 50 N and no test is started.");
 
-    ImGui::SeparatorText("Saftey");
-    ImGui::Text("Not saved in settings.\nApplies only to software.");
-    ImGui::Checkbox("Translation load blocker", &LR10KAppGlobals::stopTranslationOfCrossheadSaftey);
-    ImGui::SetItemTooltip("Will stop the crosshead from translating when the\nload limit exceeds 50 N and no test is started.");
+            ImGui::EndDisabled();
+            ImGui::Spacing();
 
-    ImGui::EndDisabled();
+            ImGui::EndTabItem();
+        }
+        // --------------------
+        // EXTRA
+        // --------------------
+        if (ImGui::BeginTabItem("Extra"))
+        {
+            // Set the distance to when the machine should End Test or Pause
+            ImGui::SeparatorText("Travel an absolute distance from current position");
+            ImGui::BeginDisabled(disableTestSettingsAdjustments);
+            str = "0 ";
+            str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
+            str.append(" = \"Infinite travle\"");
+            ImGui::Text(str.c_str());
+            bool travel1 = ImGui::InputFloat("##Travel distance", &TabControl::LR10KTravelDistanceControl, (0.01f), (0.1f), "%.2f", ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+            ImGui::EndDisabled();
 
-    // Set the distance to when the machine should End Test or Pause
-    ImGui::SeparatorText("Extra: Travel a distance");
-    ImGui::BeginDisabled(disableTestSettingsAdjustments);
-    str = "0 ";
-    str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-    str.append(" = \"Infinite travle\"");
-    ImGui::Text(str.c_str());
-    bool travel1 = ImGui::InputFloat("##Travel distance", &TabControl::LR10KTravelDistanceControl, (0.01f), (0.1f), "%.2f", ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
-    ImGui::EndDisabled();
-    ImGui::BeginDisabled(disableTestSettingsAdjustments || !TabControl::CheckIfDistanceTravelControlActivated());
-    ImGui::Text("After distance travelled?");
-    bool travel2 = ImGui::RadioButton("End Test", &TabControl::LR10KTravelDistanceActionAfter, 0); ImGui::SameLine();
-    bool travel3 = ImGui::RadioButton("Pause Test", &TabControl::LR10KTravelDistanceActionAfter, 1);
-    if (travel1 || travel2 || travel3) DockingApps::mainFileSystem.SaveApplicationSettings();
-    ImGui::EndDisabled();
-    ImGui::Spacing();
+            ImGui::BeginDisabled(disableTestSettingsAdjustments || !TabControl::CheckIfDistanceTravelControlActivated());
+            ImGui::Text("After distance travelled?");
+            bool travel2 = ImGui::RadioButton("End Test", &TabControl::LR10KTravelDistanceActionAfter, 0); ImGui::SameLine();
+            bool travel3 = ImGui::RadioButton("Pause Test", &TabControl::LR10KTravelDistanceActionAfter, 1);
+            if (travel1 || travel2 || travel3) DockingApps::mainFileSystem.SaveApplicationSettings();
+            ImGui::EndDisabled();
+
+            ImGui::Spacing();
+
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
 
     ImGui::End();
 }
@@ -2572,14 +2683,17 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
     ImGui::End();
 }
 
-void AppMainWidgets::QuickReportWindowDraw(TabControl::TabTestDataClass* tabData)
+void AppMainWidgets::QuickReportWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open, ImGuiWindowFlags extern_windowFlags)
 {
     if (tabData == nullptr) return;
+
+    ImGuiWindowFlags window_flags = 0;
+    window_flags |= extern_windowFlags;
 
     ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Quick Report", nullptr);
+    ImGui::Begin("Quick Report", p_open, window_flags);
 
     ImGui::SeparatorText("Raw data: Critical points sum up");
     ImGui::Spacing();
@@ -2936,7 +3050,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     ImGui::SetNextWindowPos(ImVec2(200, 50), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(1000, 650));
 
-    if (!ImGui::Begin("Documentation", p_open, ImGuiWindowFlags_NoCollapse))
+    if (!ImGui::Begin("Documentation", p_open, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse))
     {
         ImGui::End();
         return;
@@ -3143,8 +3257,8 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     {
         ImGui::Spacing();
         ImGui::BulletText("USN teachers' code for managing the LR 10K Tensile Machine | Controlling the machine");
-        ImGui::BulletText("ImGUI v1.89.7 (Docking repo.) | GUI");
-        ImGui::BulletText("ImPlot v0.15 | Advanced plot/graph");
+        ImGui::BulletText("ImGUI v1.92.5 (Docking repo.) | GUI");
+        ImGui::BulletText("ImPlot v0.17 | Advanced plot/graph");
         ImGui::BulletText("JSON for Modern C++ v3.11.2 | Easy management of config. and save files");
         ImGui::BulletText("SimpleXlsxWriter v0.41 | Writing Excel files");
         ImGui::BulletText("imgui-filebrowser (june 26, 2023) | File browser for saving and loading files");

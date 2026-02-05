@@ -403,347 +403,406 @@ void AppCalculator::CalculateStresses(TabControl::TabTestDataClass* tabData)
     }
 }
 
-void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalculator)
+void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalculator, ImGuiWindowFlags extern_windowFlags)
 {
     if (tabData == nullptr) return;
+
+    ImGuiWindowFlags window_flags = 0;
+    window_flags |= extern_windowFlags;
 
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(600, 750), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Calculator", showCalculator);
+    ImGui::Begin("Calculator", showCalculator, window_flags);
 
-    ImGui::SeparatorText("Extra Tools");
-
-    // Calculate percentage of length of material to millimeter
-    ImGui::Text("Percentage of\nthe Start length:");
-    static float percentageOfLength = 0.00f;
-    if (ImGui::InputFloat("##Percentage of length1", &percentageOfLength, (0.1f), (0.5f), "%.2f", ImGuiInputTextFlags_CharsScientific))
-    {
-        if (percentageOfLength < 0.0f)
-            percentageOfLength = 0.0f;
-        else if (percentageOfLength > 100.0f)
-            percentageOfLength = 100.0f;
-    }
-    ImGui::SameLine(); ImGui::Text("%%");
-    float percentageOfLengthOutput = LR10KAppGlobals::calc_length * (percentageOfLength / 100);
-    ImGui::InputFloat("##Percentage of length2", &percentageOfLengthOutput, NULL, NULL, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(percentageOfLengthOutput), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
-    ImGui::SetItemTooltip("(Read only)");
 
     ImGui::Spacing();
 
-    // -------------------------------------------------------------------------
-    // -------------------------- Material properties --------------------------
-    // -------------------------------------------------------------------------
-    ImGui::SeparatorText("Material properties");
-
-    float static check_Thickness            = -1.0f;
-    float static check_Width                = -1.0f;
-    float static check_Length               = -1.0f;
-    float static check_Diameter             = -1.0f;
-    int static   check_areaOption           = LR10KAppGlobals::areaOptionPicked;
-    float static check_offsetZeroPoint      = defaultValuesGUI::offsetZeroPointExtensionAxis;
-
-    // Check if file was loaded
-    float static fileIsLoaded = false;
-    std::string static lastLoadedFileName = "";
-    if (tabData->loadedFromFileName.size() > 0 && lastLoadedFileName != tabData->loadedFromFileName)
-    {
-        lastLoadedFileName = tabData->loadedFromFileName;
-        fileIsLoaded = true;
-    }
-
-    // On initialization
-    if (fileIsLoaded)
-    {
-        fileIsLoaded        = false;
-        lastLoadedFileName  = tabData->loadedFromFileName;
-
-        // ---------------------------------------------------------------------
-
-        check_Thickness         = tabData->thickness;
-        check_Width             = tabData->width;
-        check_Length            = tabData->length;
-        check_Diameter          = tabData->diameter;
-        check_areaOption        = tabData->areaOptionPicked;
-
-        // Offset from zero point extension axis
-        check_offsetZeroPoint   = tabData->LR10OffsetZeroPointExtensionAxis;
-
-        LR10KAppGlobals::calc_thickness     = tabData->thickness;
-        LR10KAppGlobals::calc_width         = tabData->width;
-        LR10KAppGlobals::calc_length        = tabData->length;
-        LR10KAppGlobals::calc_diameter      = tabData->diameter;
-        LR10KAppGlobals::areaOptionPicked   = tabData->areaOptionPicked;
-
-        // Offset from zero point extension axis
-        defaultValuesGUI::offsetZeroPointExtensionAxis = tabData->LR10OffsetZeroPointExtensionAxis;
-    }
-
-    // If the user wants to insert parameters from loaded file
-    ImGui::BeginDisabled(!tabData->loadedFromFileName.size() > 0);
-    if (ImGui::Button("Load from current tab\ninto global values"))
-    {
-        check_Thickness     = tabData->thickness;
-        check_Width         = tabData->width;
-        check_Length        = tabData->length;
-        check_Diameter      = tabData->diameter;
-        check_areaOption    = tabData->areaOptionPicked;
-
-        // Offset from zero point extension axis
-        check_offsetZeroPoint = tabData->LR10OffsetZeroPointExtensionAxis;
-
-        LR10KAppGlobals::calc_thickness     = tabData->thickness;
-        LR10KAppGlobals::calc_width         = tabData->width;
-        LR10KAppGlobals::calc_length        = tabData->length;
-        LR10KAppGlobals::calc_diameter      = tabData->diameter;
-        LR10KAppGlobals::areaOptionPicked   = tabData->areaOptionPicked;
-
-        // Offset from zero point extension axis
-        defaultValuesGUI::offsetZeroPointExtensionAxis = tabData->LR10OffsetZeroPointExtensionAxis;
-    }
-    ImGui::SetItemTooltip("If you load from several files, you might need to load the data in again.");
-    ImGui::EndDisabled();
-    ImGui::Spacing();
-
-    // Have the option to move the starting strain point (x-axis) an offset distance from zero point
-    ImGui::Text("Remove some slack from\nthe extension/strain axis:");
-    ImGui::Text("0 mm = \"Default setup\".");
-    ImGui::Text("Will only affect the\nresult for calculation(s).");
-    ImGui::Text("* Fracture point is needed.");
-    double fracturePointExtension = tabData->GetFracturePoint(tabData).x;
-    ImGui::BeginDisabled(fracturePointExtension <= 0 && !mainGUIGlobals::useDemoMode || !LR10KAppGlobals::toggleGraphType);
-    ImGui::InputFloat("##Offset zero point ext.", &defaultValuesGUI::offsetZeroPointExtensionAxis, (0.01f), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(defaultValuesGUI::offsetZeroPointExtensionAxis), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
-
-    // Will only be active if a fracture point is added
-    if (!mainGUIGlobals::useDemoMode)
-    {
-        if (defaultValuesGUI::offsetZeroPointExtensionAxis < 0)
-            defaultValuesGUI::offsetZeroPointExtensionAxis = 0;
-        else if (defaultValuesGUI::offsetZeroPointExtensionAxis > fracturePointExtension)
-            defaultValuesGUI::offsetZeroPointExtensionAxis = fracturePointExtension;
-    }
-    else
-    {
-        if (defaultValuesGUI::offsetZeroPointExtensionAxis < 0)
-            defaultValuesGUI::offsetZeroPointExtensionAxis = 0;
-        else if (defaultValuesGUI::offsetZeroPointExtensionAxis > defaultValuesGUI::extensionAxis)
-            defaultValuesGUI::offsetZeroPointExtensionAxis = defaultValuesGUI::extensionAxis;
-    }
-    // Save the current GUI value to tab
-    tabData->LR10OffsetZeroPointExtensionAxis = defaultValuesGUI::offsetZeroPointExtensionAxis;
-
-    ImGui::EndDisabled();
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    // Start values
-    if (LR10KAppGlobals::areaOptionPicked == 0)
-    {
-        ImGui::Text("Start thickness (σ_n, σ_t):");
-        ImGui::InputFloat("##Start thickness", &LR10KAppGlobals::calc_thickness, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_thickness), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_thickness), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
-        ImGui::Text("Start width (σ_n, σ_t):");
-        ImGui::InputFloat("##Start width", &LR10KAppGlobals::calc_width, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_width), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_width), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
-    }
-    else if (LR10KAppGlobals::areaOptionPicked == 1)
-    {
-        ImGui::Text("Start diameter (σ_n, σ_t):");
-        ImGui::InputFloat("##Diameter", &LR10KAppGlobals::calc_diameter, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_diameter), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_diameter), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
-    }
-
-    ImGui::Text("Start length (ε_n, σ_t, ε_t):");
-    ImGui::InputFloat("##Start length", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
-
-    ImGui::Text("Cross-sectional area:");
-    bool option1_rectangular    = ImGui::RadioButton("Rectangle", &LR10KAppGlobals::areaOptionPicked, 0); ImGui::SameLine();
-    bool option2_circual        = ImGui::RadioButton("Circle", &LR10KAppGlobals::areaOptionPicked, 1);
-    if (option1_rectangular || option2_circual) DockingApps::mainFileSystem.SaveApplicationSettings();
+    // Expose some other flags which are useful to showcase how they interact with Leading/Trailing tabs
+    static ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown;
     
-    if (!std::isnan(tabData->area) && tabData->area > -1)
+    if (ImGui::BeginTabBar("CalculatorTabs", tab_bar_flags))
     {
-        std::string str = "(area calculated: %.2f ";
-        str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-        str.append("^2)");
-        ImGui::Text(str.c_str(), tabData->area);
-    }
+        double fracturePointExtension = tabData->GetFracturePoint(tabData).x;
 
-    // Warning if any values have changed but no calculated again
-    static ImVec4 colorNormal  = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-    static ImVec4 colorNormal2  = ImVec4(0.695f, 1.000f, 0.442f, 0.784f);
-    static ImVec4 colorNormal3  = ImVec4(0.647f, 1.000f, 0.780f, 0.784f);
-    static ImVec4 colorWarning = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+        // --------------------
+        // MATERIAL PROP.
+        // --------------------
+        float static check_Thickness = -1.0f;
+        float static check_Width = -1.0f;
+        float static check_Length = -1.0f;
+        float static check_Diameter = -1.0f;
+        int static   check_areaOption = LR10KAppGlobals::areaOptionPicked;
+        float static check_offsetZeroPoint = defaultValuesGUI::offsetZeroPointExtensionAxis;
 
-    ImVec4 colorText        = colorNormal;
-    ImVec4 colorText_nom    = colorNormal3;
-    ImVec4 colorText2       = colorNormal2;
-    if (
-        check_Thickness != LR10KAppGlobals::calc_thickness
-        || check_Width != LR10KAppGlobals::calc_width
-        || check_Length != LR10KAppGlobals::calc_length
-        || check_Diameter != LR10KAppGlobals::calc_diameter
-        || check_areaOption != LR10KAppGlobals::areaOptionPicked
-        || check_offsetZeroPoint != defaultValuesGUI::offsetZeroPointExtensionAxis
-        )
-    {
-        // Only needed to warn about a change if a test is finished
-        if (tabData->test_finished)
+        // Warning if any values have changed but no calculated again
+        static ImVec4 colorNormal = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+        static ImVec4 colorNormal2 = ImVec4(0.695f, 1.000f, 0.442f, 0.784f);
+        static ImVec4 colorNormal3 = ImVec4(0.647f, 1.000f, 0.780f, 0.784f);
+        static ImVec4 colorWarning = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+
+        ImVec4 colorText = colorNormal;
+        ImVec4 colorText_nom = colorNormal3;
+        ImVec4 colorText2 = colorNormal2;
+
+        // -------------------------------------------------------------------------
+        // -------------------------- Material properties --------------------------
+        // -------------------------------------------------------------------------
+        if (ImGui::BeginTabItem("Material Properties"))
         {
-            colorText       = colorWarning;
-            colorText_nom   = colorWarning;
-            colorText2      = colorWarning;
+            ImGui::SeparatorText("Material properties");
 
-            defaultValuesGUI::invalidStressDataNotUpdated = true;
+            // Check if file was loaded
+            float static fileIsLoaded = false;
+            std::string static lastLoadedFileName = "";
+            if (tabData->loadedFromFileName.size() > 0 && lastLoadedFileName != tabData->loadedFromFileName)
+            {
+                lastLoadedFileName = tabData->loadedFromFileName;
+                fileIsLoaded = true;
+            }
+
+            // On initialization
+            if (fileIsLoaded)
+            {
+                fileIsLoaded = false;
+                lastLoadedFileName = tabData->loadedFromFileName;
+
+                // ---------------------------------------------------------------------
+
+                check_Thickness = tabData->thickness;
+                check_Width = tabData->width;
+                check_Length = tabData->length;
+                check_Diameter = tabData->diameter;
+                check_areaOption = tabData->areaOptionPicked;
+
+                // Offset from zero point extension axis
+                check_offsetZeroPoint = tabData->LR10OffsetZeroPointExtensionAxis;
+
+                LR10KAppGlobals::calc_thickness = tabData->thickness;
+                LR10KAppGlobals::calc_width = tabData->width;
+                LR10KAppGlobals::calc_length = tabData->length;
+                LR10KAppGlobals::calc_diameter = tabData->diameter;
+                LR10KAppGlobals::areaOptionPicked = tabData->areaOptionPicked;
+
+                // Offset from zero point extension axis
+                defaultValuesGUI::offsetZeroPointExtensionAxis = tabData->LR10OffsetZeroPointExtensionAxis;
+            }
+
+            // If the user wants to insert parameters from loaded file
+            ImGui::BeginDisabled(!tabData->loadedFromFileName.size() > 0);
+            if (ImGui::Button("Load from current tab into global values", { 0, 60 }))
+            {
+                check_Thickness = tabData->thickness;
+                check_Width = tabData->width;
+                check_Length = tabData->length;
+                check_Diameter = tabData->diameter;
+                check_areaOption = tabData->areaOptionPicked;
+
+                // Offset from zero point extension axis
+                check_offsetZeroPoint = tabData->LR10OffsetZeroPointExtensionAxis;
+
+                LR10KAppGlobals::calc_thickness = tabData->thickness;
+                LR10KAppGlobals::calc_width = tabData->width;
+                LR10KAppGlobals::calc_length = tabData->length;
+                LR10KAppGlobals::calc_diameter = tabData->diameter;
+                LR10KAppGlobals::areaOptionPicked = tabData->areaOptionPicked;
+
+                // Offset from zero point extension axis
+                defaultValuesGUI::offsetZeroPointExtensionAxis = tabData->LR10OffsetZeroPointExtensionAxis;
+            }
+            ImGui::SetItemTooltip("If you load from several files, you might need to load the data in again.");
+            ImGui::EndDisabled();
+            ImGui::Spacing();
+
+            // Start values
+            if (LR10KAppGlobals::areaOptionPicked == 0)
+            {
+                ImGui::Text("Start thickness (σ_n, σ_t):");
+                ImGui::InputFloat("##Start thickness", &LR10KAppGlobals::calc_thickness, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_thickness), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_thickness), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+                ImGui::Text("Start width (σ_n, σ_t):");
+                ImGui::InputFloat("##Start width", &LR10KAppGlobals::calc_width, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_width), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_width), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+            }
+            else if (LR10KAppGlobals::areaOptionPicked == 1)
+            {
+                ImGui::Text("Start diameter (σ_n, σ_t):");
+                ImGui::InputFloat("##Diameter", &LR10KAppGlobals::calc_diameter, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_diameter), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_diameter), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+            }
+
+            ImGui::Text("Start length (ε_n, σ_t, ε_t):");
+            ImGui::InputFloat("##Start length", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+
+            ImGui::Text("Cross-sectional area:");
+            bool option1_rectangular = ImGui::RadioButton("Rectangle", &LR10KAppGlobals::areaOptionPicked, 0); ImGui::SameLine();
+            bool option2_circual = ImGui::RadioButton("Circle", &LR10KAppGlobals::areaOptionPicked, 1);
+            if (option1_rectangular || option2_circual) DockingApps::mainFileSystem.SaveApplicationSettings();
+
+            if (!std::isnan(tabData->area) && tabData->area > -1)
+            {
+                std::string str = "(area calculated: %.2f ";
+                str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
+                str.append("^2)");
+                ImGui::Text(str.c_str(), tabData->area);
+            }
+
+            if (
+                check_Thickness != LR10KAppGlobals::calc_thickness
+                || check_Width != LR10KAppGlobals::calc_width
+                || check_Length != LR10KAppGlobals::calc_length
+                || check_Diameter != LR10KAppGlobals::calc_diameter
+                || check_areaOption != LR10KAppGlobals::areaOptionPicked
+                || check_offsetZeroPoint != defaultValuesGUI::offsetZeroPointExtensionAxis
+                )
+            {
+                // Only needed to warn about a change if a test is finished
+                if (tabData->test_finished)
+                {
+                    colorText = colorWarning;
+                    colorText_nom = colorWarning;
+                    colorText2 = colorWarning;
+
+                    defaultValuesGUI::invalidStressDataNotUpdated = true;
+                }
+            }
+            else
+                defaultValuesGUI::invalidStressDataNotUpdated = false;
+
+
+            ImGui::Spacing();
+
+            ImGui::EndTabItem();
+        }
+        // --------------------
+        // FILTER
+        // --------------------
+        if (ImGui::BeginTabItem("Filter"))
+        {
+            ImGui::SeparatorText("Filter out extension from start (without extensiometer)");
+
+            // Have the option to move the starting strain point (x-axis) an offset distance from zero point
+            ImGui::Text("Remove some slack from\nthe extension/strain axis:");
+            ImGui::Text("0 mm = \"Default setup\".");
+            ImGui::Text("Will only affect the\nresult for calculation(s).");
+            ImGui::Text("* Fracture point is needed.");
+
+            ImGui::BeginDisabled(fracturePointExtension <= 0 && !mainGUIGlobals::useDemoMode || !LR10KAppGlobals::toggleGraphType);
+            ImGui::InputFloat("##Offset zero point ext.", &defaultValuesGUI::offsetZeroPointExtensionAxis, (0.01f), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(defaultValuesGUI::offsetZeroPointExtensionAxis), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+
+            // Will only be active if a fracture point is added
+            if (!mainGUIGlobals::useDemoMode)
+            {
+                if (defaultValuesGUI::offsetZeroPointExtensionAxis < 0)
+                    defaultValuesGUI::offsetZeroPointExtensionAxis = 0;
+                else if (defaultValuesGUI::offsetZeroPointExtensionAxis > fracturePointExtension)
+                    defaultValuesGUI::offsetZeroPointExtensionAxis = fracturePointExtension;
+            }
+            else
+            {
+                if (defaultValuesGUI::offsetZeroPointExtensionAxis < 0)
+                    defaultValuesGUI::offsetZeroPointExtensionAxis = 0;
+                else if (defaultValuesGUI::offsetZeroPointExtensionAxis > defaultValuesGUI::extensionAxis)
+                    defaultValuesGUI::offsetZeroPointExtensionAxis = defaultValuesGUI::extensionAxis;
+            }
+            // Save the current GUI value to tab
+            tabData->LR10OffsetZeroPointExtensionAxis = defaultValuesGUI::offsetZeroPointExtensionAxis;
+
+            ImGui::EndDisabled();
+            ImGui::Spacing();
+
+            ImGui::EndTabItem();
+        }
+        // --------------------
+        // Stress (N/MM^2 | MPa | Sigma)
+        // --------------------
+        if (ImGui::BeginTabItem("Stress (N/mm^2 | MPa)"))
+        {
+            // Output the calculations
+            std::string str = "Strength (";
+            str.append(LR10KAppGlobals::GetUnitOption<const char*>(3));
+            str.append(" | ");
+            str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+            str.append(" | σ)");
+            ImGui::SeparatorText(str.c_str());
+            ImGui::Spacing();
+
+            bool unvalidCalculationStart =
+                (!tabData->test_finished || tabData->plot_dataPoints.size() < 1
+                    || (LR10KAppGlobals::calc_length == 0 && (LR10KAppGlobals::calc_thickness == 0 || LR10KAppGlobals::calc_width == 0)));
+
+            ImGui::Text("Calculations will be saved in Excel Books also.");
+
+            ImGui::Separator();
+            ImGui::Text("Complete a test, and add crucial points to get started.");
+
+            ImGui::Spacing();
+
+            ImGui::BeginDisabled(unvalidCalculationStart);
+            ImGui::SetItemTooltip("Material properties will be saved in GUI after each calculation");
+            if (ImGui::Button("Calculate", { 219, 60 }))
+            {
+                check_Thickness = LR10KAppGlobals::calc_thickness;
+                check_Width = LR10KAppGlobals::calc_width;
+                check_Length = LR10KAppGlobals::calc_length;
+                check_Diameter = LR10KAppGlobals::calc_diameter;
+                check_areaOption = LR10KAppGlobals::areaOptionPicked;
+
+                // Offset from zero point extension axis
+                check_offsetZeroPoint = defaultValuesGUI::offsetZeroPointExtensionAxis;
+
+                TabControl::CalculateDataFromTest(tabData);
+            }
+            ImGui::EndDisabled();
+            ImGui::Spacing();
+
+            bool condition1 = tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked);
+            bool condition2 = !tabData->tension && 1 == tabData->compressionOptionPicked;
+
+            if (condition1)
+            {
+                // Calculate Young's Moduls (stress / strain at prop. limit point)
+                tabData->calcYoungsModulus = (tabData->calcPoint_NominalStressStrain_PropLimit[1] / tabData->calcPoint_NominalStressStrain_PropLimit[0]);
+                if (isnan(tabData->calcYoungsModulus))
+                    tabData->calcYoungsModulus = 0.000f;
+            }
+            else if (condition2)
+            {
+                // Calculate Young's Moduls
+                tabData->calcYoungsModulus = (tabData->calcData_Compression[0] * pow(tabData->length, 3)) / (4 * tabData->width * pow(tabData->thickness, 3) * tabData->calcData_Compression[1]);
+                if (isnan(tabData->calcYoungsModulus))
+                    tabData->calcYoungsModulus = 0.000f;
+            }
+
+            static std::string str1 = "";
+            static std::string str2 = "";
+            static std::string str3 = "";
+
+            if (ImGui::BeginTabBar("StressCalulationTabs", tab_bar_flags))
+            {
+                if (condition1 && ImGui::BeginTabItem("Proportional limit"))
+                {
+                    ImGui::SeparatorText("Propotional Limit | Nominal:");
+                    str1 = "Stress, σ_nom/σ_e: %0.3f ";
+                    str1.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_PropLimit[1]);
+                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_PropLimit[0] * 100);
+                    ImGui::SeparatorText("Propotional Limit | True:");
+                    str3 = "Stress, σ_t: %0.3f ";
+                    str3.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_PropLimit[1]);
+                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_PropLimit[0] * 100);
+                    ImGui::SeparatorText("Young's Modulus (E-module):");
+                    str2 = "Young's modulus,\nE = %0.3f ";
+                    str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText2, str2.c_str(), tabData->calcYoungsModulus);
+
+                    ImGui::EndTabItem();
+                }
+                if (condition1 && ImGui::BeginTabItem("Yielding strength"))
+                {
+                    ImGui::SeparatorText("Yielding Strength (lower) | Nominal:");
+                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_yield[1]);
+                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_yield[0] * 100);
+                    ImGui::SeparatorText("Yielding Strength (lower) | True:");
+                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_yield[1]);
+                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_yield[0] * 100);
+
+                    ImGui::EndTabItem();
+                }
+                if (condition1 && ImGui::BeginTabItem("Ultimate Tensile Strength (UTS)"))
+                {
+                    ImGui::SeparatorText("Ultimate Tensile Stress | Nominal");
+                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrainUTS[1]);
+                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrainUTS[0] * 100);
+                    ImGui::SeparatorText("Ultimate Tensile Stress | True");
+                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrainUTS[1]);
+                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrainUTS[0] * 100);
+
+                    ImGui::EndTabItem();
+                }
+                if (condition1 && ImGui::BeginTabItem("Fracture"))
+                {
+                    ImGui::SeparatorText("Fracture | Nominal:");
+                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_fracture[1]);
+                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_fracture[0] * 100);
+                    ImGui::SeparatorText("Fracture | True:");
+                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_fracture[1]);
+                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_fracture[0] * 100);
+
+                    ImGui::EndTabItem();
+                }
+
+                // ------------------------------
+
+                if (condition2 && ImGui::BeginTabItem("Ultimate Tensile Strength (UTS)"))
+                {
+                    ImGui::SeparatorText(">>ULTIMATE TENSILE STRENGTH:");
+                    str = "UTS_bend: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
+                    ImGui::Separator();
+                    str = "Young's modulus,\nE_bend = %0.3f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText2, str.c_str(), tabData->calcYoungsModulus);
+
+                    ImGui::EndTabItem();
+                }
+                if (condition2 && ImGui::BeginTabItem("Maximum Bending Moment"))
+                {
+                    ImGui::SeparatorText(">>MAXIMUM BENDING MOMENT:");
+                    str = "Moment_bend: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1)).append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Nmm or lbf * in
+                    ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[2]);
+
+                    ImGui::EndTabItem();
+                }
+                if (condition2 && ImGui::BeginTabItem("Maximum Load & Travel"))
+                {
+                    ImGui::SeparatorText(">>MAXIMUM LOAD & TRAVEL:");
+                    std::string str = "Load_bend: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
+                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[0]);
+                    ImGui::Separator();
+                    str = "Travel_bend: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
+                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[1]);
+
+                    ImGui::EndTabItem();
+                }
+            }
+
+            ImGui::EndTabBar();
+            ImGui::EndTabItem();
+        }
+        // --------------------
+        // EXTRA TOOLS
+        // --------------------
+        if (ImGui::BeginTabItem("Extra tools"))
+        {
+            ImGui::SeparatorText("Extra Tools");
+
+            // Calculate percentage of length of material to millimeter
+            ImGui::Text("Percentage of\nthe Start length:");
+            static float percentageOfLength = 0.00f;
+            if (ImGui::InputFloat("##Percentage of length1", &percentageOfLength, (0.1f), (0.5f), "%.2f", ImGuiInputTextFlags_CharsScientific))
+            {
+                if (percentageOfLength < 0.0f)
+                    percentageOfLength = 0.0f;
+                else if (percentageOfLength > 100.0f)
+                    percentageOfLength = 100.0f;
+            }
+            ImGui::SameLine(); ImGui::Text("%%");
+            float percentageOfLengthOutput = LR10KAppGlobals::calc_length * (percentageOfLength / 100);
+            ImGui::InputFloat("##Percentage of length2", &percentageOfLengthOutput, NULL, NULL, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(percentageOfLengthOutput), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+            ImGui::SetItemTooltip("(Read only)");
+
+            ImGui::Spacing();
+
+            ImGui::EndTabItem();
         }
     }
-    else
-        defaultValuesGUI::invalidStressDataNotUpdated = false;
 
-
-    ImGui::Spacing();
-
-    // Output the calculations
-    std::string str = "Strength (";
-    str.append(LR10KAppGlobals::GetUnitOption<const char*>(3));
-    str.append(" | ");
-    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-    str.append(" | σ)");
-    ImGui::SeparatorText(str.c_str());
-    ImGui::Spacing();
-
-    bool unvalidCalculationStart =
-        (!tabData->test_finished || tabData->plot_dataPoints.size() < 1
-        || (LR10KAppGlobals::calc_length == 0 && (LR10KAppGlobals::calc_thickness == 0 || LR10KAppGlobals::calc_width == 0)));
-
-    ImGui::BeginDisabled(unvalidCalculationStart);
-    bool calcButton = ImGui::Button("Calculate", { 219, 30 });
-    ImGui::SetItemTooltip("Material properties will be saved in GUI after each calculation");
-    if (calcButton)
-    {
-        check_Thickness         = LR10KAppGlobals::calc_thickness;
-        check_Width             = LR10KAppGlobals::calc_width;
-        check_Length            = LR10KAppGlobals::calc_length;
-        check_Diameter          = LR10KAppGlobals::calc_diameter;
-        check_areaOption        = LR10KAppGlobals::areaOptionPicked;
-
-        // Offset from zero point extension axis
-        check_offsetZeroPoint   = defaultValuesGUI::offsetZeroPointExtensionAxis;
-
-        TabControl::CalculateDataFromTest(tabData);
-    }
-    ImGui::EndDisabled();
+    ImGui::EndTabBar();
 
     ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    if (tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked))
-    {
-        // Calculate Young's Moduls (stress / strain at prop. limit point)
-        tabData->calcYoungsModulus = (tabData->calcPoint_NominalStressStrain_PropLimit[1] / tabData->calcPoint_NominalStressStrain_PropLimit[0]);
-        if (isnan(tabData->calcYoungsModulus))
-            tabData->calcYoungsModulus = 0.000f;
-
-        ImGui::Text(">>PROPORTIONAL LIMIT:");
-        ImGui::Separator();
-        std::string str1 = "Stress, σ_nom/σ_e: %0.3f ";
-        str1.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-        ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_PropLimit[1]);
-        ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_PropLimit[0] * 100);
-        ImGui::Separator();
-        std::string str2 = "Young's modulus,\nE = %0.3f ";
-        str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-        ImGui::TextColored(colorText2, str2.c_str(), tabData->calcYoungsModulus);
-        ImGui::Separator();
-        std::string str3 = "Stress, σ_t: %0.3f ";
-        str3.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-        ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_PropLimit[1]);
-        ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_PropLimit[0] * 100);
-        ImGui::Separator();
-
-        ImGui::NewLine();
-
-        ImGui::Text(">>YIELDING STRENGTH (lower):");
-        ImGui::Separator();
-        ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_yield[1]);
-        ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_yield[0] * 100);
-        ImGui::Separator();
-        ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_yield[1]);
-        ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_yield[0] * 100);
-        ImGui::Separator();
-
-        ImGui::NewLine();
-
-        ImGui::Text(">>ULTIMATE TENSILE STRENGTH:");
-        ImGui::Separator();
-        ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrainUTS[1]);
-        ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrainUTS[0] * 100);
-        ImGui::Separator();
-        ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrainUTS[1]);
-        ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrainUTS[0] * 100);
-        ImGui::Separator();
-
-        ImGui::NewLine();
-
-        ImGui::Text(">>FRACTURE:");
-        ImGui::Separator();
-        ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_fracture[1]);
-        ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_fracture[0] * 100);
-        ImGui::Separator();
-        ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_fracture[1]);
-        ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_fracture[0] * 100);
-        ImGui::Separator();
-    }
-    else if (!tabData->tension && 1 == tabData->compressionOptionPicked)
-    {
-        // Calculate Young's Moduls
-        tabData->calcYoungsModulus = (tabData->calcData_Compression[0] * pow(tabData->length, 3)) / (4 * tabData->width * pow(tabData->thickness, 3) * tabData->calcData_Compression[1]);
-        if (isnan(tabData->calcYoungsModulus))
-            tabData->calcYoungsModulus = 0.000f;
-
-        ImGui::Text(">>ULTIMATE TENSILE STRENGTH:");
-        ImGui::Separator();
-        str = "UTS_bend: %0.2f ";
-        str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-        ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
-        ImGui::Separator();
-        str = "Young's modulus,\nE_bend = %0.3f ";
-        str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-        ImGui::TextColored(colorText2, str.c_str(), tabData->calcYoungsModulus);
-        ImGui::Separator();
-
-        ImGui::NewLine();
-
-        ImGui::Text(">>MAXIMUM BENDING MOMENT:");
-        ImGui::Separator();
-        str = "Moment_bend: %0.2f ";
-        str.append(LR10KAppGlobals::GetUnitOption<const char*>(1)).append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Nmm or lbf * in
-        ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[2]);
-        ImGui::Separator();
-
-        ImGui::NewLine();
-
-        ImGui::Text(">>MAXIMUM LOAD & TRAVEL:");
-        ImGui::Separator();
-        std::string str = "Load_bend: %0.2f ";
-        str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
-        ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[0]);
-        ImGui::Separator();
-        str = "Travel_bend: %0.2f ";
-        str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-        ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[1]);
-        ImGui::Separator();
-    }
-
-    ImGui::NewLine();
-
-    ImGui::Text("Calculations will be saved\nin Excel Books also.");
-
-    ImGui::Separator();
-    ImGui::Text("Complete test, and add \ncrucial points to\nget started.");
-
-    ImGui::Separator();
-
     ImGui::End();
 }
 
@@ -1660,8 +1719,13 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         // ---------------------------------------------------------------------
         // -------------------------------- GUI --------------------------------
         // ---------------------------------------------------------------------
-        settings["gui_showConsole"]     = mainGUIGlobals::showConsole;
-        settings["gui_showCalculator"]  = mainGUIGlobals::showCalculator;
+        settings["gui_showSettings"]    = g_WindowStates.show_settings;
+        settings["gui_showCalculator"]  = g_WindowStates.show_calculator;
+        settings["gui_showGraph"]       = g_WindowStates.show_graph;
+        settings["gui_showQuickReport"] = g_WindowStates.show_quick_report;
+        settings["gui_showDescription"] = g_WindowStates.show_description;
+        settings["gui_showConsole"]     = g_WindowStates.show_console;
+        settings["gui_showDocs"]        = g_WindowStates.show_docs;
         settings["enableSound"]         = mainGUIGlobals::enableSound;
 
         settings["fullScreen"]          = mainGUIGlobals::fullScreen;
@@ -1723,8 +1787,13 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         // ---------------------------------------------------------------------
         // -------------------------------- GUI --------------------------------
         // ---------------------------------------------------------------------
-        settings["gui_showConsole"]     = false;
+        settings["gui_showSettings"]    = false;
         settings["gui_showCalculator"]  = false;
+        settings["gui_showGraph"]       = true;
+        settings["gui_showQuickReport"] = false;
+        settings["gui_showDescription"] = false;
+        settings["gui_showConsole"]     = false;
+        settings["gui_showDocs"]        = false;
         settings["enableSound"]         = true;
 
         settings["fullScreen"]          = false;
@@ -1794,8 +1863,13 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
 void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
 {
     // All valid values that must exsist, or else try and create a new settings file
-    std::string_view gui_showConsole                            = "gui_showConsole";
+    std::string_view gui_showSettings                           = "gui_showSettings";
     std::string_view gui_showCalculator                         = "gui_showCalculator";
+    std::string_view gui_showGraph                              = "gui_showGraph";
+    std::string_view gui_showQuickReport                        = "gui_showQuickReport";
+    std::string_view gui_showDescription                        = "gui_showDescription";
+    std::string_view gui_showConsole                            = "gui_showConsole";
+    std::string_view gui_showDocs                               = "gui_showDocs";
     std::string_view enableSound                                = "enableSound";
     std::string_view fullScreen                                 = "fullScreen";
     std::string_view enableDPIAwareness                         = "enableDPIAwareness";
@@ -1829,8 +1903,13 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     // Check every key
     bool thereIsAnUnvalidKey = false;
 
-    if (!settings.contains(std::string{ gui_showConsole                         })) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ gui_showSettings                        })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ gui_showCalculator                      })) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ gui_showGraph                           })) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ gui_showQuickReport                     })) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ gui_showDescription                     })) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ gui_showConsole                         })) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ gui_showDocs                            })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ enableSound                             })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ fullScreen                              })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ enableDPIAwareness                      })) thereIsAnUnvalidKey = true;
@@ -1892,9 +1971,15 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
         // ---------------------------------------------------------------------
         // -------------------------------- GUI --------------------------------
         // ---------------------------------------------------------------------
-        mainGUIGlobals::showConsole     = settings["gui_showConsole"];
-        mainGUIGlobals::showCalculator  = settings["gui_showCalculator"];
-        mainGUIGlobals::enableSound     = settings["enableSound"];
+        g_WindowStates.show_settings        = settings["gui_showSettings"];
+        g_WindowStates.show_calculator      = settings["gui_showCalculator"];
+        g_WindowStates.show_graph           = settings["gui_showGraph"];
+        g_WindowStates.show_quick_report    = settings["gui_showQuickReport"];
+        g_WindowStates.show_description     = settings["gui_showDescription"];
+        g_WindowStates.show_console         = settings["gui_showConsole"];
+        g_WindowStates.show_docs            = settings["gui_showDocs"];
+
+        mainGUIGlobals::enableSound         = settings["enableSound"];
 
         mainGUIGlobals::fullScreen          = settings["fullScreen"];
         mainGUIGlobals::enableDPIAwareness  = settings["enableDPIAwareness"];
@@ -4701,12 +4786,16 @@ void AppConsole::AddLog(const char* fmt, ...) IM_FMTARGS(2)
     //Items.push_back("\n");
 }
 
-void AppConsole::Draw(TabControl::TabTestDataClass* tabData, const char* title, bool* p_open)
+void AppConsole::Draw(TabControl::TabTestDataClass* tabData, const char* title, bool* p_open, ImGuiWindowFlags extern_windowFlags)
 {
     if (tabData == nullptr) return;
 
+    ImGuiWindowFlags window_flags = 0;
+    window_flags |= extern_windowFlags;
+
+
     ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(title, p_open))
+    if (!ImGui::Begin(title, p_open, window_flags))
     {
         ImGui::End();
         return;

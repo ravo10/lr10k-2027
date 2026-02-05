@@ -4,7 +4,7 @@
     @brief     Pre-defines functions for the common.cpp file + A few common functions used everywhere.
     @details   ~
     @author    Rasmus Ullestad Relling
-    @date      3.09.2023
+    @date      05.02.2026
     @copyright (c) Rasmus Ullestad Relling, 2023. All right reserved.
 
 **/
@@ -35,7 +35,7 @@ if (appDataFolderPath.first)
 }*/
 // And insert: #include "..\init.h" in "imgui.h".
 // 
-static const char* LR10KAppVersion = "1.0.3 [09.03.2024]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
+static const char* LR10KAppVersion = "1.0.5 [05.02.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
 
 
 // ###############################################--------------------------------------------------------------------------------------------------------------
@@ -170,9 +170,6 @@ namespace mainGUIGlobals {
     inline extern bool done = false;                        //!< Used for keeping the main hook alive.
     inline extern bool openPopupCloseApp = false;           //!< Used for opening the "close window" pop up. (used for when clicking in "X" button or "Exit" from menu)
     inline extern bool forcePopupCloseApp = false;          //!< Used for force open the "close window" dialog. (used for when clicking in "X" button)
-    inline extern bool showCalculator = false;              //!< Used for showing/hiding the calculator.
-    inline extern bool showConsole = false;                 //!< Used for showing/hiding the console.
-    inline extern bool showDocs = false;                    //!< Used for showing/hiding the documentation window.
     inline extern bool useDemoMode = false;                 //!< Used for demostrating the graph functionality with demo or real data.
     inline extern bool useDemoModeLiveLoad = false;         //!< Used for taking mouse pointer demo input as test data, or not.
     inline extern bool useDemoModeLiveExtension = false;    //!< Used for taking incrementer demo input as test data, or not.
@@ -206,6 +203,25 @@ namespace mainGUIGlobals {
         }
     };
 }
+
+/**
+    @struct AppWindowStates
+    @brief     A group of window booleans, used to control e.g. the settings or calculator window.
+**/
+struct AppWindowStates
+{
+    bool show_settings      = false;    //!< Used for showing/hiding the settings for LR 10K.
+    bool show_calculator    = false;    //!< Used for showing/hiding the calculator for the stress/strain data from LR 10K.
+    bool show_graph         = true;
+    bool show_quick_report  = false;    //!< Used for showing/hiding the quick report for the LR 10K.
+    bool show_description   = false;    
+    bool show_console       = false;    //!< Used for showing/hiding the console.
+    bool show_docs          = false;    //!< Used for showing/hiding the documentation window.
+    // Add more here as you need them
+};
+
+// "extern" tells the compiler: "This variable exists somewhere else, don't create it here."
+extern AppWindowStates g_WindowStates;
 
 // -----------------------------------------------------------------------------
 
@@ -867,8 +883,9 @@ struct AppCalculator
         @brief Draws the full report window.
         @param tabData        -
         @param showCalculator -
+        @param extern_windowFlags -
     **/
-    void Draw(TabControl::TabTestDataClass* tabData, bool* showCalculator);
+    void Draw(TabControl::TabTestDataClass* tabData, bool* showCalculator, ImGuiWindowFlags extern_windowFlags = 0);
 };
 
 /**
@@ -1212,8 +1229,9 @@ struct AppConsole
         @param tabData -
         @param title   -
         @param p_open  -
+        @param extern_windowFlags  -
     **/
-    void    Draw(TabControl::TabTestDataClass* tabData, const char* title, bool* p_open);
+    void    Draw(TabControl::TabTestDataClass* tabData, const char* title, bool* p_open, ImGuiWindowFlags extern_windowFlags = 0);
     /**
         @brief Exectue a command sent in the log window.
         @param tabData      -

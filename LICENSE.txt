@@ -15,7 +15,7 @@ Rasmus Ullestad Relling (LR10K Control Software)
 
 Other external contributors
 
-Copyright (c) 2014-2023 Omar Cornut (ImGui)
+Copyright (c) 2014-2026 Omar Cornut (ImGui)
 Copyright (c) 2020 Evan Pezent (ImPlot)
 Copyright (c) 2013-2022 Niels Lohmann (JSON For Modern C++)
 Copyright (c) 2019-2022 Zhuang Guan (imgui-filebrowser)

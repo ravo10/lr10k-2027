@@ -5,7 +5,7 @@
                 placeholder for most of the header files that are needed globally.
     @details   ~
     @author    Rasmus Ullestad Relling
-    @date      4.09.2023
+    @date      04.02.2026
     @copyright (c) Rasmus Ullestad Relling, 2023. All right reserved.
 
 **/
@@ -17,7 +17,7 @@
 #include "init.h"
 #include "LR10KDecryption.h"
 #include "LR10KBufferMessage.h"
-#include "imgui_ImageLoader.h"
+#include "imgui_ImageLoader_dx12.h"
 
 //#include <iostream>
 #include <fstream>
@@ -93,7 +93,8 @@ static float       GrabRounding;
 static float       LogSliderDeadzone;
 static float       TabRounding;
 static float       TabBorderSize;
-static float       TabMinWidthForCloseButton;
+static float       TabCloseButtonMinWidthSelected;
+static float       TabCloseButtonMinWidthUnselected;
 static ImGuiDir    ColorButtonPosition;
 static ImVec2      ButtonTextAlign;
 static ImVec2      SelectableTextAlign;
@@ -146,7 +147,8 @@ inline void ImGuiCustomThemeReset()
     LogSliderDeadzone = style.LogSliderDeadzone;
     TabRounding = style.TabRounding;
     TabBorderSize = style.TabBorderSize;
-    TabMinWidthForCloseButton = style.TabMinWidthForCloseButton;
+    TabCloseButtonMinWidthSelected = style.TabCloseButtonMinWidthSelected;
+    TabCloseButtonMinWidthUnselected = style.TabCloseButtonMinWidthUnselected;
     ColorButtonPosition = style.ColorButtonPosition;
     ButtonTextAlign = style.ButtonTextAlign;
     SelectableTextAlign = style.SelectableTextAlign;
@@ -202,7 +204,8 @@ inline void ImGuiCustomThemeSetup_Default()
     style.GrabRounding = 0.0f;
     style.TabRounding = 4.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -299,7 +302,8 @@ inline void ImGuiCustomThemeSetup_USNDark()
     style.GrabRounding = 6.0f;
     style.TabRounding = 4.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -394,7 +398,8 @@ inline void ImGuiCustomThemeSetup_USNLight()
     style.GrabRounding = 6.0f;
     style.TabRounding = 4.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -489,7 +494,8 @@ inline void ImGuiCustomThemeSetup_Comfy()
     style.GrabRounding = 5.0f;
     style.TabRounding = 5.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -586,7 +592,8 @@ inline void ImGuiCustomThemeSetup_DiscordDark()
     style.GrabRounding = 0.0f;
     style.TabRounding = 0.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -681,7 +688,8 @@ inline void ImGuiCustomThemeSetup_FutureDark()
     style.GrabRounding = 0.0f;
     style.TabRounding = 0.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -776,7 +784,8 @@ inline void ImGuiCustomThemeSetup_Cherry()
     style.GrabRounding = 2.0f;
     style.TabRounding = 4.0f;
     style.TabBorderSize = 1.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -871,7 +880,8 @@ inline void ImGuiCustomThemeSetup_ClassicSteam()
     style.GrabRounding = 0.0f;
     style.TabRounding = 0.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -966,7 +976,8 @@ inline void ImGuiCustomThemeSetup_Enemymouse()
     style.GrabRounding = 1.0f;
     style.TabRounding = 4.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -1061,7 +1072,8 @@ inline void ImGuiCustomThemeSetup_Gold()
     style.GrabRounding = 4.0f;
     style.TabRounding = 4.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -1156,7 +1168,8 @@ inline void ImGuiCustomThemeSetup_GreenFont()
     style.GrabRounding = 0.0f;
     style.TabRounding = 4.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -1251,7 +1264,8 @@ inline void ImGuiCustomThemeSetup_Light()
     style.GrabRounding = 0.0f;
     style.TabRounding = 4.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -1346,7 +1360,8 @@ inline void ImGuiCustomThemeSetup_MaterialFlat()
     style.GrabRounding = 0.0f;
     style.TabRounding = 0.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Left;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -1441,7 +1456,8 @@ inline void ImGuiCustomThemeSetup_Photoshop()
     style.GrabRounding = 0.0f;
     style.TabRounding = 0.0f;
     style.TabBorderSize = 1.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -1536,7 +1552,7 @@ inline void ImGuiCustomThemeSetup_SoftCherry()
     style.GrabRounding = 4.0f;
     style.TabRounding = 4.0f;
     style.TabBorderSize = 1.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -1631,7 +1647,8 @@ inline void ImGuiCustomThemeSetup_VisualStudio()
     style.GrabRounding = 0.0f;
     style.TabRounding = 0.0f;
     style.TabBorderSize = 0.0f;
-    style.TabMinWidthForCloseButton = 0.0f;
+    style.TabCloseButtonMinWidthSelected = 0.0f;
+    style.TabCloseButtonMinWidthUnselected = 0.0f;
     style.ColorButtonPosition = ImGuiDir_Right;
     style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
     style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
