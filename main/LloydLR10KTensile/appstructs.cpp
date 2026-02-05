@@ -2936,7 +2936,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     ImGui::SetNextWindowPos(ImVec2(200, 50), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(1000, 650));
 
-    if (!ImGui::Begin("Documentation", p_open, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse))
+    if (!ImGui::Begin("Documentation", p_open, ImGuiWindowFlags_NoCollapse))
     {
         ImGui::End();
         return;
