@@ -411,7 +411,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
     window_flags |= extern_windowFlags;
 
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(600, 750), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(575, 720), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Calculator", showCalculator, window_flags);
 
@@ -572,9 +572,209 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             ImGui::EndTabItem();
         }
         // --------------------
+        // Stress (N/MM^2 | MPa | Sigma)
+        // --------------------
+        if (ImGui::BeginTabItem("Stress Calculation"))
+        {
+            ImGuiStyle& style = ImGui::GetStyle();
+            static float scaling_header = 1.5f;
+            static float scaling = 1.3f;
+
+            // Output the calculations
+            std::string str = "Stress (";
+            str.append(LR10KAppGlobals::GetUnitOption<const char*>(3));
+            str.append(" | ");
+            str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+            str.append(" | σ)");
+            ImGui::SeparatorText(str.c_str());
+
+            bool unvalidCalculationStart =
+                (!tabData->test_finished || tabData->plot_dataPoints.size() < 1
+                    || (LR10KAppGlobals::calc_length == 0 && (LR10KAppGlobals::calc_thickness == 0 || LR10KAppGlobals::calc_width == 0)));
+
+            ImGui::BeginDisabled(unvalidCalculationStart);
+            ImGui::SetItemTooltip("Material properties will be saved in GUI after each calculation");
+            if (ImGui::Button("Calculate", { 219, 60 }))
+            {
+                check_Thickness = LR10KAppGlobals::calc_thickness;
+                check_Width = LR10KAppGlobals::calc_width;
+                check_Length = LR10KAppGlobals::calc_length;
+                check_Diameter = LR10KAppGlobals::calc_diameter;
+                check_areaOption = LR10KAppGlobals::areaOptionPicked;
+
+                // Offset from zero point extension axis
+                check_offsetZeroPoint = defaultValuesGUI::offsetZeroPointExtensionAxis;
+
+                TabControl::CalculateDataFromTest(tabData);
+            }
+            ImGui::EndDisabled();
+            ImGui::Spacing();
+
+            ImGui::BulletText("Complete a test, and add crucial points to get started.");
+            ImGui::BulletText("Calculations will be saved in Excel Books also.");
+
+            ImGui::Spacing();
+            ImGui::PushFont(NULL, style.FontSizeBase* scaling_header);
+            ImGui::Text("Different calculated stress underneath");
+            ImGui::PopFont();
+
+            bool condition1 = tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked);
+            bool condition2 = !tabData->tension && 1 == tabData->compressionOptionPicked;
+
+            if (condition1)
+            {
+                // Calculate Young's Moduls (stress / strain at prop. limit point)
+                tabData->calcYoungsModulus = (tabData->calcPoint_NominalStressStrain_PropLimit[1] / tabData->calcPoint_NominalStressStrain_PropLimit[0]);
+                if (isnan(tabData->calcYoungsModulus))
+                    tabData->calcYoungsModulus = 0.000f;
+            }
+            else if (condition2)
+            {
+                // Calculate Young's Moduls
+                tabData->calcYoungsModulus = (tabData->calcData_Compression[0] * pow(tabData->length, 3)) / (4 * tabData->width * pow(tabData->thickness, 3) * tabData->calcData_Compression[1]);
+                if (isnan(tabData->calcYoungsModulus))
+                    tabData->calcYoungsModulus = 0.000f;
+            }
+
+            static std::string str1 = "";
+            static std::string str2 = "";
+            static std::string str3 = "";
+
+            if (ImGui::BeginTabBar("StressCalulationTabs", tab_bar_flags))
+            {
+                if (condition1 && ImGui::BeginTabItem("Prop. Limit"))
+                {
+                    ImGui::PushFont(NULL, style.FontSizeBase* scaling);
+                    ImGui::Text("Propotional Limit");
+                    ImGui::Separator();
+                    ImGui::PopFont();
+
+                    ImGui::SeparatorText("Young's Modulus (E-module):");
+                    str2 = "Young's modulus: E-module = %0.3f ";
+                    str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText2, str2.c_str(), tabData->calcYoungsModulus);
+                    ImGui::Spacing();
+
+                    ImGui::SeparatorText("Nominal stress (engineering stress)");
+                    str1 = "Stress, σ_nom/σ_e: %0.3f ";
+                    str1.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_PropLimit[1]);
+                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_PropLimit[0] * 100);
+                    ImGui::SeparatorText("True stress");
+                    str3 = "Stress, σ_t: %0.3f ";
+                    str3.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_PropLimit[1]);
+                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_PropLimit[0] * 100);
+
+                    ImGui::EndTabItem();
+                }
+                if (condition1 && ImGui::BeginTabItem("Yielding"))
+                {
+                    ImGui::PushFont(NULL, style.FontSizeBase* scaling);
+                    ImGui::Text("Yielding Strength (lower)");
+                    ImGui::Separator();
+                    ImGui::PopFont();
+
+                    ImGui::SeparatorText("Nominal stress (engineering stress)");
+                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_yield[1]);
+                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_yield[0] * 100);
+                    ImGui::SeparatorText("True stress");
+                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_yield[1]);
+                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_yield[0] * 100);
+
+                    ImGui::EndTabItem();
+                }
+                if (condition1 && ImGui::BeginTabItem("UTS"))
+                {
+                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
+                    ImGui::Text("Ultimate Tensile Strength (UTS)");
+                    ImGui::Separator();
+                    ImGui::PopFont();
+
+                    ImGui::SeparatorText("Nominal stress (engineering stress)");
+                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrainUTS[1]);
+                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrainUTS[0] * 100);
+                    ImGui::SeparatorText("True stress");
+                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrainUTS[1]);
+                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrainUTS[0] * 100);
+
+                    ImGui::EndTabItem();
+                }
+                if (condition1 && ImGui::BeginTabItem("Frac. Point"))
+                {
+                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
+                    ImGui::Text("Fracture Point");
+                    ImGui::Separator();
+                    ImGui::PopFont();
+
+                    ImGui::SeparatorText("Nominal stress (engineering stress)");
+                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_fracture[1]);
+                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_fracture[0] * 100);
+                    ImGui::SeparatorText("True stress");
+                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_fracture[1]);
+                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_fracture[0] * 100);
+
+                    ImGui::EndTabItem();
+                }
+
+                // ------------------------------
+
+                if (condition2 && ImGui::BeginTabItem("UTS"))
+                {
+                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
+                    ImGui::Text("Ultimate Tensile Strength (UTS)");
+                    ImGui::Separator();
+                    ImGui::PopFont();
+
+                    str = "UTS_bend: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
+                    ImGui::Separator();
+                    str = "Young's modulus,\nE_bend = %0.3f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    ImGui::TextColored(colorText2, str.c_str(), tabData->calcYoungsModulus);
+
+                    ImGui::EndTabItem();
+                }
+                if (condition2 && ImGui::BeginTabItem("Max. Bending Moment"))
+                {
+                    ImGui::PushFont(NULL, style.FontSizeBase* scaling);
+                    ImGui::Text("Maximum Bending Moment");
+                    ImGui::Separator();
+                    ImGui::PopFont();
+
+                    str = "Moment_bend: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1)).append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Nmm or lbf * in
+                    ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[2]);
+
+                    ImGui::EndTabItem();
+                }
+                if (condition2 && ImGui::BeginTabItem("Max. Load & Travel"))
+                {
+                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
+                    ImGui::Text("Maximum Load & Travel");
+                    ImGui::Separator();
+                    ImGui::PopFont();
+
+                    std::string str = "Load_bend: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
+                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[0]);
+                    ImGui::Separator();
+                    str = "Travel_bend: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
+                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[1]);
+
+                    ImGui::EndTabItem();
+                }
+            }
+
+            ImGui::EndTabBar();
+            ImGui::EndTabItem();
+        }
+        // --------------------
         // FILTER
         // --------------------
-        if (ImGui::BeginTabItem("Filter"))
+        if (ImGui::BeginTabItem("Filters"))
         {
             ImGui::SeparatorText("Filter out extension from start (without extensiometer)");
 
@@ -611,176 +811,14 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             ImGui::EndTabItem();
         }
         // --------------------
-        // Stress (N/MM^2 | MPa | Sigma)
-        // --------------------
-        if (ImGui::BeginTabItem("Stress (N/mm^2 | MPa)"))
-        {
-            // Output the calculations
-            std::string str = "Strength (";
-            str.append(LR10KAppGlobals::GetUnitOption<const char*>(3));
-            str.append(" | ");
-            str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-            str.append(" | σ)");
-            ImGui::SeparatorText(str.c_str());
-            ImGui::Spacing();
-
-            bool unvalidCalculationStart =
-                (!tabData->test_finished || tabData->plot_dataPoints.size() < 1
-                    || (LR10KAppGlobals::calc_length == 0 && (LR10KAppGlobals::calc_thickness == 0 || LR10KAppGlobals::calc_width == 0)));
-
-            ImGui::Text("Calculations will be saved in Excel Books also.");
-
-            ImGui::Separator();
-            ImGui::Text("Complete a test, and add crucial points to get started.");
-
-            ImGui::Spacing();
-
-            ImGui::BeginDisabled(unvalidCalculationStart);
-            ImGui::SetItemTooltip("Material properties will be saved in GUI after each calculation");
-            if (ImGui::Button("Calculate", { 219, 60 }))
-            {
-                check_Thickness = LR10KAppGlobals::calc_thickness;
-                check_Width = LR10KAppGlobals::calc_width;
-                check_Length = LR10KAppGlobals::calc_length;
-                check_Diameter = LR10KAppGlobals::calc_diameter;
-                check_areaOption = LR10KAppGlobals::areaOptionPicked;
-
-                // Offset from zero point extension axis
-                check_offsetZeroPoint = defaultValuesGUI::offsetZeroPointExtensionAxis;
-
-                TabControl::CalculateDataFromTest(tabData);
-            }
-            ImGui::EndDisabled();
-            ImGui::Spacing();
-
-            bool condition1 = tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked);
-            bool condition2 = !tabData->tension && 1 == tabData->compressionOptionPicked;
-
-            if (condition1)
-            {
-                // Calculate Young's Moduls (stress / strain at prop. limit point)
-                tabData->calcYoungsModulus = (tabData->calcPoint_NominalStressStrain_PropLimit[1] / tabData->calcPoint_NominalStressStrain_PropLimit[0]);
-                if (isnan(tabData->calcYoungsModulus))
-                    tabData->calcYoungsModulus = 0.000f;
-            }
-            else if (condition2)
-            {
-                // Calculate Young's Moduls
-                tabData->calcYoungsModulus = (tabData->calcData_Compression[0] * pow(tabData->length, 3)) / (4 * tabData->width * pow(tabData->thickness, 3) * tabData->calcData_Compression[1]);
-                if (isnan(tabData->calcYoungsModulus))
-                    tabData->calcYoungsModulus = 0.000f;
-            }
-
-            static std::string str1 = "";
-            static std::string str2 = "";
-            static std::string str3 = "";
-
-            if (ImGui::BeginTabBar("StressCalulationTabs", tab_bar_flags))
-            {
-                if (condition1 && ImGui::BeginTabItem("Proportional limit"))
-                {
-                    ImGui::SeparatorText("Propotional Limit | Nominal:");
-                    str1 = "Stress, σ_nom/σ_e: %0.3f ";
-                    str1.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_PropLimit[1]);
-                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_PropLimit[0] * 100);
-                    ImGui::SeparatorText("Propotional Limit | True:");
-                    str3 = "Stress, σ_t: %0.3f ";
-                    str3.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_PropLimit[1]);
-                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_PropLimit[0] * 100);
-                    ImGui::SeparatorText("Young's Modulus (E-module):");
-                    str2 = "Young's modulus,\nE = %0.3f ";
-                    str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText2, str2.c_str(), tabData->calcYoungsModulus);
-
-                    ImGui::EndTabItem();
-                }
-                if (condition1 && ImGui::BeginTabItem("Yielding strength"))
-                {
-                    ImGui::SeparatorText("Yielding Strength (lower) | Nominal:");
-                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_yield[1]);
-                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_yield[0] * 100);
-                    ImGui::SeparatorText("Yielding Strength (lower) | True:");
-                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_yield[1]);
-                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_yield[0] * 100);
-
-                    ImGui::EndTabItem();
-                }
-                if (condition1 && ImGui::BeginTabItem("Ultimate Tensile Strength (UTS)"))
-                {
-                    ImGui::SeparatorText("Ultimate Tensile Stress | Nominal");
-                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrainUTS[1]);
-                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrainUTS[0] * 100);
-                    ImGui::SeparatorText("Ultimate Tensile Stress | True");
-                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrainUTS[1]);
-                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrainUTS[0] * 100);
-
-                    ImGui::EndTabItem();
-                }
-                if (condition1 && ImGui::BeginTabItem("Fracture"))
-                {
-                    ImGui::SeparatorText("Fracture | Nominal:");
-                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_fracture[1]);
-                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_fracture[0] * 100);
-                    ImGui::SeparatorText("Fracture | True:");
-                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_fracture[1]);
-                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_fracture[0] * 100);
-
-                    ImGui::EndTabItem();
-                }
-
-                // ------------------------------
-
-                if (condition2 && ImGui::BeginTabItem("Ultimate Tensile Strength (UTS)"))
-                {
-                    ImGui::SeparatorText(">>ULTIMATE TENSILE STRENGTH:");
-                    str = "UTS_bend: %0.2f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
-                    ImGui::Separator();
-                    str = "Young's modulus,\nE_bend = %0.3f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText2, str.c_str(), tabData->calcYoungsModulus);
-
-                    ImGui::EndTabItem();
-                }
-                if (condition2 && ImGui::BeginTabItem("Maximum Bending Moment"))
-                {
-                    ImGui::SeparatorText(">>MAXIMUM BENDING MOMENT:");
-                    str = "Moment_bend: %0.2f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1)).append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Nmm or lbf * in
-                    ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[2]);
-
-                    ImGui::EndTabItem();
-                }
-                if (condition2 && ImGui::BeginTabItem("Maximum Load & Travel"))
-                {
-                    ImGui::SeparatorText(">>MAXIMUM LOAD & TRAVEL:");
-                    std::string str = "Load_bend: %0.2f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
-                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[0]);
-                    ImGui::Separator();
-                    str = "Travel_bend: %0.2f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[1]);
-
-                    ImGui::EndTabItem();
-                }
-            }
-
-            ImGui::EndTabBar();
-            ImGui::EndTabItem();
-        }
-        // --------------------
         // EXTRA TOOLS
         // --------------------
-        if (ImGui::BeginTabItem("Extra tools"))
+        if (ImGui::BeginTabItem("Extra Tools"))
         {
-            ImGui::SeparatorText("Extra Tools");
+            ImGui::SeparatorText("Calculate a percentage of the materials start length");
 
             // Calculate percentage of length of material to millimeter
-            ImGui::Text("Percentage of\nthe Start length:");
+            ImGui::Text("Percentage of the Start length:");
             static float percentageOfLength = 0.00f;
             if (ImGui::InputFloat("##Percentage of length1", &percentageOfLength, (0.1f), (0.5f), "%.2f", ImGuiInputTextFlags_CharsScientific))
             {
