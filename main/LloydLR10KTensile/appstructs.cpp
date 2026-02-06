@@ -2616,7 +2616,7 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
 
     //ImGui::BeginChild("##setZeroPoint", ImVec2(canvasWidthRight, 0), false, ImGuiWindowFlags_NoBackground);
     //ImGui::Spacing();
-    ImGui::Spacing();
+    /*ImGui::Spacing();
     ImGui::SetWindowFontScale(1);
     ImGui::BeginDisabled(!LR10KAppGlobals::configurationDone || tabData->test_finished);
     if (ImGui::Button("Set zero point", { 150, 40 }))
@@ -2635,7 +2635,7 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
     ImGui::BeginDisabled(mainGUIGlobals::useDemoMode || !LR10KAppGlobals::configurationDone);
     if (ImGui::Button("Return to zero point", { 200, 40 }))
         DockingApps::console.ExecCommand(tabData, "rezero");
-    ImGui::EndDisabled();
+    ImGui::EndDisabled();*/
     //ImGui::EndChild();
 
     //ImGui::End();
@@ -2966,8 +2966,21 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, -3.0f));
     ImGui::Spacing();
     ImGui::PopStyleVar();
+
+    ImGui::BeginDisabled(!LR10KAppGlobals::configurationDone || tabData->test_finished);
+    if (Extra::widgets.widgetCreate_ButtonType1("Set zero point", { sizeWidth, sizeHeight }, 0.11f)) // Beige
+    {
+        if (LR10KControlSystem::SetZeroPoint(tabData))
+        {
+            PlaySoundEffect("buttonClick0");
+        }
+    }
+    ImGui::SetItemTooltip("Zero point will also be set automatically\nwhen applying a setup (or Start Test).");
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
     ImGui::BeginDisabled(mainGUIGlobals::useDemoMode || !tabData->test_finished);
-    if (Extra::widgets.widgetCreate_ButtonType1("Return to zero point", { (sizeWidth + 4) * 2, sizeHeight }, 0.11f)) // Beige
+    if (Extra::widgets.widgetCreate_ButtonType2("Return to zero point", { sizeWidth, sizeHeight }, 0.6f)) // Light gray
         DockingApps::console.ExecCommand(tabData, "rezero");
     ImGui::EndDisabled();
 
