@@ -1939,44 +1939,69 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     // The custom blue crosshair that helps add points to the plot
     auto customPlotCrosshair = []() -> void
         {
+            // 1. Setup State
             ImGuiStyle& style = ImGui::GetStyle();
-            const ImVec4 crosshairColor = style.Colors[ImGuiCol_CheckMark];
-
-            ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-
-            // Get ImGui window DrawList
             ImDrawList* draw_list = ImPlot::GetPlotDrawList();
-            ImPlotPoint mouse = ImPlot::GetPlotMousePos();
+            ImPlotPoint mouse_plot = ImPlot::GetPlotMousePos();
+            ImVec2 mouse_screen = ImPlot::PlotToPixels(mouse_plot); // Current mouse position in screen pixels
 
-            // Settings for line
-            // X-Values
-            float half_width = 0.0025f * LR10KAppGlobals::testing_plot_only_extensionAxis;
-            float half_width2 = 0.005f * LR10KAppGlobals::testing_plot_only_loadAxis;
+            // Get plot boundaries in screen pixels
+            ImVec2 plot_min = ImPlot::GetPlotPos();
+            ImVec2 plot_max = ImVec2(plot_min.x + ImPlot::GetPlotSize().x, plot_min.y + ImPlot::GetPlotSize().y);
 
-            // Y-values
-            float  tool_l = ImPlot::PlotToPixels(mouse.x - half_width, mouse.y).x; // Start (min)
-            float  tool_r = ImPlot::PlotToPixels(mouse.x + half_width, mouse.y).x; // End (max)
-            float  tool_t = ImPlot::GetPlotPos().y;             // Start (min)
-            float  tool_b = tool_t + ImPlot::GetPlotSize().y;   // End (max)
+            // Skip drawing if mouse is outside the plot area
+            if (!ImPlot::IsPlotHovered()) return;
 
-            // X-values
-            float  tool_l2 = ImPlot::PlotToPixels(mouse.x, mouse.y - half_width2).y; // Start (min)
-            float  tool_r2 = ImPlot::PlotToPixels(mouse.x, mouse.y + half_width2).y; // End (max)
-            float  tool_t2 = ImPlot::GetPlotPos().x;            // Start (min)
-            float  tool_b2 = tool_t2 + ImPlot::GetPlotSize().x; // End (max)
+            // 2. Visual Settings
+            ImGui::SetMouseCursor(ImGuiMouseCursor_None); // Hide OS cursor
+            ImU32 lineColor = ImGui::GetColorU32(ImGuiCol_CheckMark); // Or use specific color
+            ImU32 labelBgColor = ImGui::GetColorU32(ImGuiCol_PopupBg, 0.85f); // Semi-transparent bg
+            ImU32 labelTextColor = ImGui::GetColorU32(ImGuiCol_Text);
+            float thickness = 1.0f; // Always 1 pixel thick, regardless of zoom
 
-            // -------------------------------------------------------------
-
-            // Draw line (draws a line between coordinates on graph)
-            // 7, 77, 230
-            const ImU32 color = ImGui::ColorConvertFloat4ToU32(crosshairColor); //IM_COL32(94, 7, 230, 180);
-            ImVec4 crosshairColor2 = crosshairColor; crosshairColor2.w = crosshairColor2.w - 0.5f;
-            const ImU32 colorAlphaLow = ImGui::ColorConvertFloat4ToU32(crosshairColor2);
-
+            // 3. Draw Crosshair Lines (Screen Space)
             ImPlot::PushPlotClipRect();
-            draw_list->AddRectFilled(ImVec2(tool_l, tool_t), ImVec2(tool_r, tool_b), color);
-            draw_list->AddRectFilled(ImVec2(tool_t2, tool_l2), ImVec2(tool_b2, tool_r2), colorAlphaLow);
+
+            // Vertical Line (Load Axis)
+            draw_list->AddLine(ImVec2(mouse_screen.x, plot_min.y), ImVec2(mouse_screen.x, plot_max.y), lineColor, thickness);
+
+            // Horizontal Line (Extension Axis)
+            draw_list->AddLine(ImVec2(plot_min.x, mouse_screen.y), ImVec2(plot_max.x, mouse_screen.y), lineColor, thickness);
+
             ImPlot::PopPlotClipRect();
+
+            // 4. Draw Tooltip (The Box with Values)
+            // We manually draw a tooltip near the cursor to avoid flickering "standard" tooltips
+
+            char label_buf[64];
+            sprintf(label_buf, "Load:      %.1f N\nExtension: %.3f mm", mouse_plot.y, mouse_plot.x);
+
+            ImVec2 label_size = ImGui::CalcTextSize(label_buf);
+            ImVec2 label_pos = ImVec2(mouse_screen.x + 15, mouse_screen.y + 15); // Offset from cursor
+            ImVec2 label_pad = style.FramePadding;
+
+            // Keep tooltip on screen (optional simple clamping)
+            if (label_pos.x + label_size.x > plot_max.x) label_pos.x = mouse_screen.x - label_size.x - 15;
+            if (label_pos.y + label_size.y > plot_max.y) label_pos.y = mouse_screen.y - label_size.y - 15;
+
+            // Draw Tooltip Box
+            draw_list->AddRectFilled(
+                label_pos,
+                ImVec2(label_pos.x + label_size.x + label_pad.x * 2, label_pos.y + label_size.y + label_pad.y * 2),
+                labelBgColor,
+                style.WindowRounding
+            );
+
+            // Draw Tooltip Border
+            draw_list->AddRect(
+                label_pos,
+                ImVec2(label_pos.x + label_size.x + label_pad.x * 2, label_pos.y + label_size.y + label_pad.y * 2),
+                lineColor,
+                style.WindowRounding
+            );
+
+            // Draw Text
+            draw_list->AddText(ImVec2(label_pos.x + label_pad.x, label_pos.y + label_pad.y), labelTextColor, label_buf);
         };
 
     // The custom marked area that defines the amount of cut of delta l
@@ -2225,20 +2250,6 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
             {
                 customPlotCrosshair();
                 adjustCrucialPointWithMouse(tabData);
-
-                ImPlotPoint mouse = ImPlot::GetPlotMousePos();
-
-                ImGui::BeginTooltip();
-                std::string str     = "Load:       %0.1f ";
-                str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
-                ImGui::Text(str.c_str(), mouse.y);
-                std::string ext1    = "Extension:  ";
-                ext1.append(LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(mouse.x));
-                str = LR10KAppGlobals::GetUnitOption<const char*>(0);
-                str.append(" ");
-                ext1.append(str);
-                ImGui::Text(ext1.c_str(), mouse.x);
-                ImGui::EndTooltip();
             } else if (!ImPlot::IsPlotHovered())
                 ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
 
@@ -2427,11 +2438,6 @@ void AppMainWidgets::PlotGraphAdjustmentDraw(TabControl::TabTestDataClass* tabDa
     // E.g. N and lbf
     const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9);
 
-    //ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-    //ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiCond_FirstUseEver);
-
-    //ImGui::Begin("Graph Adjustment", nullptr);
-
     // Settings :: Axis minimum and maximum values
     float loadYAxisMin = 5.0f;
     float loadYAxisMax = 100000.0f;
@@ -2517,8 +2523,6 @@ void AppMainWidgets::PlotGraphAdjustmentDraw(TabControl::TabTestDataClass* tabDa
     DockingApps::mutexControl.testing_plot_only_extensionAxisStatusChanged.notify_all();
     ImGui::EndChild();
     ImGui::EndDisabled();
-
-    //ImGui::End();
 }
 
 void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
@@ -2527,13 +2531,6 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
 
     // E.g. mm and in
     const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8);
-
-    //ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
-    //ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
-
-    //ImGui::Begin("Live", nullptr);
-
-    //ImGui::SeparatorText("Realtime feedback for current test");
 
     // View the settings applied for the test
     std::string str = "Crosshead Speed: %0.2f ";
@@ -2600,45 +2597,12 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
     // Warn user
     ImVec4 textColor = mainGUIGlobals::useDemoMode ? (ImVec4)ImColor::HSV(0.149f, 0.860f, 1.0f) : ImVec4({ 1.0f, 1.0f, 1.0f, 1.00f });
 
-    /*ImGui::BeginChild("##loadDistanceLive", ImVec2(canvasWidthLeft, 0), false, ImGuiWindowFlags_NoBackground);
-    ImGui::SetWindowFontScale(1.15);
-    ImGui::SetWindowFontScale(1);
-    ImGui::EndChild();*/
-
     str = "Load:      %s ";
     str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
     ImGui::TextColored(textColor, str.c_str(), TabControl::LR10KLoadNice.c_str());
     str = "Extension: %s ";
     str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
     ImGui::TextColored(textColor, str.c_str(), TabControl::LR10KExtensionNice.c_str());
-
-    //ImGui::SameLine();
-
-    //ImGui::BeginChild("##setZeroPoint", ImVec2(canvasWidthRight, 0), false, ImGuiWindowFlags_NoBackground);
-    //ImGui::Spacing();
-    /*ImGui::Spacing();
-    ImGui::SetWindowFontScale(1);
-    ImGui::BeginDisabled(!LR10KAppGlobals::configurationDone || tabData->test_finished);
-    if (ImGui::Button("Set zero point", { 150, 40 }))
-    {
-        if (LR10KControlSystem::SetZeroPoint(tabData))
-        {
-            PlaySoundEffect("buttonClick0");
-        }
-    }
-    ImGui::SetItemTooltip("Zero point will also be set automatically\nwhen applying a setup (or Start Test).");
-
-    ImGui::EndDisabled();
-
-    ImGui::SameLine();
-
-    ImGui::BeginDisabled(mainGUIGlobals::useDemoMode || !LR10KAppGlobals::configurationDone);
-    if (ImGui::Button("Return to zero point", { 200, 40 }))
-        DockingApps::console.ExecCommand(tabData, "rezero");
-    ImGui::EndDisabled();*/
-    //ImGui::EndChild();
-
-    //ImGui::End();
 }
 
 void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabData)
@@ -2648,11 +2612,6 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
     // Undo crucial point with hot key Ctrl+Z
     if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
         TabControl::CrucialPointsUndoPoint(tabData);
-
-    //ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
-    //ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
-
-    //ImGui::Begin("Crucial Points", nullptr, ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
     ImGui::Text("You can undo an undefined\npoint with Ctrl+Z.");
     ImGui::Spacing();
@@ -2831,24 +2790,11 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
 
         ImGui::Spacing();
     }
-
-    //ImGui::End();
 }
 
 void AppMainWidgets::QuickReportWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open, ImGuiWindowFlags extern_windowFlags)
 {
     if (tabData == nullptr) return;
-
-    //ImGuiWindowFlags window_flags = 0;
-    //window_flags |= extern_windowFlags;
-
-    //ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
-    //ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
-
-    //ImGui::Begin("Quick Report", p_open, window_flags);
-
-    //ImGui::SeparatorText("Raw data: Critical points sum up");
-    //ImGui::Spacing();
 
     if (tabData->test_finished)
     {
@@ -2869,18 +2815,11 @@ void AppMainWidgets::QuickReportWindowDraw(TabControl::TabTestDataClass* tabData
     else {
         ImGui::Text("Finish a test to get a\nsummary of critical points.");
     }
-
-    //ImGui::End();
 }
 
 void AppMainWidgets::DescriptionWindowDraw(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
-
-    //ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
-    //ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
-
-    //ImGui::Begin("Description", nullptr);
 
     //ImGui::SeparatorText("Description: Important details");
     ImGui::Spacing();
@@ -2894,20 +2833,11 @@ void AppMainWidgets::DescriptionWindowDraw(TabControl::TabTestDataClass* tabData
     std::string tempStr(TabControl::tempDescription);
     if (tempStr.length() < (static_cast<unsigned long long>(87) * 5))
         tabData->description = TabControl::tempDescription;
-
-    //ImGui::End();
 }
 
 void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
-
-    //ImGui::SetNextWindowPos(ImVec2(150, 50), ImGuiCond_FirstUseEver);
-    //ImGui::SetNextWindowSize(ImVec2(250, 300), ImGuiCond_FirstUseEver);
-
-    //ImGui::Begin("Testing", nullptr);
-
-    //ImGui::SeparatorText("Control Panel for testing procedure");
 
     // Size
     float sizeWidth = 180.0f;
@@ -2985,20 +2915,11 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::EndDisabled();
 
     ImGui::EndDisabled();
-
-    //ImGui::End();
 }
 
 void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
-
-    //ImGui::SetNextWindowPos(ImVec2(140, 50), ImGuiCond_FirstUseEver);
-    //ImGui::SetNextWindowSize(ImVec2(250, 300), ImGuiCond_FirstUseEver);
-
-    //ImGui::Begin("Navigation", nullptr);
-
-    //ImGui::SeparatorText("Control Panel for navigating the machine");
 
     // Size
     float sizeWidth1 = 110.0f + 2.5f;
@@ -3208,8 +3129,6 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
     // ImGui::EndDisabled();
 
     ImGui::EndDisabled();
-
-    //ImGui::End();
 }
 
 void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
