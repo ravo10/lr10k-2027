@@ -171,16 +171,6 @@ ImVec2 GetWindowSize()
     return ImGui::GetMainViewport()->Size;
 }
 
-void StoreViewSettingsToggler(bool* g_WindowState, bool* toggler)
-{
-    // Save settings when a change has occured, so it doesn't save a billion times per second
-    if (g_WindowState != toggler)
-    {
-        toggler = g_WindowState;
-        DockingApps::mainFileSystem.SaveApplicationSettings();
-    }
-}
-
 // ------------------------------------------------------------------------------
 
 /**
@@ -497,73 +487,8 @@ int main(int, char**)
             }
 
             // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+            else
             {
-                // Docking space
-
-      //          // 1. Create the DockSpace as you did before, but capture the ID
-      //          ImGuiID dockspace_id = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
-
-      //          // 2. Setup the layout only if it's the first time (or if imgui.ini is missing)
-      //          static bool first_time = true;
-      //          if (first_time)
-      //          {
-      //              first_time = false;
-
-      //              // Check if the node already exists in imgui.ini to avoid overwriting user changes
-      //              // (If you want to FORCE the reset every time, remove this 'if' check)
-      //              if (ImGui::DockBuilderGetNode(dockspace_id) == NULL)
-      //              {
-      //                  ImGui::DockBuilderRemoveNode(dockspace_id); // Clear whatever OverViewport created
-      //                  ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
-      //                  ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
-
-      //                  // 3. Create the Split Tree
-      //                  ImGuiID dock_main_id = dockspace_id;
-
-						//// Top LEFT - 100 % width
-						//ImGuiID dock_id_up = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Up, 1.0f, nullptr, &dock_main_id);
-
-      //                  // Split LEFT (Settings & Calculator) - 20% width
-      //                  ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dock_id_up, ImGuiDir_Left, 0.20f, nullptr, &dock_id_up);
-
-      //                  // Split RIGHT (Crucial Points & Axis) - 25% width
-      //                  ImGuiID dock_id_right = ImGui::DockBuilderSplitNode(dock_id_up, ImGuiDir_Right, 0.25f, nullptr, &dock_id_up);
-
-      //                  // Split BOTTOM (Description & Quick Report) - 25% height of the remaining center
-      //                  ImGuiID dock_id_bottom = ImGui::DockBuilderSplitNode(dock_id_up, ImGuiDir_Down, 0.25f, nullptr, &dock_id_up);
-
-      //                  // --- Sub-Splits ---
-      //                  // Split Testing/Navigation to the bottom of the Left side
-      //                  ImGuiID dock_id_left_bottom = ImGui::DockBuilderSplitNode(dock_id_left, ImGuiDir_Down, 0.30f, nullptr, &dock_id_left);
-
-      //                  // Split Realtime Feedback to the bottom of the Right side
-      //                  ImGuiID dock_id_right_bottom = ImGui::DockBuilderSplitNode(dock_id_right, ImGuiDir_Down, 0.30f, nullptr, &dock_id_right);
-
-      //                  // 4. Dock the Windows
-      //                  // IMPORTANT: These strings must match ImGui::Begin() names EXACTLY
-						//ImGui::DockBuilderDockWindow("Tabulate", dock_id_up);
-
-      //                  ImGui::DockBuilderDockWindow("Settings", dock_id_left);
-      //                  ImGui::DockBuilderDockWindow("Calculator", dock_id_left);
-
-      //                  ImGui::DockBuilderDockWindow("Testing", dock_id_left_bottom);
-      //                  ImGui::DockBuilderDockWindow("Navigation", dock_id_left_bottom);
-
-      //                  ImGui::DockBuilderDockWindow("Graph", dock_main_id);
-
-      //                  ImGui::DockBuilderDockWindow("Quick Report", dock_id_bottom);
-      //                  ImGui::DockBuilderDockWindow("Description", dock_id_bottom);
-
-      //                  ImGui::DockBuilderDockWindow("Crucial Points", dock_id_right);
-      //                  ImGui::DockBuilderDockWindow("Graph Adjustment", dock_id_right);
-
-      //                  ImGui::DockBuilderDockWindow("Live", dock_id_right_bottom);
-
-      //                  // 5. Commit
-      //                  ImGui::DockBuilderFinish(dockspace_id);
-      //              }
-      //          }
-
                 // Main window
                 DockingApps::main.Draw(tabData, &mainGUIGlobals::enableSound, &show_demo_window);
 
@@ -583,49 +508,38 @@ int main(int, char**)
 					if (g_WindowStates.show_settings)
 					{
 						DockingApps::mainWidgets.SettingsWindowDraw(tabData, disableWidgets2, &g_WindowStates.show_settings, viewOptions_window_flags);
-                        StoreViewSettingsToggler(&g_WindowStates.show_settings, &showSettingsToggler);
                     }
                     // Calculator for LR 10K Stress
                     if (g_WindowStates.show_calculator)
                     {
                         ImGui::BeginDisabled(disableWidgets1);
-                        DockingApps::calculator.Draw(tabData, &g_WindowStates.show_calculator, viewOptions_window_flags);
-                        StoreViewSettingsToggler(&g_WindowStates.show_calculator, &showCalculatorToggler);
+                            DockingApps::calculator.Draw(tabData, &g_WindowStates.show_calculator, viewOptions_window_flags);
                         ImGui::EndDisabled();
-                    }
-                    // Quick report
-                    if (g_WindowStates.show_quick_report)
-                    {
-                        DockingApps::mainWidgets.QuickReportWindowDraw(tabData, &g_WindowStates.show_quick_report, viewOptions_window_flags);
-                        StoreViewSettingsToggler(&g_WindowStates.show_quick_report, &showQuickReportToggler);
                     }
                     // Console
                     if (g_WindowStates.show_console)
                     {
                         DockingApps::console.Draw(tabData, "LR 10K Console", &g_WindowStates.show_console, viewOptions_window_flags);
-                        StoreViewSettingsToggler(&g_WindowStates.show_console, &showConsoleToggler);
 					}
-
-                    // Disable if a test is running and for other than the one running a test
-                    ImGui::BeginDisabled(disableWidgets1);
-                    //DockingApps::mainWidgets.LiveWindowDraw(tabData);
-                    ImGui::EndDisabled();
 
                     // Disable for other than the one running a test
                     ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
-                    //DockingApps::mainWidgets.PlotWindowDraw(tabData);
-                    //DockingApps::mainWidgets.PlotGraphAdjustmentDraw(tabData);
-                    //DockingApps::mainWidgets.QuickReportWindowDraw(tabData);
-                    //DockingApps::mainWidgets.DescriptionWindowDraw(tabData);
-                    //DockingApps::mainWidgets.CrucialPointsWindowDraw(tabData);
-                    //DockingApps::mainWidgets.ControlTestingCycleWindowDraw(tabData);
-                    //DockingApps::mainWidgets.ControlNavigationWindowDraw(tabData);
+                        DockingApps::mainWidgets.PlotWindowDraw(tabData);
                     ImGui::EndDisabled();
+
+                    // Side panel (tab selector)
+                    DockingApps::mainWidgets.SidePanelContainer(tabData);
                 }
 
                 // Show Documentation
                 if (g_WindowStates.show_docs)
                     DockingApps::mainWidgets.DocumentationWindowDraw(&g_WindowStates.show_docs);
+
+                // Save some view states... Check
+                DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_quick_report, &showQuickReportToggler);
+                DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_console, &showConsoleToggler);
+                DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_calculator, &showCalculatorToggler);
+                DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_settings, &showSettingsToggler);
 
                 // -------------------------------------------------------------
                 // --- Reset some GUI values if they cross a min or max limit --

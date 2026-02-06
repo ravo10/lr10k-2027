@@ -411,15 +411,18 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
     window_flags |= extern_windowFlags;
 
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(575, 720), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(646, 717), ImGuiCond_Once);
 
     ImGui::Begin("Calculator", showCalculator, window_flags);
 
 
     ImGui::Spacing();
 
-    // Expose some other flags which are useful to showcase how they interact with Leading/Trailing tabs
-    static ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown;
+    // ------------------------------------------------------------------
+    // TABS
+    // ------------------------------------------------------------------
+    ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_Reorderable;
+    tab_bar_flags |= ImGuiTabBarFlags_TabListPopupButton;
     
     if (ImGui::BeginTabBar("CalculatorTabs", tab_bar_flags))
     {

@@ -32,6 +32,13 @@ struct AppMain
         @param show_demo_window - 
     **/
     void Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, bool* show_demo_window);
+
+    /**
+        @brief Store the current view settings from the Menu bar.
+        @param g_WindowState    -
+        @param toggler          -
+    **/
+    void StoreViewSettingsToggler(bool* g_WindowState, bool* toggler);
 };
 
 /**
@@ -51,6 +58,13 @@ struct AppMainWidgets {
         @param extern_windowFlags - 
     **/
     void SettingsWindowDraw(TabControl::TabTestDataClass* tabData, bool disableMainThings, bool* p_open, ImGuiWindowFlags extern_windowFlags = 0);
+
+    /**
+        @brief Contains different docking panels, that can be used to show different windows.
+                Like e.g. the plot window, quick report and control panel.
+        @param tabData           -
+    **/
+    void SidePanelContainer(TabControl::TabTestDataClass* tabData);
 
     /**
         @brief Here one can see the current load and extension live in a plot,

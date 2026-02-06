@@ -897,7 +897,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 ImGui::PopItemFlag();
                 ImGui::EndDisabled();
 
-                ImGui::Separator();
+                ImGui::SeparatorText("Application Control");
 
                 // Exit the program
                 if (ImGui::Selectable("Exit application"))
@@ -926,15 +926,16 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 // Toggle the booleans inside the struct
                 ImGui::MenuItem("Settings", NULL, &g_WindowStates.show_settings);
                 ImGui::MenuItem("Calculator", NULL, &g_WindowStates.show_calculator);
-                ImGui::MenuItem("Quick Report", NULL, &g_WindowStates.show_quick_report);
                 ImGui::MenuItem("Console", NULL, &g_WindowStates.show_console);
+                ImGui::SeparatorText("Side Panel");
+                ImGui::MenuItem("Quick Report", NULL, &g_WindowStates.show_quick_report);
                 ImGui::EndMenu();
             }
 
             ImGui::Separator();
 
             // Add Configuration menu
-            if (ImGui::BeginMenu("Configuration"))
+            if (ImGui::BeginMenu("PC Config."))
             {
                 // ---------------------------
                 // Connect to a COM port
@@ -1048,8 +1049,34 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
             {
                 ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
 
+                // Show or hide extra panels
+                ImGui::SeparatorText("GUI Output");
+
+                // Units convertion
+                if (ImGui::BeginMenu("Unit type", !tabData->test_unfinished_test_started))
+                {
+                    bool opt1 = ImGui::MenuItem("SI", nullptr, LR10KAppGlobals::unitsConvertionIndex == 0);
+                    bool opt2 = ImGui::MenuItem("English Engineering", nullptr, LR10KAppGlobals::unitsConvertionIndex == 1);
+
+                    if (opt1)
+                        LR10KAppGlobals::unitsConvertionIndex = 0;
+                    if (opt2)
+                        LR10KAppGlobals::unitsConvertionIndex = 1;
+
+                    // Convert to new unit, and save to tab
+                    if (opt1 || opt2)
+                    {
+                        tabData->ConvertUnitsToNewUnit(tabData, LR10KAppGlobals::unitsConvertionIndex);
+                        DockingApps::mainFileSystem.SaveApplicationSettings();
+
+                        PlaySoundEffect("buttonClick0");
+                    }
+
+                    ImGui::EndMenu();
+                }
+
                 // GUI
-                ImGui::SeparatorText("GUI");
+                ImGui::SeparatorText("GUI Other");
 
                 if (ImGui::MenuItem("Sound", nullptr, enableSound))
                     DockingApps::mainFileSystem.SaveApplicationSettings();
@@ -1076,32 +1103,6 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                     if (ImGui::MenuItem("Photoshop", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Photoshop ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Photoshop;     ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
                     if (ImGui::MenuItem("Soft Cherry", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::SoftCherry ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::SoftCherry;    ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
                     if (ImGui::MenuItem("Visual Studio", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::VisualStudio ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::VisualStudio;  ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-
-                    ImGui::EndMenu();
-                }
-
-                // Show or hide extra panels
-                ImGui::Separator();
-
-                // Units convertion
-                if (ImGui::BeginMenu("Unit type", !tabData->test_unfinished_test_started))
-                {
-                    bool opt1 = ImGui::MenuItem("SI", nullptr, LR10KAppGlobals::unitsConvertionIndex == 0);
-                    bool opt2 = ImGui::MenuItem("English Engineering", nullptr, LR10KAppGlobals::unitsConvertionIndex == 1);
-
-                    if (opt1)
-                        LR10KAppGlobals::unitsConvertionIndex = 0;
-                    if (opt2)
-                        LR10KAppGlobals::unitsConvertionIndex = 1;
-
-                    // Convert to new unit, and save to tab
-                    if (opt1 || opt2)
-                    {
-                        tabData->ConvertUnitsToNewUnit(tabData, LR10KAppGlobals::unitsConvertionIndex);
-                        DockingApps::mainFileSystem.SaveApplicationSettings();
-
-                        PlaySoundEffect("buttonClick0");
-                    }
 
                     ImGui::EndMenu();
                 }
@@ -1167,9 +1168,9 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                     ImGui::EndMenu();
                 }
 
-                ImGui::SeparatorText("LR 10K Simulation");
+                ImGui::SeparatorText("Demo");
 
-                if (ImGui::BeginMenu("Demo Mode"))
+                if (ImGui::BeginMenu("LR 10K Simulation"))
                 {
                     if (ImGui::MenuItem("Activate", nullptr, mainGUIGlobals::useDemoMode))
                         mainGUIGlobals::useDemoMode = !mainGUIGlobals::useDemoMode;
@@ -1183,9 +1184,8 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
                 ImGui::PopItemFlag();
 
-                // ImGUI panels
-                ImGui::SeparatorText("ImGui");
-                ImGui::MenuItem("Demo", nullptr, show_demo_window);
+                // ImGUI/ImPlot panels
+                ImGui::MenuItem("ImGui/ImPlot", nullptr, show_demo_window);
 
                 ImGui::EndMenu();
             }
@@ -1328,6 +1328,16 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
     if (tabData != nullptr) ImGui::End();
 }
 
+void AppMain::StoreViewSettingsToggler(bool* g_WindowState, bool* toggler)
+{
+    // Save settings when a change has occured, so it doesn't save a billion times per second
+    if (g_WindowState != toggler)
+    {
+        toggler = g_WindowState;
+        DockingApps::mainFileSystem.SaveApplicationSettings();
+    }
+}
+
 // -----------------------------------------------------------------------------
 // ---------------------------------- Widgets ----------------------------------
 // -----------------------------------------------------------------------------
@@ -1345,7 +1355,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
     const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9);
 
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(947, 776), ImGuiCond_Once);
 
     bool disableTestSettingsAdjustments = ((tabData->test_running_test && tabData->test_unfinished_test_started) || tabData->test_finished);
 
@@ -1659,6 +1669,146 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
+    }
+
+    ImGui::End();
+}
+
+void AppMainWidgets::SidePanelContainer(TabControl::TabTestDataClass* tabData)
+{
+    if (tabData == nullptr) return;
+
+    ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(398, 836), ImGuiCond_FirstUseEver);
+
+    // 1. Setup the Main Side Window (Locked in place)
+    // You likely already have this setup, but ensure these flags are set:
+    ImGuiWindowFlags window_flags = 0;
+        //window_flags |= ImGuiWindowFlags_NoMove;
+        window_flags |= ImGuiWindowFlags_NoResize;
+        window_flags |= ImGuiWindowFlags_NoCollapse;
+        //window_flags |= ImGuiWindowFlags_NoTitleBar; // Optional: clean look
+
+    ImGui::Begin("Side Panel Container", nullptr, window_flags);
+    {
+        // Main widgets
+        bool disableWidgets1 = tabData->test_unfinished_test_started || DockingApps::mainTabSystem.ThisTabIsNotRunningATest();
+        bool disableWidgets2 = tabData->test_unfinished_test_started;
+
+        // 2. Start the Tab Bar
+        if (ImGui::BeginTabBar("SidePanelTabs", ImGuiTabBarFlags_None))
+        {
+            // ============================================================
+            // TAB 1: CONTROL (Testing, Navigation, Live)
+            // ============================================================
+            if (ImGui::BeginTabItem("Feedback"))
+            {
+                // --- Sub-Window 1: Testing ---
+                // "ImVec2(0, 200)" means: Fill width (0), Fixed Height (200px)
+                // "true" enables the border (makes it look like a window)
+                if (ImGui::BeginChild("TestingPanel", ImVec2(0, 240), true, ImGuiWindowFlags_MenuBar))
+                {
+                    if (ImGui::BeginMenuBar()) { ImGui::Text("Control Panel for testing procedure"); ImGui::EndMenuBar(); }
+
+                    ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
+                        DockingApps::mainWidgets.ControlTestingCycleWindowDraw(tabData);
+                    ImGui::EndDisabled();
+                }
+                ImGui::EndChild();
+
+                // --- Sub-Window 2: Navigation ---
+                if (ImGui::BeginChild("NavigationPanel", ImVec2(0, 240), true, ImGuiWindowFlags_MenuBar))
+                {
+                    if (ImGui::BeginMenuBar()) { ImGui::Text("Control Panel for navigating the machine"); ImGui::EndMenuBar(); }
+
+                    ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
+                        DockingApps::mainWidgets.ControlNavigationWindowDraw(tabData);
+                    ImGui::EndDisabled();
+                }
+                ImGui::EndChild();
+
+                // --- Sub-Window 3: Live Feedback ---
+                // "ImVec2(0, 0)" means: Fill remaining width AND remaining height
+                if (ImGui::BeginChild("LivePanel", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar))
+                {
+                    if (ImGui::BeginMenuBar()) { ImGui::Text("Realtime feedback for current test"); ImGui::EndMenuBar(); }
+
+                    ImGui::SetWindowFontScale(0.7);
+                    ImGui::BeginDisabled(disableWidgets1);
+                        DockingApps::mainWidgets.LiveWindowDraw(tabData);
+                    ImGui::EndDisabled();
+                    ImGui::SetWindowFontScale(1);
+                }
+                ImGui::EndChild();
+
+                ImGui::EndTabItem();
+            }
+
+            // ============================================================
+            // TAB 2: EXTRA (Crucial Points, Description, Adjustments)
+            // ============================================================
+            if (ImGui::BeginTabItem("Information"))
+            {
+                // --- Sub-Window 1: Quick Report ---
+                if (g_WindowStates.show_quick_report)
+                {
+                    if (ImGui::BeginChild("QuickRepPanel", ImVec2(0, 230), true, ImGuiWindowFlags_MenuBar))
+                    {
+                        if (ImGui::BeginMenuBar()) { ImGui::Text("Raw data: Critical points sum up"); ImGui::EndMenuBar(); }
+
+                        // Common window flags
+                        ImGuiWindowFlags viewOptions_window_flags = 0;
+                        viewOptions_window_flags |= ImGuiWindowFlags_NoCollapse;
+                        viewOptions_window_flags |= ImGuiWindowFlags_NoDocking;
+
+                        DockingApps::mainWidgets.QuickReportWindowDraw(tabData, &g_WindowStates.show_quick_report, viewOptions_window_flags);
+                    }
+                    ImGui::EndChild();
+                }
+
+                // --- Sub-Window 2: Description ---
+                if (ImGui::BeginChild("DescPanel", ImVec2(0, 275), true, ImGuiWindowFlags_MenuBar))
+                {
+                    if (ImGui::BeginMenuBar()) { ImGui::Text("Description: Important details"); ImGui::EndMenuBar(); }
+
+                    ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
+                        DockingApps::mainWidgets.DescriptionWindowDraw(tabData);
+                    ImGui::EndDisabled();
+                }
+                ImGui::EndChild();
+
+                // --- Sub-Window 3: Crucial Points ---
+                // Fill remaining space
+                if (ImGui::BeginChild("PointsPanel", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar))
+                {
+                    if (ImGui::BeginMenuBar()) { ImGui::Text("Crucial Points"); ImGui::EndMenuBar(); }
+
+                    ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
+                    DockingApps::mainWidgets.CrucialPointsWindowDraw(tabData);
+                    ImGui::EndDisabled();
+                }
+                ImGui::EndChild();
+
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Graph Settings"))
+            {
+                // --- Sub-Window 1: Graph Adjustment ---
+                if (ImGui::BeginChild("GraphAdjPanel", ImVec2(0, 260), true, ImGuiWindowFlags_MenuBar))
+                {
+                    if (ImGui::BeginMenuBar()) { ImGui::Text("Graph Axes"); ImGui::EndMenuBar(); }
+
+                    ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
+                    DockingApps::mainWidgets.PlotGraphAdjustmentDraw(tabData);
+                    ImGui::EndDisabled();
+                }
+                ImGui::EndChild();
+
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
     }
 
     ImGui::End();
@@ -2277,10 +2427,10 @@ void AppMainWidgets::PlotGraphAdjustmentDraw(TabControl::TabTestDataClass* tabDa
     // E.g. N and lbf
     const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9);
 
-    ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Graph Adjustment", nullptr);
+    //ImGui::Begin("Graph Adjustment", nullptr);
 
     // Settings :: Axis minimum and maximum values
     float loadYAxisMin = 5.0f;
@@ -2288,7 +2438,7 @@ void AppMainWidgets::PlotGraphAdjustmentDraw(TabControl::TabTestDataClass* tabDa
     float extensionXAxisMin = 0.05f;
     float extensionXAxisMax = 10000.0f;
 
-    ImGui::SeparatorText("Axis'");
+    //ImGui::SeparatorText("Axis'");
 
     float canvasWidth = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
     float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
@@ -2368,7 +2518,7 @@ void AppMainWidgets::PlotGraphAdjustmentDraw(TabControl::TabTestDataClass* tabDa
     ImGui::EndChild();
     ImGui::EndDisabled();
 
-    ImGui::End();
+    //ImGui::End();
 }
 
 void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
@@ -2378,12 +2528,12 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
     // E.g. mm and in
     const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8);
 
-    ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Live", nullptr);
+    //ImGui::Begin("Live", nullptr);
 
-    ImGui::SeparatorText("Realtime feedback for current test");
+    //ImGui::SeparatorText("Realtime feedback for current test");
 
     // View the settings applied for the test
     std::string str = "Crosshead Speed: %0.2f ";
@@ -2450,22 +2600,24 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
     // Warn user
     ImVec4 textColor = mainGUIGlobals::useDemoMode ? (ImVec4)ImColor::HSV(0.149f, 0.860f, 1.0f) : ImVec4({ 1.0f, 1.0f, 1.0f, 1.00f });
 
-    ImGui::BeginChild("##loadDistanceLive", ImVec2(canvasWidthLeft, 0), false, ImGuiWindowFlags_NoBackground);
+    /*ImGui::BeginChild("##loadDistanceLive", ImVec2(canvasWidthLeft, 0), false, ImGuiWindowFlags_NoBackground);
     ImGui::SetWindowFontScale(1.15);
+    ImGui::SetWindowFontScale(1);
+    ImGui::EndChild();*/
+
     str = "Load:      %s ";
     str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
     ImGui::TextColored(textColor, str.c_str(), TabControl::LR10KLoadNice.c_str());
     str = "Extension: %s ";
     str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
     ImGui::TextColored(textColor, str.c_str(), TabControl::LR10KExtensionNice.c_str());
+
+    //ImGui::SameLine();
+
+    //ImGui::BeginChild("##setZeroPoint", ImVec2(canvasWidthRight, 0), false, ImGuiWindowFlags_NoBackground);
+    //ImGui::Spacing();
+    ImGui::Spacing();
     ImGui::SetWindowFontScale(1);
-    ImGui::EndChild();
-
-    ImGui::SameLine();
-
-    ImGui::BeginChild("##setZeroPoint", ImVec2(canvasWidthRight, 0), false, ImGuiWindowFlags_NoBackground);
-    ImGui::Spacing();
-    ImGui::Spacing();
     ImGui::BeginDisabled(!LR10KAppGlobals::configurationDone || tabData->test_finished);
     if (ImGui::Button("Set zero point", { 150, 40 }))
     {
@@ -2484,9 +2636,9 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
     if (ImGui::Button("Return to zero point", { 200, 40 }))
         DockingApps::console.ExecCommand(tabData, "rezero");
     ImGui::EndDisabled();
-    ImGui::EndChild();
+    //ImGui::EndChild();
 
-    ImGui::End();
+    //ImGui::End();
 }
 
 void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabData)
@@ -2497,10 +2649,10 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
     if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
         TabControl::CrucialPointsUndoPoint(tabData);
 
-    ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Crucial Points", nullptr, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+    //ImGui::Begin("Crucial Points", nullptr, ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
     ImGui::Text("You can undo an undefined\npoint with Ctrl+Z.");
     ImGui::Spacing();
@@ -2680,28 +2832,27 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
         ImGui::Spacing();
     }
 
-    ImGui::End();
+    //ImGui::End();
 }
 
 void AppMainWidgets::QuickReportWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open, ImGuiWindowFlags extern_windowFlags)
 {
     if (tabData == nullptr) return;
 
-    ImGuiWindowFlags window_flags = 0;
-    window_flags |= extern_windowFlags;
+    //ImGuiWindowFlags window_flags = 0;
+    //window_flags |= extern_windowFlags;
 
-    ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Quick Report", p_open, window_flags);
+    //ImGui::Begin("Quick Report", p_open, window_flags);
 
-    ImGui::SeparatorText("Raw data: Critical points sum up");
-    ImGui::Spacing();
+    //ImGui::SeparatorText("Raw data: Critical points sum up");
+    //ImGui::Spacing();
 
     if (tabData->test_finished)
     {
         // Sum up critical points from plot
-        ImGui::Separator();
         ImGui::Text("Proportional limit Load: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(0)).y, "%.0f", LR10KAppGlobals::GetUnitOption<const char*>(1)).c_str());
         ImGui::Text("Proportional limit Extension: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(0)).x, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(0)).x), LR10KAppGlobals::GetUnitOption<const char*>(0)).c_str());
         ImGui::Separator();
@@ -2715,22 +2866,25 @@ void AppMainWidgets::QuickReportWindowDraw(TabControl::TabTestDataClass* tabData
         ImGui::Text("Fracture Extension: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(3)).x, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(3)).x), LR10KAppGlobals::GetUnitOption<const char*>(0)).c_str());
         ImGui::Separator();
     }
+    else {
+        ImGui::Text("Finish a test to get a\nsummary of critical points.");
+    }
 
-    ImGui::End();
+    //ImGui::End();
 }
 
 void AppMainWidgets::DescriptionWindowDraw(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
 
-    ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowPos(ImVec2(100, 50), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowSize(ImVec2(200, 400), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Description", nullptr);
+    //ImGui::Begin("Description", nullptr);
 
-    ImGui::SeparatorText("Description: Important details");
+    //ImGui::SeparatorText("Description: Important details");
     ImGui::Spacing();
-    ImGui::Text("You can use Ctrl+Enter for newlines; max 5 newlines.");
+    ImGui::Text("You can use Ctrl+Enter for newlines;\nmax 5 newlines.");
 
     // Save it globally before saving it to a tab, so it can be manipulated outside function
     static ImGuiInputTextFlags flags = ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_CtrlEnterForNewLine | ImGuiInputTextFlags_NoUndoRedo;
@@ -2741,19 +2895,19 @@ void AppMainWidgets::DescriptionWindowDraw(TabControl::TabTestDataClass* tabData
     if (tempStr.length() < (static_cast<unsigned long long>(87) * 5))
         tabData->description = TabControl::tempDescription;
 
-    ImGui::End();
+    //ImGui::End();
 }
 
 void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
 
-    ImGui::SetNextWindowPos(ImVec2(150, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(250, 300), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowPos(ImVec2(150, 50), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowSize(ImVec2(250, 300), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Testing", nullptr);
+    //ImGui::Begin("Testing", nullptr);
 
-    ImGui::SeparatorText("Control Panel for testing procedure");
+    //ImGui::SeparatorText("Control Panel for testing procedure");
 
     // Size
     float sizeWidth = 180.0f;
@@ -2819,19 +2973,19 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
 
     ImGui::EndDisabled();
 
-    ImGui::End();
+    //ImGui::End();
 }
 
 void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
 
-    ImGui::SetNextWindowPos(ImVec2(140, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(250, 300), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowPos(ImVec2(140, 50), ImGuiCond_FirstUseEver);
+    //ImGui::SetNextWindowSize(ImVec2(250, 300), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Navigation", nullptr);
+    //ImGui::Begin("Navigation", nullptr);
 
-    ImGui::SeparatorText("Control Panel for navigating the machine");
+    //ImGui::SeparatorText("Control Panel for navigating the machine");
 
     // Size
     float sizeWidth1 = 110.0f + 2.5f;
@@ -3042,7 +3196,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
 
     ImGui::EndDisabled();
 
-    ImGui::End();
+    //ImGui::End();
 }
 
 void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
