@@ -136,7 +136,7 @@
     <ClCompile Include="..\..\backends\imgui_impl_dx12.cpp">
       <Filter>ImGUI\source</Filter>
     </ClCompile>
-    <ClCompile Include="main_old.cpp">
+    <ClCompile Include="main.cpp">
       <Filter>sources</Filter>
     </ClCompile>
   </ItemGroup>
