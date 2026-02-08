@@ -11,14 +11,9 @@
 
 #include "imgui_ImageLoader_dx12.h"
 
-#include "stdio.h"
-#include "stdlib.h"
-
 #define _CRT_SECURE_NO_WARNINGS
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
-#include "imgui.h"
 
 // Simple helper function to load an image into a DX12 texture with common settings
 // Returns true on success, with the SRV CPU handle having an SRV for the newly-created texture placed in it (srv_cpu_handle must be a handle in a valid descriptor heap)
@@ -236,4 +231,138 @@ void ImGuiCustomSplashScreenAtBoot(ImTextureID my_texture_srv, int my_image_widt
         ImGui::Image(my_texture_srv, ImVec2((float)my_image_width, (float)my_image_height));
     }
     ImGui::End();
+}
+
+
+// NEW FUNCTION: Updates a DX12 texture from raw pixel data (e.g. OpenCV)
+// In imgui_ImageLoader_dx12.cpp (made by Gemini)
+
+bool UpdateTextureFromRawData(ID3D12Device* d3d_device,
+    ID3D12CommandQueue* cmdQueue,
+    TextureUploadContext& ctx,
+    D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu_handle,
+    ID3D12Resource** out_tex_resource,
+    const void* raw_pixel_data,
+    int width, int height)
+{
+    // 1. Initialize Commands (First Run Only)
+    if (ctx.cmdAlloc == nullptr) {
+        d3d_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&ctx.cmdAlloc));
+        d3d_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, ctx.cmdAlloc, nullptr, IID_PPV_ARGS(&ctx.cmdList));
+        ctx.cmdList->Close();
+        d3d_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&ctx.fence));
+        ctx.eventHandle = CreateEvent(0, 0, 0, 0);
+    }
+
+    // 2. Manage Texture Resource (Recreate only if missing or size changed)
+    // If we have a texture but it's the wrong size, release it.
+    if (*out_tex_resource != nullptr) {
+        D3D12_RESOURCE_DESC existingDesc = (*out_tex_resource)->GetDesc();
+        if (existingDesc.Width != width || existingDesc.Height != height) {
+            (*out_tex_resource)->Release();
+            *out_tex_resource = nullptr;
+        }
+    }
+
+    // Create Texture if needed
+    if (*out_tex_resource == nullptr) {
+        D3D12_HEAP_PROPERTIES defaultHeapProps = { D3D12_HEAP_TYPE_DEFAULT };
+        D3D12_RESOURCE_DESC desc = {};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        desc.Width = width;
+        desc.Height = height;
+        desc.DepthOrArraySize = 1;
+        desc.MipLevels = 1;
+        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        if (FAILED(d3d_device->CreateCommittedResource(&defaultHeapProps, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(out_tex_resource)))) return false;
+
+        // Update SRV since we made a new texture
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        d3d_device->CreateShaderResourceView(*out_tex_resource, &srvDesc, srv_cpu_handle);
+    }
+
+    // 3. Manage Upload Buffer (Reuse logic)
+    UINT64 uploadPitch = (width * 4 + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+    UINT64 uploadSize = height * uploadPitch;
+
+    // Check if we need to recreate the upload buffer
+    if (ctx.uploadBuffer == nullptr || ctx.width != width || ctx.height != height)
+    {
+        if (ctx.uploadBuffer) ctx.uploadBuffer->Release();
+
+        D3D12_HEAP_PROPERTIES uploadHeapProps = { D3D12_HEAP_TYPE_UPLOAD };
+        D3D12_RESOURCE_DESC uploadDesc = {};
+        uploadDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        uploadDesc.Width = uploadSize;
+        uploadDesc.Height = 1;
+        uploadDesc.DepthOrArraySize = 1;
+        uploadDesc.MipLevels = 1;
+        uploadDesc.Format = DXGI_FORMAT_UNKNOWN;
+        uploadDesc.SampleDesc.Count = 1;
+        uploadDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        uploadDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        if (FAILED(d3d_device->CreateCommittedResource(&uploadHeapProps, D3D12_HEAP_FLAG_NONE, &uploadDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&ctx.uploadBuffer)))) return false;
+
+        ctx.width = width;
+        ctx.height = height;
+    }
+
+    // 4. Map & Copy Data
+    void* mapped = nullptr;
+    ctx.uploadBuffer->Map(0, nullptr, &mapped);
+    const unsigned char* src_pixels = (const unsigned char*)raw_pixel_data;
+    for (int y = 0; y < height; y++) {
+        memcpy((void*)((uintptr_t)mapped + y * uploadPitch), src_pixels + y * width * 4, width * 4);
+    }
+    ctx.uploadBuffer->Unmap(0, nullptr);
+
+    // 5. Record Commands
+    ctx.cmdAlloc->Reset();
+    ctx.cmdList->Reset(ctx.cmdAlloc, nullptr);
+
+    // Transition Texture to COPY_DEST
+    D3D12_RESOURCE_BARRIER barrier = {};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = *out_tex_resource;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    ctx.cmdList->ResourceBarrier(1, &barrier);
+
+    D3D12_TEXTURE_COPY_LOCATION dstLoc = { *out_tex_resource, D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX, 0 };
+    D3D12_TEXTURE_COPY_LOCATION srcLoc = { ctx.uploadBuffer, D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT };
+    srcLoc.PlacedFootprint = { 0, { DXGI_FORMAT_R8G8B8A8_UNORM, (UINT)width, (UINT)height, 1, (UINT)uploadPitch } };
+
+    ctx.cmdList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
+
+    // Transition back to PIXEL_SHADER_RESOURCE
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    ctx.cmdList->ResourceBarrier(1, &barrier);
+
+    ctx.cmdList->Close();
+
+    // 6. Execute
+    ID3D12CommandList* ppCommandLists[] = { ctx.cmdList };
+    cmdQueue->ExecuteCommandLists(1, ppCommandLists);
+
+    // 7. Sync (Wait)
+    ctx.fenceValue++;
+    cmdQueue->Signal(ctx.fence, ctx.fenceValue);
+    ctx.fence->SetEventOnCompletion(ctx.fenceValue, ctx.eventHandle);
+    WaitForSingleObject(ctx.eventHandle, INFINITE);
+
+    // NO RELEASE HERE! We keep uploadBuffer for the next frame.
+
+    return true;
 }

@@ -48,6 +48,15 @@ struct AppMain
 **/
 struct AppMainWidgets {
     /**
+        @brief This is where the extensiometer window appears for tensile tests, and has
+                the custom code and logic using computer vision and OpenCV. It will use the
+                defined start length for the test sample, to set the E-module using strain data calculated.
+        @param tabData  -
+        @param p_open  -
+     **/
+    void ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open);
+
+    /**
         @brief This is the settings window for the LR10K Tensile Machine,
                 where one can adjust if it is going to be tension or compression.
                 Also one can adjust the test speed in mm/min, jog speed and load graph

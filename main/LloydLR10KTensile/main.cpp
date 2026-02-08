@@ -25,7 +25,7 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
-#include <d3d12.h>
+
 #include <dxgi1_5.h>
 #include <tchar.h>
 
@@ -98,11 +98,50 @@ struct ExampleDescriptorHeapAllocator
 static FrameContext                 g_frameContext[APP_NUM_FRAMES_IN_FLIGHT] = {};
 static UINT                         g_frameIndex = 0;
 
-static ID3D12Device* g_pd3dDevice = nullptr;
+ID3D12Device* g_pd3dDevice = nullptr;
+
+// --- Global Definitions for Extensiometer ---
+// These match the 'extern' declarations in your other files
+D3D12_CPU_DESCRIPTOR_HANDLE g_hCpuDescCamera = {};
+D3D12_GPU_DESCRIPTOR_HANDLE g_hGpuDescCamera = {};
+D3D12_CPU_DESCRIPTOR_HANDLE g_hCpuDescMask = {};
+D3D12_GPU_DESCRIPTOR_HANDLE g_hGpuDescMask = {};
+
+ID3D12Resource* g_pResourceCamera = nullptr;
+ID3D12Resource* g_pResourceMask = nullptr;
+
+TextureUploadContext g_CameraUploadCtx = {};
+TextureUploadContext g_MaskUploadCtx = {};
+
+std::unique_ptr<std::thread> g_pThreadCV = nullptr;
+std::atomic<bool> g_CV_stopFlag = false;
+std::mutex g_CV_frameMutex;
+cv::Mat g_sharedCameraFrame;
+cv::Mat g_sharedMaskFrame;
+bool g_hasNewFrame = false;
+
+void ShutdownOpticalExtensiometer()
+{
+    if (g_pThreadCV != nullptr)
+    {
+        // 1. Tell the loop to stop
+        g_CV_stopFlag = true;
+
+        // 2. Wait for the thread to finish (releasing the camera)
+        if (g_pThreadCV->joinable()) {
+            g_pThreadCV->join();
+        }
+
+        // 3. Delete the thread object
+        g_pThreadCV = nullptr;
+    }
+}
+// ---------------------------------------------
+
 static ID3D12DescriptorHeap* g_pd3dRtvDescHeap = nullptr;
 static ID3D12DescriptorHeap* g_pd3dSrvDescHeap = nullptr;
 static ExampleDescriptorHeapAllocator g_pd3dSrvDescHeapAlloc;
-static ID3D12CommandQueue* g_pd3dCommandQueue = nullptr;
+ID3D12CommandQueue* g_pd3dCommandQueue = nullptr;
 static ID3D12GraphicsCommandList* g_pd3dCommandList = nullptr;
 static ID3D12Fence* g_fence = nullptr;
 static HANDLE                       g_fenceEvent = nullptr;
@@ -354,10 +393,11 @@ int main(int, char**)
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     // Window handling toggle for saving settings on close
-    static bool showCalculatorToggler   = false;
-    static bool showConsoleToggler      = false;
-    static bool showSettingsToggler     = false;
-    static bool showQuickReportToggler  = false;
+    bool showCalculatorToggler      = g_WindowStates.show_calculator;
+    bool showConsoleToggler         = g_WindowStates.show_console;
+    bool showSettingsToggler        = g_WindowStates.show_settings;
+    bool showQuickReportToggler     = g_WindowStates.show_quick_report;
+    bool showExtensiometerToggler   = g_WindowStates.show_extensiometer;
 
     // Used for bootloader and splash screen
     bool loadingApplication1 = false;
@@ -384,6 +424,26 @@ int main(int, char**)
     bool ret2 = LoadTextureFromFile("usn-background-1.jpg", g_pd3dDevice, usnbackground_srv_cpu_handle, &usnBackgroundTexture, &my_image_width, &my_image_height);
     IM_ASSERT(ret1);
     IM_ASSERT(ret2);
+
+	// [DELETE or COMMENT OUT these lines at approx line 277]
+	// D3D12_CPU_DESCRIPTOR_HANDLE g_hCpuDescCamera, g_hCpuDescMask;
+	// D3D12_GPU_DESCRIPTOR_HANDLE g_hGpuDescCamera, g_hGpuDescMask;
+	// g_pd3dSrvDescHeapAlloc.Alloc(&g_hCpuDescCamera, &g_hGpuDescCamera);
+	// g_pd3dSrvDescHeapAlloc.Alloc(&g_hCpuDescMask, &g_hGpuDescMask);
+
+	// ID3D12Resource* g_pResourceCamera = nullptr;
+	// ID3D12Resource* g_pResourceMask = nullptr;
+
+
+	// [REPLACE WITH THIS]
+	// Just perform the allocation into the GLOBAL variables we defined at the top.
+	// Do NOT put "D3D12_CPU_DESCRIPTOR_HANDLE" in front of the names here!
+	g_pd3dSrvDescHeapAlloc.Alloc(&g_hCpuDescCamera, &g_hGpuDescCamera);
+	g_pd3dSrvDescHeapAlloc.Alloc(&g_hCpuDescMask, &g_hGpuDescMask);
+
+	// Ensure the resource pointers are null to start
+	/*g_pResourceCamera = nullptr;
+	g_pResourceMask = nullptr;*/
 
     // This is used everywhere in functions, and is the only place where it gets defined - other than that it is "injected"
     TabControl::TabTestDataClass* tabData;
@@ -521,6 +581,8 @@ int main(int, char**)
                     {
                         DockingApps::console.Draw(tabData, "LR 10K Console", &g_WindowStates.show_console, viewOptions_window_flags);
 					}
+                    // Extensiometer
+					DockingApps::mainWidgets.ExtensiometerWindowDraw(tabData, &g_WindowStates.show_extensiometer);
 
                     // Disable for other than the one running a test
                     ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
@@ -540,6 +602,7 @@ int main(int, char**)
                 DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_console, &showConsoleToggler);
                 DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_calculator, &showCalculatorToggler);
                 DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_settings, &showSettingsToggler);
+                DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_extensiometer, &showExtensiometerToggler);
 
                 // -------------------------------------------------------------
                 // --- Reset some GUI values if they cross a min or max limit --
@@ -552,7 +615,6 @@ int main(int, char**)
         {
             ImVec2 windowSize = GetWindowSize();
             ImGuiCustomSplashScreenAtBoot((ImTextureID)usnbackground_srv_gpu_handle.ptr, windowSize.x, windowSize.y);
-
         }
         // Splash screen at load
         else if (loadingApplication1)
@@ -769,6 +831,18 @@ bool CreateDeviceD3D(HWND hWnd)
 void CleanupDeviceD3D()
 {
     CleanupRenderTarget();
+
+    // 1. Stop the Worker Thread FIRST (Important!)
+    // We must stop the thread before we destroy the buffers it might be using.
+    ShutdownOpticalExtensiometer();
+
+    // Camera cleanup and release
+    g_CameraUploadCtx.Release();
+    g_MaskUploadCtx.Release();
+
+    if (g_pResourceCamera) { g_pResourceCamera->Release(); g_pResourceCamera = nullptr; }
+    if (g_pResourceMask) { g_pResourceMask->Release(); g_pResourceMask = nullptr; }
+
     if (g_pSwapChain) { g_pSwapChain->SetFullscreenState(false, nullptr); g_pSwapChain->Release(); g_pSwapChain = nullptr; }
     if (g_hSwapChainWaitableObject != nullptr) { CloseHandle(g_hSwapChainWaitableObject); }
     for (UINT i = 0; i < APP_NUM_FRAMES_IN_FLIGHT; i++)

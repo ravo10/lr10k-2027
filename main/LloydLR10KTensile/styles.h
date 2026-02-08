@@ -17,7 +17,6 @@
 #include "init.h"
 #include "LR10KDecryption.h"
 #include "LR10KBufferMessage.h"
-#include "imgui_ImageLoader_dx12.h"
 
 //#include <iostream>
 #include <fstream>
@@ -35,6 +34,7 @@
 #include <stdio.h>          // vsnprintf, sscanf, printf
 #include <variant>
 #include <algorithm>        // min, max
+#include <vector>
 
 #undef min
 #undef max
@@ -56,6 +56,12 @@
 
 // JSON for Modern C++
 #include "nlohmann/json.hpp"
+
+// OpenCV2
+#include <opencv2/opencv.hpp>
+
+// DirectX 12
+#include "imgui_ImageLoader_dx12.h"
 
 // -----------------------------------------------------------------------------
 // ----------------- Custom Styles (made/gotten using ImThemes) ----------------

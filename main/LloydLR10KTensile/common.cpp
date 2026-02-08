@@ -1773,6 +1773,7 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["gui_showDescription"] = g_WindowStates.show_description;
         settings["gui_showConsole"]     = g_WindowStates.show_console;
         settings["gui_showDocs"]        = g_WindowStates.show_docs;
+        settings["gui_showExtensiometer"]  = g_WindowStates.show_extensiometer;
         settings["enableSound"]         = mainGUIGlobals::enableSound;
 
         settings["fullScreen"]          = mainGUIGlobals::fullScreen;
@@ -1841,6 +1842,7 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["gui_showDescription"] = false;
         settings["gui_showConsole"]     = false;
         settings["gui_showDocs"]        = false;
+        settings["gui_showExtensiometer"] = true;
         settings["enableSound"]         = true;
 
         settings["fullScreen"]          = false;
@@ -1917,6 +1919,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     std::string_view gui_showDescription                        = "gui_showDescription";
     std::string_view gui_showConsole                            = "gui_showConsole";
     std::string_view gui_showDocs                               = "gui_showDocs";
+    std::string_view gui_showExtensiometer                      = "gui_showExtensiometer";
     std::string_view enableSound                                = "enableSound";
     std::string_view fullScreen                                 = "fullScreen";
     std::string_view enableDPIAwareness                         = "enableDPIAwareness";
@@ -1957,6 +1960,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     if (!settings.contains(std::string{ gui_showDescription                     })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ gui_showConsole                         })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ gui_showDocs                            })) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ gui_showExtensiometer                   })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ enableSound                             })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ fullScreen                              })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ enableDPIAwareness                      })) thereIsAnUnvalidKey = true;
@@ -2025,6 +2029,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
         g_WindowStates.show_description     = settings["gui_showDescription"];
         g_WindowStates.show_console         = settings["gui_showConsole"];
         g_WindowStates.show_docs            = settings["gui_showDocs"];
+        g_WindowStates.show_extensiometer   = settings["gui_showExtensiometer"];
 
         mainGUIGlobals::enableSound         = settings["enableSound"];
 

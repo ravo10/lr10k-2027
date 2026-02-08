@@ -217,11 +217,74 @@ struct AppWindowStates
     bool show_description   = false;    
     bool show_console       = false;    //!< Used for showing/hiding the console.
     bool show_docs          = false;    //!< Used for showing/hiding the documentation window.
+    bool show_extensiometer = false;    //!< Used for showing/hiding the extensiometer window.
     // Add more here as you need them
 };
 
 // "extern" tells the compiler: "This variable exists somewhere else, don't create it here."
 extern AppWindowStates g_WindowStates;
+
+/**
+    @struct AppExtensiometer
+    @brief     A group of states for the extensiometer.
+**/
+struct AppExtensiometer
+{
+    float restrictive_area = 0.0f;
+    bool record_test = false;
+    std::string record_test_filepath = "";
+    bool show_cvmask = true;
+    bool show_cvsettings = true;
+    bool is_active = true; // Controls the camera ON/OFF state
+
+    // Internal state for logic (Initial Length logic)
+    bool reset_requested = false;
+    double initial_dist_px = 0.0;
+    double smooth_dist_px = 0.0;
+    bool initialized = false;
+
+    // Instance of settings (initialized with your prototype defaults)
+    struct MaskSettings {
+        int h_min = 25; int h_max = 85;
+        int s_min = 60; int s_max = 255;
+        int v_min = 50; int v_max = 255;
+    } settings;
+
+    // Instance of results
+    struct Output {
+        float travel_mm = 0.0f;
+        float strain_percentage = 0.0f;
+    } results;
+};
+
+extern AppExtensiometer g_Extensiometer;
+
+extern ID3D12Device* g_pd3dDevice;
+extern ID3D12CommandQueue* g_pd3dCommandQueue;
+
+extern D3D12_CPU_DESCRIPTOR_HANDLE g_hCpuDescCamera;
+extern D3D12_GPU_DESCRIPTOR_HANDLE g_hGpuDescCamera;
+extern D3D12_CPU_DESCRIPTOR_HANDLE g_hCpuDescMask;
+extern D3D12_GPU_DESCRIPTOR_HANDLE g_hGpuDescMask;
+extern ID3D12Resource* g_pResourceCamera;
+extern ID3D12Resource* g_pResourceMask;
+
+extern TextureUploadContext g_CameraUploadCtx;
+extern TextureUploadContext g_MaskUploadCtx;
+
+//! \note Extensiometer settings thread
+extern std::unique_ptr<std::thread> g_pThreadCV;
+//! \note Extensiometer setting
+extern std::atomic<bool> g_CV_stopFlag;
+//! \note Extensiometer setting - Protects the shared data below
+extern std::mutex g_CV_frameMutex;
+
+//! \note Extensiometer setting
+extern cv::Mat g_sharedCameraFrame;
+//! \note Extensiometer setting
+extern cv::Mat g_sharedMaskFrame;
+//! \note Extensiometer setting - Flag to tell Main thread to upload
+extern bool g_hasNewFrame;
 
 // -----------------------------------------------------------------------------
 
@@ -462,8 +525,6 @@ struct MutexControl {
     std::condition_variable testing_plot_only_loadAxisStatusChanged;
     //! \details Synchronize access to "testing_plot_only_extensionAxis".
     std::condition_variable testing_plot_only_extensionAxisStatusChanged;
-
-    // -------------------------------------------------------------------------
 
     /**
         @brief Status message change.

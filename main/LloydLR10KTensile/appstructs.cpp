@@ -9,13 +9,12 @@
 
 **/
 
-
-
 #include "appstructs.h"
 
 #include "LR10KController.h"
 inline LR10KController _LR10KController; //!< A global scope to gain access to the LR 10K Controller logic.
 AppWindowStates g_WindowStates; //!< Create the variable in memory.
+AppExtensiometer g_Extensiometer; //!< Create the variable in memory.
 
 // -----------------------------------------------------------------------------
 // ------------------------------- Extra Widgets -------------------------------
@@ -265,6 +264,18 @@ struct Extra_Widgets {
 **/
 namespace Extra {
     Extra_Widgets   widgets; //!< This is a global variable for the extra widgets.
+}
+
+static void HelpMarker(const char* desc)
+{
+    ImGui::TextDisabled("(?)");
+    if (ImGui::BeginItemTooltip())
+    {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -926,6 +937,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 // Toggle the booleans inside the struct
                 ImGui::MenuItem("Settings", NULL, &g_WindowStates.show_settings);
                 ImGui::MenuItem("Calculator", NULL, &g_WindowStates.show_calculator);
+                ImGui::MenuItem("Extensiometer", NULL, &g_WindowStates.show_extensiometer);
                 ImGui::MenuItem("Console", NULL, &g_WindowStates.show_console);
                 ImGui::SeparatorText("Side Panel");
                 ImGui::MenuItem("Quick Report", NULL, &g_WindowStates.show_quick_report);
@@ -1045,7 +1057,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
             ImGui::Separator();
 
             // Add Options menu
-            if (ImGui::BeginMenu("Options"))
+            if (ImGui::BeginMenu("GUI Settings"))
             {
                 ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
 
@@ -1331,9 +1343,10 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 void AppMain::StoreViewSettingsToggler(bool* g_WindowState, bool* toggler)
 {
     // Save settings when a change has occured, so it doesn't save a billion times per second
-    if (g_WindowState != toggler)
+    if (*toggler != *g_WindowState)
     {
-        toggler = g_WindowState;
+        // Change the value of the pointer
+        *toggler = *g_WindowState;
         DockingApps::mainFileSystem.SaveApplicationSettings();
     }
 }
@@ -1341,6 +1354,510 @@ void AppMain::StoreViewSettingsToggler(bool* g_WindowState, bool* toggler)
 // -----------------------------------------------------------------------------
 // ---------------------------------- Widgets ----------------------------------
 // -----------------------------------------------------------------------------
+
+// --- HELPER FUNCTION --- (to sort points vertically)
+static bool SortPointsVertically(const cv::Point2f& a, const cv::Point2f& b) {
+    return a.y < b.y;
+}
+
+void ExtensiometerWorkerThread()
+{
+    // 1. Setup Camera (Runs once when thread starts)
+    cv::VideoCapture cap(1); // Try external first
+    if (!cap.isOpened()) cap.open(0); // Fallback to internal
+
+    if (cap.isOpened()) {
+        cap.set(cv::CAP_PROP_AUTOFOCUS, 0);
+        cap.set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
+    }
+
+    // Local variables for processing
+    cv::Mat frame, hsv, mask, frame_display;
+    const double PHYSICAL_L0_MM = 50.0;
+    const double EMA_ALPHA = 0.1;
+
+    // 2. Processing Loop
+    while (!g_CV_stopFlag)
+    {
+        if (!cap.isOpened()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+
+        cap >> frame;
+        if (frame.empty()) continue;
+
+        // =========================================================
+        // 1. PREPARE DISPLAY FRAME (Must happen first)
+        // =========================================================
+        frame.copyTo(frame_display);
+
+        // =========================================================
+        // 2. DRAW RESTRICTIVE AREA OVERLAY (Always visible)
+        // =========================================================
+        if (g_Extensiometer.restrictive_area > 0.001f) // check slightly > 0
+        {
+            int margin = (int)(frame.cols * g_Extensiometer.restrictive_area);
+
+            // Ensure margin is valid
+            if (margin > 0 && margin < frame.cols / 2)
+            {
+                // A. DIMMING (IN-PLACE FIX)
+                // We grab a 'Region of Interest' (ROI) which points to the actual pixels in frame_display
+                cv::Mat roiLeft = frame_display(cv::Rect(0, 0, margin, frame.rows));
+                cv::Mat roiRight = frame_display(cv::Rect(frame.cols - margin, 0, margin, frame.rows));
+
+                // .convertTo(dst, type, scale, shift)
+                // Passing 'roiLeft' as both src and dst modifies the pixels IN PLACE.
+                roiLeft.convertTo(roiLeft, -1, 0.5, 0);   // Darken Left by 50%
+                roiRight.convertTo(roiRight, -1, 0.5, 0); // Darken Right by 50%
+
+                // B. DASHED LINES
+                cv::Scalar lineColor(255, 255, 0); // Cyan
+                int thickness = 2;
+                int dashLen = 20;
+                int gapLen = 15;
+
+                for (int y = 0; y < frame.rows; y += (dashLen + gapLen)) {
+                    // Left Line
+                    cv::line(frame_display,
+                        cv::Point(margin, y),
+                        cv::Point(margin, std::min(y + dashLen, frame.rows)),
+                        lineColor, thickness);
+
+                    // Right Line
+                    cv::line(frame_display,
+                        cv::Point(frame.cols - margin, y),
+                        cv::Point(frame.cols - margin, std::min(y + dashLen, frame.rows)),
+                        lineColor, thickness);
+                }
+            }
+        }
+
+        // =========================================================
+        // 3. IMAGE PROCESSING (Algorithm)
+        // =========================================================
+        // We process 'frame' (the raw image), not 'frame_display' (the one with lines)
+        cv::GaussianBlur(frame, frame, cv::Size(9, 9), 0);
+        cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
+
+        // Create Mask
+        cv::inRange(hsv,
+            cv::Scalar(g_Extensiometer.settings.h_min, g_Extensiometer.settings.s_min, g_Extensiometer.settings.v_min),
+            cv::Scalar(g_Extensiometer.settings.h_max, g_Extensiometer.settings.s_max, g_Extensiometer.settings.v_max),
+            mask);
+
+        // Apply same restriction to the MASK so the algorithm ignores the dimmed areas
+        if (g_Extensiometer.restrictive_area > 0.001f)
+        {
+            int margin = (int)(frame.cols * g_Extensiometer.restrictive_area);
+            if (margin > 0 && margin < frame.cols / 2) {
+                mask(cv::Rect(0, 0, margin, frame.rows)) = 0;
+                mask(cv::Rect(frame.cols - margin, 0, margin, frame.rows)) = 0;
+            }
+        }
+
+        cv::erode(mask, mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
+        cv::dilate(mask, mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8)));
+
+        // Find Contours & Centers
+        std::vector<std::vector<cv::Point>> contours;
+        cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+        std::vector<cv::Point2f> centers;
+        for (const auto& c : contours) {
+            if (cv::contourArea(c) > 50) {
+                cv::Moments m = cv::moments(c);
+                if (m.m00 != 0) centers.push_back(cv::Point2f((float)(m.m10 / m.m00), (float)(m.m01 / m.m00)));
+            }
+        }
+
+        // =========================================================
+        // 4. DRAW MARKERS (Overlay on top of lines)
+        // =========================================================
+        if (centers.size() == 2) {
+            std::sort(centers.begin(), centers.end(), SortPointsVertically);
+            cv::Point2f p1 = centers[0];
+            cv::Point2f p2 = centers[1];
+
+            // Calculations
+            double currentRawDist = cv::norm(p1 - p2);
+            // ... (Your existing EMA smoothing and strain calc) ...
+            // g_Extensiometer.results.travel_mm = ...
+
+            // Visuals
+            cv::line(frame_display, p1, p2, cv::Scalar(0, 255, 0), 2);
+            cv::circle(frame_display, p1, 5, cv::Scalar(0, 0, 255), -1);
+            cv::circle(frame_display, p2, 5, cv::Scalar(0, 0, 255), -1);
+        }
+        else {
+            cv::putText(frame_display, "Searching for markers...", cv::Point(30, 50),
+                cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 2);
+        }
+
+        // =========================================================
+        // 5. UPLOAD TO GUI
+        // =========================================================
+        {
+            std::lock_guard<std::mutex> lock(g_CV_frameMutex);
+
+            // This 'frame_display' now definitely has the lines and the dimming
+            cv::cvtColor(frame_display, g_sharedCameraFrame, cv::COLOR_BGR2RGBA);
+            cv::cvtColor(mask, g_sharedMaskFrame, cv::COLOR_GRAY2RGBA);
+
+            g_hasNewFrame = true;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    // Thread Stopping: Release Camera
+    cap.release();
+}
+
+void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open)
+{
+    if (tabData == nullptr) return;
+
+    // =========================================================
+    // 1. THREAD MANAGEMENT (Background Logic)
+    //    Controlled by 'is_active', NOT window visibility
+    // =========================================================
+    if (g_Extensiometer.is_active)
+    {
+        // Start Thread if not running
+        if (g_pThreadCV == nullptr)
+        {
+            g_CV_stopFlag = false;
+            g_pThreadCV = std::make_unique<std::thread>(ExtensiometerWorkerThread);
+        }
+    }
+    else
+    {
+        // Stop Thread if running
+        if (g_pThreadCV != nullptr)
+        {
+            g_CV_stopFlag = true;
+            if (g_pThreadCV->joinable()) g_pThreadCV->join();
+            g_pThreadCV = nullptr;
+        }
+    }
+
+    // =========================================================
+    // 2. WINDOW UI (Foreground Logic)
+    //    Controlled by '*p_open' (Window Visibility)
+    // =========================================================
+    if (*p_open)
+    {
+        // A. Upload Textures (Only needed if we are actually looking at them)
+        // Note: We only upload if the camera is active AND we have a new frame.
+        if (g_Extensiometer.is_active)
+        {
+            std::unique_lock<std::mutex> lock(g_CV_frameMutex, std::try_to_lock);
+            if (lock.owns_lock() && g_hasNewFrame)
+            {
+                if (!g_sharedCameraFrame.empty()) {
+                    UpdateTextureFromRawData(g_pd3dDevice, g_pd3dCommandQueue, g_CameraUploadCtx,
+                        g_hCpuDescCamera, &g_pResourceCamera,
+                        g_sharedCameraFrame.data, g_sharedCameraFrame.cols, g_sharedCameraFrame.rows);
+                }
+                if (!g_sharedMaskFrame.empty()) {
+                    UpdateTextureFromRawData(g_pd3dDevice, g_pd3dCommandQueue, g_MaskUploadCtx,
+                        g_hCpuDescMask, &g_pResourceMask,
+                        g_sharedMaskFrame.data, g_sharedMaskFrame.cols, g_sharedMaskFrame.rows);
+                }
+                g_hasNewFrame = false;
+            }
+        }
+
+        // B. Draw the UI
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse;
+
+        // Set default size/pos only first time
+        ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(1300, 800), ImGuiCond_Once);
+
+        if (ImGui::Begin("Computer Vision Extensiometer", p_open, window_flags))
+        {
+            ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
+
+            // --- MAIN TOGGLE SWITCH ---
+            // This is the master switch that allows the camera to run in background
+            ImGui::Checkbox("##ActiveSwitch", &g_Extensiometer.is_active);
+            ImGui::SameLine();
+            ImGui::Text(g_Extensiometer.is_active ? "CAMERA ACTIVE" : "CAMERA OFF");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Keep camera running even if this window is closed.");
+            ImGui::Separator();
+            // --------------------------
+
+            // Get the aspect ratio of the actual camera (e.g. 640/480 = 1.33)
+                        // You can get this from the shared frame or the upload context
+            float aspect = 0.0f;
+            if (g_CameraUploadCtx.height > 0)
+                aspect = (float)g_CameraUploadCtx.width / (float)g_CameraUploadCtx.height;
+
+            // Default to 4:3 if camera isn't ready yet
+            if (aspect == 0.0f) aspect = 4.0f / 3.0f;
+
+            if (g_Extensiometer.is_active && g_pResourceCamera)
+            {
+                // Menu Bar
+                if (ImGui::BeginMenuBar())
+                {
+                    if (ImGui::BeginMenu("Record")) {
+                        ImGui::MenuItem("Activate recording", NULL, &g_Extensiometer.record_test);
+                        ImGui::MenuItem("Filepath for storage", NULL);
+                        ImGui::EndMenu();
+                    }
+                    if (ImGui::BeginMenu("View")) {
+                        ImGui::MenuItem("CV Mask Settings", NULL, &g_Extensiometer.show_cvsettings);
+                        ImGui::MenuItem("CV Mask", NULL, &g_Extensiometer.show_cvmask);
+                        ImGui::EndMenu();
+                    }
+                    ImGui::EndMenuBar();
+                }
+
+                // Left Panel: MASK View
+                if (g_Extensiometer.show_cvmask)
+                {
+                    if (ImGui::BeginChild("ExtMaskChild", ImVec2(400, 0), true, ImGuiWindowFlags_MenuBar))
+                    {
+                        if (ImGui::BeginMenuBar()) { ImGui::Text("CV Mask (Binary)"); ImGui::EndMenuBar(); }
+
+                        if (g_pResourceMask != nullptr && g_hGpuDescMask.ptr != 0) {
+                            // 1. Get available space in the window
+                            ImVec2 availSize = ImGui::GetContentRegionAvail();
+
+                            // 2. Calculate the best size that fits within 'availSize' while keeping 'aspect'
+                            float w = availSize.x;
+                            float h = w / aspect;
+
+                            // If the calculated height is too tall for the space, constrain by height instead
+                            if (h > availSize.y)
+                            {
+                                h = availSize.y;
+                                w = h * aspect;
+                            }
+
+                            // 3. Draw the image with the corrected size
+                            ImGui::Image((ImTextureID)g_hGpuDescMask.ptr, ImVec2(w, h));
+
+                            /*ImVec2 size = ImGui::GetContentRegionAvail();
+                            ImGui::Image((ImTextureID)g_hGpuDescMask.ptr, size);*/
+                        }
+                        else {
+                            ImGui::Text("Waiting for mask data...");
+                        }
+                    }
+                    ImGui::EndChild();
+                    ImGui::SameLine();
+                }
+
+                // Center Panel: CAMERA View
+                float rightPanelWidth = g_Extensiometer.show_cvsettings ? 350.0f : 0.0f;
+                float centerWidth = ImGui::GetContentRegionAvail().x - rightPanelWidth - ImGui::GetStyle().ItemSpacing.x;
+
+                if (ImGui::BeginChild("ExtCameraChild", ImVec2(centerWidth, 0), true, ImGuiWindowFlags_MenuBar))
+                {
+                    if (ImGui::BeginMenuBar()) { ImGui::Text("Live Camera Feed"); ImGui::EndMenuBar(); }
+
+                    if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
+                        // 1. Get available space in the window
+                        ImVec2 availSize = ImGui::GetContentRegionAvail();
+
+                        // 2. Calculate the best size that fits within 'availSize' while keeping 'aspect'
+                        float w = availSize.x;
+                        float h = w / aspect;
+
+                        // If the calculated height is too tall for the space, constrain by height instead
+                        if (h > availSize.y)
+                        {
+                            h = availSize.y;
+                            w = h * aspect;
+                        }
+
+                        // 3. Draw the image with the corrected size
+                        ImGui::Image((ImTextureID)g_hGpuDescCamera.ptr, ImVec2(w, h));
+
+                        //ImVec2 size = ImGui::GetContentRegionAvail();
+                        //ImVec2 cursorStart = ImGui::GetCursorPos();
+
+                        //// Draw Image
+                        //ImGui::Image((ImTextureID)g_hGpuDescCamera.ptr, size);
+
+                        ImVec2 cursorStart = ImGui::GetCursorPos();
+
+                        // Draw Overlay Text
+                        ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 10));
+                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "Extension: %.3f mm", g_Extensiometer.results.travel_mm);
+
+                        ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 30));
+                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage);
+                    }
+                    else {
+                        ImGui::Text("Waiting for camera feed...");
+                    }
+                }
+                ImGui::EndChild();
+
+                // Right Panel: SETTINGS
+                if (g_Extensiometer.show_cvsettings)
+                {
+                    ImGui::SameLine();
+                    if (ImGui::BeginChild("ExtSettingsChild", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar))
+                    {
+                        if (ImGui::BeginMenuBar()) { ImGui::Text("Settings"); ImGui::EndMenuBar(); }
+
+                        ImGui::SeparatorText("Region of Interest");
+
+                        // Slider from 0% to 45% (cutting 50% would leave 0 pixels)
+                        ImGui::SliderFloat("##Restrict sides", &g_Extensiometer.restrictive_area, 0.0f, 0.45f, "%.2f");
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Percentage of image width to ignore from left and right sides.");
+                        ImGui::Text("Restrict sides");
+
+                        ImGui::Spacing();
+
+                        ImGui::SeparatorText("Color Segmentation (HSV)");
+
+                        // =========================================================
+                        // INTERACTIVE TARGET COLOR PICKER
+                        // =========================================================
+
+                        // 1. Calculate current Range Widths (Tolerance)
+                        // We preserve these so picking a color doesn't reset your strictness
+                        float h_width = (float)(g_Extensiometer.settings.h_max - g_Extensiometer.settings.h_min);
+                        float s_width = (float)(g_Extensiometer.settings.s_max - g_Extensiometer.settings.s_min);
+                        float v_width = (float)(g_Extensiometer.settings.v_max - g_Extensiometer.settings.v_min);
+
+                        // 2. Calculate current Averages (Centroids)
+                        float h_avg = (g_Extensiometer.settings.h_min + g_Extensiometer.settings.h_max) / 2.0f;
+                        float s_avg = (g_Extensiometer.settings.s_min + g_Extensiometer.settings.s_max) / 2.0f;
+                        float v_avg = (g_Extensiometer.settings.v_min + g_Extensiometer.settings.v_max) / 2.0f;
+
+                        // 3. Convert HSV -> RGB for the Picker
+                        float r, g, b;
+                        // Note: OpenCV uses H:0-179, S:0-255, V:0-255. ImGui uses 0.0-1.0
+                        ImGui::ColorConvertHSVtoRGB(h_avg / 179.0f, s_avg / 255.0f, v_avg / 255.0f, r, g, b);
+                        float color[3] = { r, g, b };
+
+                        // 4. Draw the Picker
+                        ImGui::Text("Target Color:");
+                        ImGui::SameLine(); HelpMarker(
+                            "This is the color of which the camera will masks for\n"
+                            "Green is the best color for the camera to see\n"
+                            "Keep the physical markers perfectly circular!\n"
+                            "The camera will try and find two points to measure strain from\n");
+
+                        // If user picks a new color...
+                        if (ImGui::ColorEdit3("##TargetColorPicker", color, ImGuiColorEditFlags_DisplayHSV | ImGuiColorEditFlags_InputRGB))
+                        {
+                            // 5. Convert New RGB -> HSV
+                            float h_new, s_new, v_new;
+                            ImGui::ColorConvertRGBtoHSV(color[0], color[1], color[2], h_new, s_new, v_new);
+
+                            // Scale back to OpenCV ranges
+                            int h_center = (int)(h_new * 179.0f);
+                            int s_center = (int)(s_new * 255.0f);
+                            int v_center = (int)(v_new * 255.0f);
+
+                            // 6. Apply new center while preserving original Width
+                            // We assume half the width goes to the left, half to the right
+                            int h_half = (int)(h_width / 2.0f);
+                            int s_half = (int)(s_width / 2.0f);
+                            int v_half = (int)(v_width / 2.0f);
+
+                            // Update Globals (with safety clamping)
+                            // Simple helper lambda for clamping
+                            auto clamp = [](int val, int min, int max) { return val < min ? min : (val > max ? max : val); };
+
+                            g_Extensiometer.settings.h_min = clamp(h_center - h_half, 0, 179);
+                            g_Extensiometer.settings.h_max = clamp(h_center + h_half, 0, 179);
+
+                            g_Extensiometer.settings.s_min = clamp(s_center - s_half, 0, 255);
+                            g_Extensiometer.settings.s_max = clamp(s_center + s_half, 0, 255);
+
+                            g_Extensiometer.settings.v_min = clamp(v_center - v_half, 0, 255);
+                            g_Extensiometer.settings.v_max = clamp(v_center + v_half, 0, 255);
+                        }
+
+                        // Convert float [0.0f, 1.0f] to integer [0, 255]
+                        int r2 = static_cast<int>(color[0] * 255.0f);
+                        int g2 = static_cast<int>(color[1] * 255.0f);
+                        int b2 = static_cast<int>(color[2] * 255.0f);
+
+                        // Now you can format these integers into a hex string
+                        char hex_color[7]; // 8 characters for RGBA + null terminator
+                        std::sprintf(hex_color, "%02X%02X%02X", r2, g2, b2);
+
+                        //ImGui::Text("Hex Color: #%s", hex_color);
+
+                        // --- NEW: Default Button ---
+                        ImGui::SameLine();
+                        if (ImGui::Button("Default"))
+                        {
+                            // Reset to the prototype defaults (Neon Green)
+                            g_Extensiometer.settings.h_min = 25;
+                            g_Extensiometer.settings.h_max = 85;
+                            g_Extensiometer.settings.s_min = 60;
+                            g_Extensiometer.settings.s_max = 255;
+                            g_Extensiometer.settings.v_min = 50;
+                            g_Extensiometer.settings.v_max = 255;
+                        }
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Reset to default Green markers.");
+                        // ---------------------------
+
+                        ImGui::Spacing();
+                        // =========================================================
+
+                        ImGui::SliderInt("Hue Min", &g_Extensiometer.settings.h_min, 0, 179);
+                        ImGui::SliderInt("Hue Max", &g_Extensiometer.settings.h_max, 0, 179);
+                        ImGui::Separator();
+                        ImGui::SliderInt("Sat Min", &g_Extensiometer.settings.s_min, 0, 255);
+                        ImGui::SliderInt("Sat Max", &g_Extensiometer.settings.s_max, 0, 255);
+                        ImGui::Separator();
+                        ImGui::SliderInt("Val Min", &g_Extensiometer.settings.v_min, 0, 255);
+                        ImGui::SliderInt("Val Max", &g_Extensiometer.settings.v_max, 0, 255);
+
+                        ImGui::Spacing();
+                        ImGui::SeparatorText("Calibration");
+                        ImGui::Text("Detected L0: %.1f px", g_Extensiometer.initial_dist_px);
+
+                        if (ImGui::Button("SET L0 / RESET", ImVec2(-1, 40))) {
+                            g_Extensiometer.reset_requested = true;
+                        }
+                    }
+                    ImGui::EndChild();
+                }
+            }
+            else
+            {
+                ImGui::Text("Camera is not active. Check the box above to start the camera and see the feed here.");
+            }
+
+            ImGui::EndDisabled();
+        }
+        ImGui::End();
+    }
+    // ---------------------------------------------------------
+    // 3. WINDOW IS CLOSED (Cleanup)
+    // ---------------------------------------------------------
+    else
+    {
+        // =========================================================
+        // 3. CLEANUP (When Window is Hidden)
+        //    Release GPU textures to save VRAM, but keep Thread alive!
+        // =========================================================
+        
+        // We only release the textures because we aren't drawing them. 
+        // The worker thread keeps running in background if 'is_active' is true.
+        //if (g_pResourceCamera) { g_pResourceCamera->Release(); g_pResourceCamera = nullptr; }
+        //if (g_pResourceMask)   { g_pResourceMask->Release();   g_pResourceMask = nullptr; }
+        
+        // Release the UploadContexts too (optional, but good practice)
+        //g_CameraUploadCtx.Release();
+        //g_MaskUploadCtx.Release();
+    }
+}
 
 void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, bool disableMainThings, bool* p_open, ImGuiWindowFlags extern_windowFlags)
 {
@@ -1821,6 +2338,9 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiCond_FirstUseEver);
 
+    // --- NEW: Persistent toggle state ---
+    static bool useOpticalSource = false;
+
     // Create the realtime ImPlot for tracking data
     ImGui::Begin("Graph", nullptr);
 
@@ -1856,9 +2376,19 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     }
     else
     {
-        // Real data (comes from the LR 10K Tensile Machine and calculated elsewhere)
-        LR10KExtension  = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
-        LR10KLoad       = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad();
+        // Switch between Machine Encoder and Optical Extensiometer
+        if (useOpticalSource)
+        {
+            // Get data from the Computer Vision thread
+            LR10KExtension = g_Extensiometer.results.travel_mm;
+        }
+        else
+        {
+            // Get data from the LR 10K Tensile Machine (comes from the LR 10K Tensile Machine and calculated elsewhere)
+            LR10KExtension = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
+        }
+
+        LR10KLoad = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad();
     }
 
     // Check what distance is travelled, and if to do something about it
@@ -1919,9 +2449,17 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
 
     ImGui::EndDisabled();
 
+    // --- NEW: Optical Source Checkbox ---
+    ImGui::SameLine();
+    ImGui::BeginGroup(); // Group to align vertically with the button
+    ImGui::Checkbox("Use Optical Ext.", &useOpticalSource);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Use the camera-based extensiometer for Extension (X-Axis) instead of the machine encoder.\nEnsure the Extensiometer window is open and calibrated!");
+    ImGui::EndGroup();
+    // -------------------------------------
+
     if (LR10KAppGlobals::toggleGraphType)
     {
-        ImGui::SameLine();
         ImGui::Text("Ctrl+Click to add a new crucial point, or click and drag");
     }
 
@@ -1936,7 +2474,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     str.append(" % load error)");
     ImGui::SeparatorText(str.c_str());
 
-    // The custom blue crosshair that helps add points to the plot
+    // The custom crosshair that helps add points to the plot (made by Gemini)
     auto customPlotCrosshair = []() -> void
         {
             // 1. Setup State
@@ -3343,7 +3881,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     {
         ImGui::Spacing();
         ImGui::BulletText("USN teachers' code for managing the LR 10K Tensile Machine | Controlling the machine");
-        ImGui::BulletText("ImGUI v1.92.5 (Docking repo.) | GUI");
+        ImGui::BulletText("ImGUI v1.92.5 (Docking repo.) with DirectX 12 | GUI");
         ImGui::BulletText("ImPlot v0.17 | Advanced plot/graph");
         ImGui::BulletText("JSON for Modern C++ v3.11.2 | Easy management of config. and save files");
         ImGui::BulletText("SimpleXlsxWriter v0.41 | Writing Excel files");
