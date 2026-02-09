@@ -60,6 +60,46 @@ double LR10KAppGlobals::CalcEpsilon_t(double epsilon_e)
 {
     return std::log(1 + epsilon_e);
 }
+/**
+    @brief  Youngs Modulus
+    @param  strainData -
+    @param  stressData -
+    @retval            -
+**/
+double CalculateYoungsModulus(const std::vector<double>& strainData, const std::vector<double>& stressData)
+{
+    // 1. Define ROI (Region of Interest) for Elastic Region
+    // Standard varies, but 0.05% to 0.25% is common for metals.
+    const double LOWER_LIMIT = 0.0005; // 0.05%
+    const double UPPER_LIMIT = 0.0025; // 0.25%
+
+    double sum_x = 0.0, sum_y = 0.0, sum_xy = 0.0, sum_x2 = 0.0;
+    int n = 0;
+
+    for (size_t i = 0; i < strainData.size(); i++)
+    {
+        double x = strainData[i]; // Strain
+        double y = stressData[i]; // Stress
+
+        // Only look at the linear elastic portion
+        if (x >= LOWER_LIMIT && x <= UPPER_LIMIT)
+        {
+            sum_x += x;
+            sum_y += y;
+            sum_xy += x * y;
+            sum_x2 += x * x;
+            n++;
+        }
+    }
+
+    if (n < 2) return 0.0; // Not enough data points yet
+
+    // 2. Linear Regression Formula (Slope m)
+    // m = (n*sum_xy - sum_x*sum_y) / (n*sum_x2 - sum_x^2)
+    double slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x);
+
+    return slope; // This is your Young's Modulus in MPa (if stress is MPa)
+}
 
 
 /**
@@ -411,7 +451,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
     window_flags |= extern_windowFlags;
 
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(646, 717), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(650, 755), ImGuiCond_Once);
 
     ImGui::Begin("Calculator", showCalculator, window_flags);
 
@@ -654,7 +694,8 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::PopFont();
 
                     ImGui::SeparatorText("Young's Modulus (E-module)");
-                    str2 = "Young's modulus: E-module = %0.3f ";
+                    ImGui::Text("Strain range set to 0.05 %% - 0.25 %%,\naccording to ASTM D638 / ISO 527.");
+                    str2 = "Young's modulus, E-module: %0.3f ";
                     str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
                     ImGui::TextColored(colorText2, str2.c_str(), tabData->calcYoungsModulus);
                     ImGui::Spacing();

@@ -1359,6 +1359,7 @@ void AppMain::StoreViewSettingsToggler(bool* g_WindowState, bool* toggler)
 static bool SortPointsVertically(const cv::Point2f& a, const cv::Point2f& b) {
     return a.y < b.y;
 }
+static std::string live_camera_feed_text = "Live Camera Feed";
 
 void ExtensiometerWorkerThread()
 {
@@ -1476,23 +1477,53 @@ void ExtensiometerWorkerThread()
         // 4. DRAW MARKERS (Overlay on top of lines)
         // =========================================================
         if (centers.size() == 2) {
+            live_camera_feed_text = "Live Camera Feed";
+
             std::sort(centers.begin(), centers.end(), SortPointsVertically);
             cv::Point2f p1 = centers[0];
             cv::Point2f p2 = centers[1];
 
             // Calculations
+            // 1. Calculate Distance
             double currentRawDist = cv::norm(p1 - p2);
-            // ... (Your existing EMA smoothing and strain calc) ...
-            // g_Extensiometer.results.travel_mm = ...
 
-            // Visuals
+            // 2. Handle Initialization / Reset
+            if (!g_Extensiometer.initialized || g_Extensiometer.reset_requested) {
+                g_Extensiometer.initial_dist_px = currentRawDist;
+                g_Extensiometer.smooth_dist_px = currentRawDist;
+                g_Extensiometer.initialized = true;
+                g_Extensiometer.reset_requested = false;
+            }
+            else {
+                // 3. Exponential Moving Average (Smoothing)
+                // Use a local constant for Alpha if not defined globally
+                const double EMA_ALPHA = 0.1;
+                g_Extensiometer.smooth_dist_px = (EMA_ALPHA * currentRawDist) + ((1.0 - EMA_ALPHA) * g_Extensiometer.smooth_dist_px);
+            }
+
+            // 4. Calculate Physics (Strain)
+            // Ensure this constant matches your physical setup (e.g., 50mm gauge length)
+            const double PHYSICAL_L0_MM = LR10KAppGlobals::calc_length;
+
+            if (g_Extensiometer.initial_dist_px > 0) {
+                double elongationPx = g_Extensiometer.smooth_dist_px - g_Extensiometer.initial_dist_px;
+                double strain = elongationPx / g_Extensiometer.initial_dist_px;
+
+                // >>> CRITICAL: SAVE RESULTS HERE <<<
+                g_Extensiometer.results.travel_mm = (float)(strain * PHYSICAL_L0_MM);
+                g_Extensiometer.results.strain_percentage = (float)(strain * 100.0);
+            }
+
+            // 5. Visuals
             cv::line(frame_display, p1, p2, cv::Scalar(0, 255, 0), 2);
             cv::circle(frame_display, p1, 5, cv::Scalar(0, 0, 255), -1);
             cv::circle(frame_display, p2, 5, cv::Scalar(0, 0, 255), -1);
         }
         else {
-            cv::putText(frame_display, "Searching for markers...", cv::Point(30, 50),
-                cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 2);
+            live_camera_feed_text = "Live Camera Feed (Searching for markers...)";
+
+            /*cv::putText(frame_display, "Searching for markers...", cv::Point(30, 50),
+                cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 2);*/
         }
 
         // =========================================================
@@ -1659,9 +1690,22 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                 if (ImGui::BeginChild("ExtCameraChild", ImVec2(centerWidth, 0), true, ImGuiWindowFlags_MenuBar))
                 {
-                    if (ImGui::BeginMenuBar()) { ImGui::Text("Live Camera Feed"); ImGui::EndMenuBar(); }
+                    if (ImGui::BeginMenuBar()) { ImGui::Text(live_camera_feed_text.c_str()); ImGui::EndMenuBar(); }
 
                     if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
+                        ImVec2 cursorStart = ImGui::GetCursorPos();
+
+                        // Draw Overlay Text
+                        ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 10));
+                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "Extension: %.3f mm", g_Extensiometer.results.travel_mm);
+
+                        ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 30));
+                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage);
+
+                        ImGui::Text("Start length (ε_n, σ_t, ε_t):");
+                        ImGui::InputFloat("##Start length 2", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+                        ImGui::Text("More material properties in the calculator view.");
+
                         // 1. Get available space in the window
                         ImVec2 availSize = ImGui::GetContentRegionAvail();
 
@@ -1684,15 +1728,6 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                         //// Draw Image
                         //ImGui::Image((ImTextureID)g_hGpuDescCamera.ptr, size);
-
-                        ImVec2 cursorStart = ImGui::GetCursorPos();
-
-                        // Draw Overlay Text
-                        ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 10));
-                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "Extension: %.3f mm", g_Extensiometer.results.travel_mm);
-
-                        ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 30));
-                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage);
                     }
                     else {
                         ImGui::Text("Waiting for camera feed...");
@@ -1872,7 +1907,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
     const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9);
 
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(947, 776), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(800, 700), ImGuiCond_Once);
 
     bool disableTestSettingsAdjustments = ((tabData->test_running_test && tabData->test_unfinished_test_started) || tabData->test_finished);
 
@@ -2102,41 +2137,6 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
 
         ImGui::EndDisabled(); // End for "Disable main things"
 
-        // --------------------
-        // EXTENSIOMETER
-        // --------------------
-        if (ImGui::BeginTabItem("Extensiometer"))
-        {
-            ImGui::BeginDisabled(true);
-            ImGui::SeparatorText("Extensometer (*Not complete)");
-            ImGui::Text("Range:");
-            ImGui::BeginDisabled(LR10KAppGlobals::enable_extensiomter == 1);
-            if (ImGui::InputFloat("##Extensometer Range", &LR10KAppGlobals::extensiometerRange, (1.0f * unitConv_dist), (5.0f * unitConv_dist), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::extensiometerRange)))
-            {
-                if (LR10KAppGlobals::extensiometerRange < 0.0f)
-                    LR10KAppGlobals::extensiometerRange = 0.0f;
-                else if (LR10KAppGlobals::extensiometerRange > 1000.0f * unitConv_dist)
-                    LR10KAppGlobals::extensiometerRange = 1000.0f * unitConv_dist;
-
-                DockingApps::mainFileSystem.SaveApplicationSettings();
-            }
-            ImGui::EndDisabled();
-            // Temporary for display....
-            LR10KAppGlobals::enable_extensiomter = 1;
-
-            bool disable = ImGui::RadioButton("Disable", &LR10KAppGlobals::enable_extensiomter, 0); ImGui::SameLine();
-            bool enable = ImGui::RadioButton("Enable", &LR10KAppGlobals::enable_extensiomter, 1);
-            if (disable || enable)
-            {
-                // Add something here ....
-
-                DockingApps::mainFileSystem.SaveApplicationSettings();
-            }
-            ImGui::EndDisabled();
-            ImGui::Spacing();
-
-            ImGui::EndTabItem();
-        }
         // --------------------
         // ZERO P. & SAFTEY
         // --------------------
@@ -2452,10 +2452,22 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     // --- NEW: Optical Source Checkbox ---
     ImGui::SameLine();
     ImGui::BeginGroup(); // Group to align vertically with the button
+    ImGui::BeginDisabled(!g_Extensiometer.is_active);
     ImGui::Checkbox("Use Optical Ext.", &useOpticalSource);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Use the camera-based extensiometer for Extension (X-Axis) instead of the machine encoder.\nEnsure the Extensiometer window is open and calibrated!");
+    ImGui::EndDisabled();
     ImGui::EndGroup();
+    if (!g_Extensiometer.is_active)
+    {
+        useOpticalSource = false;
+
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Open up the extensiometer view settings to activate the camera.");
+    }
+    else
+    {
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Use the camera-based extensiometer for Extension (X-Axis) instead of the machine encoder.\nEnsure the Extensiometer window is open and calibrated!");
+    }
     // -------------------------------------
 
     if (LR10KAppGlobals::toggleGraphType)
