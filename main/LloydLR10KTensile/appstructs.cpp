@@ -1340,13 +1340,13 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
     if (tabData != nullptr) ImGui::End();
 }
 
-void AppMain::StoreViewSettingsToggler(bool* g_WindowState, bool* toggler)
+void AppMain::SaveApplicationSettingsManualCheck(bool* original_pointer, bool* toggler)
 {
     // Save settings when a change has occured, so it doesn't save a billion times per second
-    if (*toggler != *g_WindowState)
+    if (*toggler != *original_pointer)
     {
         // Change the value of the pointer
-        *toggler = *g_WindowState;
+        *toggler = *original_pointer;
         DockingApps::mainFileSystem.SaveApplicationSettings();
     }
 }
@@ -1606,7 +1606,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
         // Set default size/pos only first time
         ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(1300, 800), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(1300, 715), ImGuiCond_Once);
 
         if (ImGui::Begin("Computer Vision Extensiometer", p_open, window_flags))
         {
@@ -1614,11 +1614,15 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
             // --- MAIN TOGGLE SWITCH ---
             // This is the master switch that allows the camera to run in background
+            bool prev_active = g_Extensiometer.is_active;
+
             ImGui::Checkbox("##ActiveSwitch", &g_Extensiometer.is_active);
             ImGui::SameLine();
             ImGui::Text(g_Extensiometer.is_active ? "CAMERA ACTIVE" : "CAMERA OFF");
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Keep camera running even if this window is closed.");
             ImGui::Separator();
+
+            if (prev_active != g_Extensiometer.is_active) DockingApps::mainFileSystem.SaveApplicationSettings();
             // --------------------------
 
             // Get the aspect ratio of the actual camera (e.g. 640/480 = 1.33)
@@ -1743,12 +1747,24 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                     {
                         if (ImGui::BeginMenuBar()) { ImGui::Text("Settings"); ImGui::EndMenuBar(); }
 
+                        ImGui::SeparatorText("Calibration");
+                        ImGui::Text("Detected L0: %.1f px", g_Extensiometer.initial_dist_px);
+
+                        if (ImGui::Button("SET L0 / RESET", ImVec2(-1, 40))) {
+                            g_Extensiometer.reset_requested = true;
+                        }
+
                         ImGui::SeparatorText("Region of Interest");
 
                         // Slider from 0% to 45% (cutting 50% would leave 0 pixels)
+                        float prev_restrictive_area = g_Extensiometer.restrictive_area;
+
                         ImGui::SliderFloat("##Restrict sides", &g_Extensiometer.restrictive_area, 0.0f, 0.45f, "%.2f");
                         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Percentage of image width to ignore from left and right sides.");
                         ImGui::Text("Restrict sides");
+
+                        // Save settings
+                        if (prev_restrictive_area != g_Extensiometer.restrictive_area) DockingApps::mainFileSystem.SaveApplicationSettings();
 
                         ImGui::Spacing();
 
@@ -1769,11 +1785,15 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         float s_avg = (g_Extensiometer.settings.s_min + g_Extensiometer.settings.s_max) / 2.0f;
                         float v_avg = (g_Extensiometer.settings.v_min + g_Extensiometer.settings.v_max) / 2.0f;
 
+                        // Extensiometer target color change
+                        static bool extensiometerTargetColorChange = false;
+
                         // 3. Convert HSV -> RGB for the Picker
                         float r, g, b;
                         // Note: OpenCV uses H:0-179, S:0-255, V:0-255. ImGui uses 0.0-1.0
                         ImGui::ColorConvertHSVtoRGB(h_avg / 179.0f, s_avg / 255.0f, v_avg / 255.0f, r, g, b);
-                        float color[3] = { r, g, b };
+                        // Load the current saved color from globals (in case it was changed from another tab or something)
+                        static float color[3] = { LR10KAppGlobals::opticalSourceExtensiometerTargetColor[0], LR10KAppGlobals::opticalSourceExtensiometerTargetColor[1], LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2] };
 
                         // 4. Draw the Picker
                         ImGui::Text("Target Color:");
@@ -1786,6 +1806,19 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         // If user picks a new color...
                         if (ImGui::ColorEdit3("##TargetColorPicker", color, ImGuiColorEditFlags_DisplayHSV | ImGuiColorEditFlags_InputRGB))
                         {
+                            // =========================================================
+
+                            // Convert float [0.0f, 1.0f] to integer [0, 255]
+                            //int r2 = static_cast<int>(color[0] * 255.0f);
+                            //int g2 = static_cast<int>(color[1] * 255.0f);
+                            //int b2 = static_cast<int>(color[2] * 255.0f);
+
+                            // Now you can format these integers into a hex string
+                            //char hexString[7];
+                            //std::sprintf(hexString, "%02X%02X%02X", r2, g2, b2);
+
+                            // =========================================================
+
                             // 5. Convert New RGB -> HSV
                             float h_new, s_new, v_new;
                             ImGui::ColorConvertRGBtoHSV(color[0], color[1], color[2], h_new, s_new, v_new);
@@ -1813,19 +1846,14 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                             g_Extensiometer.settings.v_min = clamp(v_center - v_half, 0, 255);
                             g_Extensiometer.settings.v_max = clamp(v_center + v_half, 0, 255);
+
+                            // Save settings immediately
+                            LR10KAppGlobals::opticalSourceExtensiometerTargetColor[0] = color[0];
+                            LR10KAppGlobals::opticalSourceExtensiometerTargetColor[1] = color[1];
+                            LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2] = color[2];
+                            DockingApps::mainFileSystem.SaveApplicationSettings();
                         }
-
-                        // Convert float [0.0f, 1.0f] to integer [0, 255]
-                        int r2 = static_cast<int>(color[0] * 255.0f);
-                        int g2 = static_cast<int>(color[1] * 255.0f);
-                        int b2 = static_cast<int>(color[2] * 255.0f);
-
-                        // Now you can format these integers into a hex string
-                        char hex_color[7]; // 8 characters for RGBA + null terminator
-                        std::sprintf(hex_color, "%02X%02X%02X", r2, g2, b2);
-
-                        //ImGui::Text("Hex Color: #%s", hex_color);
-
+                        
                         // --- NEW: Default Button ---
                         ImGui::SameLine();
                         if (ImGui::Button("Default"))
@@ -1837,6 +1865,20 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             g_Extensiometer.settings.s_max = 255;
                             g_Extensiometer.settings.v_min = 50;
                             g_Extensiometer.settings.v_max = 255;
+
+                            // Need to set it, since the color variable is static
+                            h_avg = (g_Extensiometer.settings.h_min + g_Extensiometer.settings.h_max) / 2.0f;
+                            s_avg = (g_Extensiometer.settings.s_min + g_Extensiometer.settings.s_max) / 2.0f;
+                            v_avg = (g_Extensiometer.settings.v_min + g_Extensiometer.settings.v_max) / 2.0f;
+
+                            ImGui::ColorConvertHSVtoRGB(h_avg / 179.0f, s_avg / 255.0f, v_avg / 255.0f, r, g, b);
+                            color[0] = r; color[1] = g; color[2] = b;
+
+                            // Save settings immediately
+                            LR10KAppGlobals::opticalSourceExtensiometerTargetColor[0] = color[0];
+                            LR10KAppGlobals::opticalSourceExtensiometerTargetColor[1] = color[1];
+                            LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2] = color[2];
+                            DockingApps::mainFileSystem.SaveApplicationSettings();
                         }
                         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Reset to default Green markers.");
                         // ---------------------------
@@ -1854,12 +1896,6 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         ImGui::SliderInt("Val Max", &g_Extensiometer.settings.v_max, 0, 255);
 
                         ImGui::Spacing();
-                        ImGui::SeparatorText("Calibration");
-                        ImGui::Text("Detected L0: %.1f px", g_Extensiometer.initial_dist_px);
-
-                        if (ImGui::Button("SET L0 / RESET", ImVec2(-1, 40))) {
-                            g_Extensiometer.reset_requested = true;
-                        }
                     }
                     ImGui::EndChild();
                 }
@@ -2338,9 +2374,6 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiCond_FirstUseEver);
 
-    // --- NEW: Persistent toggle state ---
-    static bool useOpticalSource = false;
-
     // Create the realtime ImPlot for tracking data
     ImGui::Begin("Graph", nullptr);
 
@@ -2377,7 +2410,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     else
     {
         // Switch between Machine Encoder and Optical Extensiometer
-        if (useOpticalSource)
+        if (LR10KAppGlobals::opticalSourceAsExtensiometer)
         {
             // Get data from the Computer Vision thread
             LR10KExtension = g_Extensiometer.results.travel_mm;
@@ -2450,15 +2483,20 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     ImGui::EndDisabled();
 
     // --- NEW: Optical Source Checkbox ---
+    bool prev_opt_as_ext = LR10KAppGlobals::opticalSourceAsExtensiometer;
+
     ImGui::SameLine();
     ImGui::BeginGroup(); // Group to align vertically with the button
     ImGui::BeginDisabled(!g_Extensiometer.is_active);
-    ImGui::Checkbox("Use Optical Ext.", &useOpticalSource);
+    ImGui::Checkbox("Use Optical Ext.", &LR10KAppGlobals::opticalSourceAsExtensiometer);
     ImGui::EndDisabled();
     ImGui::EndGroup();
+
+    if (prev_opt_as_ext != LR10KAppGlobals::opticalSourceAsExtensiometer) DockingApps::mainFileSystem.SaveApplicationSettings();
+
     if (!g_Extensiometer.is_active)
     {
-        useOpticalSource = false;
+        LR10KAppGlobals::opticalSourceAsExtensiometer = false;
 
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Open up the extensiometer view settings to activate the camera.");

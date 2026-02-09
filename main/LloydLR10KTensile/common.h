@@ -235,22 +235,22 @@ struct AppExtensiometer
     std::string record_test_filepath = "";
     bool show_cvmask = true;
     bool show_cvsettings = true;
-    bool is_active = true; // Controls the camera ON/OFF state
+    bool is_active = true; //!< Controls the camera ON/OFF state
 
-    // Internal state for logic (Initial Length logic)
+    //! \note Internal state for logic (Initial Length logic)
     bool reset_requested = false;
     double initial_dist_px = 0.0;
     double smooth_dist_px = 0.0;
     bool initialized = false;
 
-    // Instance of settings (initialized with your prototype defaults)
+    //! \note Instance of settings (initialized with your prototype defaults)
     struct MaskSettings {
         int h_min = 25; int h_max = 85;
         int s_min = 60; int s_max = 255;
         int v_min = 50; int v_max = 255;
     } settings;
 
-    // Instance of results
+    //! \note Instance of results
     struct Output {
         float travel_mm = 0.0f;
         float strain_percentage = 0.0f;
@@ -274,17 +274,11 @@ extern TextureUploadContext g_MaskUploadCtx;
 
 //! \note Extensiometer settings thread
 extern std::unique_ptr<std::thread> g_pThreadCV;
-//! \note Extensiometer setting
-extern std::atomic<bool> g_CV_stopFlag;
-//! \note Extensiometer setting - Protects the shared data below
+extern std::atomic<bool> g_CV_stopFlag; //!< Protects the shared data below
 extern std::mutex g_CV_frameMutex;
-
-//! \note Extensiometer setting
 extern cv::Mat g_sharedCameraFrame;
-//! \note Extensiometer setting
 extern cv::Mat g_sharedMaskFrame;
-//! \note Extensiometer setting - Flag to tell Main thread to upload
-extern bool g_hasNewFrame;
+extern bool g_hasNewFrame; //!< Flag to tell Main thread to upload
 
 // -----------------------------------------------------------------------------
 
@@ -355,6 +349,11 @@ namespace LR10KAppGlobals {
     static const double Convert_to_mm{ 1.0f / 15556.0f };           //!< \details Multiply this value to convert extension data to mm.
     //! \note Constants
     static const float Convert_extension_to_mm{ 1.0f / -10.25f };   //!< \details Multiply this value to convert extension data to mm from the extra equipment.
+
+    //! \note Use optical source as extensiometer (experimental)
+    inline extern bool opticalSourceAsExtensiometer = false;
+    //! \note Target color to use for the extensiometer
+    inline extern float opticalSourceExtensiometerTargetColor[3] = { 0.286442f, 0.598039f, 0.228662f }; //!< #49993A is the default color
 
     //! \brief Converts a unit to another by multiplying the double constants.
     //! \details Index 8 is e.g. inches and index 9 is e.g. the lbf convertion scalar. and index 10 is e.g. the lbf/in^2 scalar

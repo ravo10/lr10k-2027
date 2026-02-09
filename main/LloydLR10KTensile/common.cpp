@@ -1817,6 +1817,11 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["gui_showExtensiometer"]  = g_WindowStates.show_extensiometer;
         settings["enableSound"]         = mainGUIGlobals::enableSound;
 
+		settings["ext_regionOfInterest"]	= g_Extensiometer.restrictive_area;
+		settings["ext_targetColor"]			= LR10KAppGlobals::opticalSourceExtensiometerTargetColor;
+		settings["ext_cameraActive"]		= g_Extensiometer.is_active;
+		settings["ext_useOpticalExt"]		= LR10KAppGlobals::opticalSourceAsExtensiometer;
+
         settings["fullScreen"]          = mainGUIGlobals::fullScreen;
         settings["enableDPIAwareness"]  = mainGUIGlobals::enableDPIAwareness;
 
@@ -1876,15 +1881,20 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         // ---------------------------------------------------------------------
         // -------------------------------- GUI --------------------------------
         // ---------------------------------------------------------------------
-        settings["gui_showSettings"]    = false;
-        settings["gui_showCalculator"]  = false;
-        settings["gui_showGraph"]       = true;
-        settings["gui_showQuickReport"] = false;
-        settings["gui_showDescription"] = false;
-        settings["gui_showConsole"]     = false;
-        settings["gui_showDocs"]        = false;
-        settings["gui_showExtensiometer"] = true;
-        settings["enableSound"]         = true;
+        settings["gui_showSettings"]		= false;
+        settings["gui_showCalculator"]		= false;
+        settings["gui_showGraph"]			= true;
+        settings["gui_showQuickReport"]		= false;
+        settings["gui_showDescription"]		= false;
+        settings["gui_showConsole"]			= false;
+        settings["gui_showDocs"]			= false;
+        settings["gui_showExtensiometer"]	= true;
+        settings["enableSound"]				= true;
+
+		settings["ext_regionOfInterest"]	= 0.2f;
+        settings["ext_targetColor"]			= { 0.286442f, 0.598039f, 0.228662f }; // Green color
+		settings["ext_cameraActive"]		= false;
+		settings["ext_useOpticalExt"]		= false;
 
         settings["fullScreen"]          = false;
         settings["enableDPIAwareness"]  = false;
@@ -1962,6 +1972,10 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     std::string_view gui_showDocs                               = "gui_showDocs";
     std::string_view gui_showExtensiometer                      = "gui_showExtensiometer";
     std::string_view enableSound                                = "enableSound";
+    std::string_view ext_regionOfInterest						= "ext_regionOfInterest";
+	std::string_view ext_targetColor							= "ext_targetColor";
+	std::string_view ext_cameraActive							= "ext_cameraActive";
+	std::string_view ext_useOpticalExt							= "ext_useOpticalExt";
     std::string_view fullScreen                                 = "fullScreen";
     std::string_view enableDPIAwareness                         = "enableDPIAwareness";
     std::string_view ignoreSavingPrompt                         = "ignoreSavingPrompt";
@@ -2003,6 +2017,10 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     if (!settings.contains(std::string{ gui_showDocs                            })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ gui_showExtensiometer                   })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ enableSound                             })) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ ext_regionOfInterest					})) thereIsAnUnvalidKey = true;
+	if (!settings.contains(std::string{ ext_targetColor							})) thereIsAnUnvalidKey = true;
+	if (!settings.contains(std::string{ ext_cameraActive						})) thereIsAnUnvalidKey = true;
+	if (!settings.contains(std::string{ ext_useOpticalExt						})) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ fullScreen                              })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ enableDPIAwareness                      })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ ignoreSavingPrompt                      })) thereIsAnUnvalidKey = true;
@@ -2073,6 +2091,13 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
         g_WindowStates.show_extensiometer   = settings["gui_showExtensiometer"];
 
         mainGUIGlobals::enableSound         = settings["enableSound"];
+
+		g_Extensiometer.restrictive_area							= settings["ext_regionOfInterest"];
+		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[0]	= settings["ext_targetColor"][0];
+		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[1]	= settings["ext_targetColor"][1];
+		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2]	= settings["ext_targetColor"][2];
+		g_Extensiometer.is_active									= settings["ext_cameraActive"];
+		LR10KAppGlobals::opticalSourceAsExtensiometer				= settings["ext_useOpticalExt"];
 
         mainGUIGlobals::fullScreen          = settings["fullScreen"];
         mainGUIGlobals::enableDPIAwareness  = settings["enableDPIAwareness"];

@@ -38,7 +38,7 @@ struct AppMain
         @param g_WindowState    -
         @param toggler          -
     **/
-    void StoreViewSettingsToggler(bool* g_WindowState, bool* toggler);
+    void SaveApplicationSettingsManualCheck(bool* original_pointer, bool* toggler);
 };
 
 /**

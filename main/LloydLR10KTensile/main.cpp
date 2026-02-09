@@ -290,7 +290,6 @@ int main(int, char**)
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
 
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
-    io.ConfigViewportsNoDefaultParent = true;                   // Viewport
 
     io.ConfigDockingWithShift = true;
     //io.ConfigViewportsNoAutoMerge = true;
@@ -598,11 +597,11 @@ int main(int, char**)
                     DockingApps::mainWidgets.DocumentationWindowDraw(&g_WindowStates.show_docs);
 
                 // Save some view states... Check
-                DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_quick_report, &showQuickReportToggler);
-                DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_console, &showConsoleToggler);
-                DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_calculator, &showCalculatorToggler);
-                DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_settings, &showSettingsToggler);
-                DockingApps::main.StoreViewSettingsToggler(&g_WindowStates.show_extensiometer, &showExtensiometerToggler);
+                DockingApps::main.SaveApplicationSettingsManualCheck(&g_WindowStates.show_quick_report,     &showQuickReportToggler);
+                DockingApps::main.SaveApplicationSettingsManualCheck(&g_WindowStates.show_console,          &showConsoleToggler);
+                DockingApps::main.SaveApplicationSettingsManualCheck(&g_WindowStates.show_calculator,       &showCalculatorToggler);
+                DockingApps::main.SaveApplicationSettingsManualCheck(&g_WindowStates.show_settings,         &showSettingsToggler);
+                DockingApps::main.SaveApplicationSettingsManualCheck(&g_WindowStates.show_extensiometer,    &showExtensiometerToggler);
 
                 // -------------------------------------------------------------
                 // --- Reset some GUI values if they cross a min or max limit --
@@ -689,6 +688,7 @@ int main(int, char**)
     if (bootloaderBackgroundTexture) { bootloaderBackgroundTexture->Release(); bootloaderBackgroundTexture = nullptr; }
     if (usnBackgroundTexture) { usnBackgroundTexture->Release(); usnBackgroundTexture = nullptr; }
 
+    // Modified "CleanupDeviceD3D": Release the SRV descriptors for the camera and mask
     CleanupDeviceD3D();
     ::DestroyWindow(hwnd);
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
