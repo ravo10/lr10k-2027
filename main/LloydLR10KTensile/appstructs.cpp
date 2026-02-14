@@ -318,10 +318,6 @@ json AppMainFileSystem::CreateJSONDataFromCurrentTab(TabControl::TabTestDataClas
     // Save data related to plot and crucial points in JSON format for easy access/manipulation, and keep everything else default                   //
     // ----------------------------------------------- ----------------------------------------------- -----------------------------------------------
 
-    DockingApps::mutexControl.PlotAxis();
-    tabDataJson["LR10LoadNewtonAxis"] = LR10KAppGlobals::testing_plot_only_loadAxis.load();
-    tabDataJson["LR10ExtensionAxis"] = LR10KAppGlobals::testing_plot_only_extensionAxis.load();
-
     // Settings for speed and plot load error
     tabDataJson["settings_speedAndPlot"] = tabData->settings_speedAndPlot;
 
@@ -414,9 +410,6 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
     // Create new tab data container and fill in
     TabControl::TabTestDataClass* tabData = new TabControl::TabTestDataClass;
 
-    tabData->LR10LoadNewtonAxis = tabDataJson["LR10LoadNewtonAxis"];
-    tabData->LR10ExtensionAxis = tabDataJson["LR10ExtensionAxis"];
-
     // Settings for speed and plot load error
     tabData->settings_speedAndPlot[0] = tabDataJson["settings_speedAndPlot"][0];
     tabData->settings_speedAndPlot[1] = tabDataJson["settings_speedAndPlot"][1];
@@ -450,7 +443,7 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
         int dataPointIndex = data[1];
 
         // The other boolean will be calculated automatically on insert
-        tabData->plot_dataPoints.push_back({ point, dataPointIndex, false });
+        tabData->plot_dataPoints.push_back({ point, dataPointIndex });
     }
     
     // Important points
@@ -511,10 +504,6 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
     // -------------------------------------------------------------------------
     // ---------------------- Update some global variables ---------------------
     // -------------------------------------------------------------------------
-    LR10KAppGlobals::testing_plot_only_loadAxis.store(tabData->LR10LoadNewtonAxis);
-    DockingApps::mutexControl.testing_plot_only_loadAxisStatusChanged.notify_all();
-    LR10KAppGlobals::testing_plot_only_extensionAxis.store(tabData->LR10ExtensionAxis);
-    DockingApps::mutexControl.testing_plot_only_extensionAxisStatusChanged.notify_all();
 
     LR10KAppGlobals::calc_thickness = tabData->thickness;
     LR10KAppGlobals::calc_width = tabData->width;
@@ -631,7 +620,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
     auto saveLogic = [tabData]() {
         // Save data from the current test GUI to a text file (if a test is not started or test has started and is finished)
-                    // A little bit of the same logic as in "SaveAsLR10KTestBrowserLogic"
+        // A little bit of the same logic as in "SaveAsLR10KTestBrowserLogic"
         if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
         {
             // Get current selection (path + filename). Filname will be folder name.
@@ -808,9 +797,28 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
     // Wait to draw until tabData is made
     if (tabData != nullptr && ImGui::Begin("Tabulate", nullptr, tabulate_flags))
     {
+        if (LR10KAppGlobals::showHotkeyTips)
+        {
+            std::string strHotkeys = "F1 (STOP) F2 (UP) F3 (DOWN) F4 (FAST) F5 (RETURN) F6 (ZERO) F7 (GO)";
+            if (tabData->test_unfinished_test_started)
+            {
+                // If test is not paused
+                if (tabData->test_running_test)
+                    strHotkeys = "F8 (END TEST) F9 (PAUSE)";
+                else
+                    strHotkeys = "F1 (CONTINUE) F2 (END TEST)";
+            }
+
+            // Float left
+            //ImVec2 strHotkeysSize = ImGui::CalcTextSize("Tabulate");
+
+            // Float left
+            //ImGui::SameLine(strHotkeysSize.x);
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4({ 0.967f, 0.936f, 0.396f, 1.000f }), strHotkeys.c_str());
+        }
         if (mainGUIGlobals::useDemoMode)
         {
-            ImGui::SameLine();
             ImGui::TextColored((ImVec4)ImColor::HSV(0.149f, 0.860f, 1.0f), "(Warning: DEMO MODE ACTIVATED - You can not record valid data for tests in demo mode)");
         }
 
@@ -1209,26 +1217,6 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
             // Add spacing/separators for grouping
             ImGui::Separator();
 
-            if (LR10KAppGlobals::showHotkeyTips)
-            {
-                std::string strHotkeys = "F1 (STOP) F2 (UP) F3 (DOWN) F4 (FAST) F5 (RETURN) F6 (ZERO) F7 (GO)";
-                if (tabData->test_unfinished_test_started)
-                {
-                    // If test is not paused
-                    if (tabData->test_running_test)
-                        strHotkeys = "F8 (END TEST) F9 (PAUSE)";
-                    else
-                        strHotkeys = "F1 (CONTINUE) F2 (END TEST)";
-                }
-
-                // Float left
-                ImVec2 strHotkeysSize = ImGui::CalcTextSize("Tabulate");
-
-                // Float left
-                ImGui::SameLine(strHotkeysSize.x);
-                ImGui::TextColored(ImVec4({ 0.967f, 0.936f, 0.396f, 1.000f }), strHotkeys.c_str());
-            }
-
             // ----------------------------------------------
             // View the LR 10K status for sending live data
             // ----------------------------------------------
@@ -1361,7 +1349,7 @@ static bool SortPointsVertically(const cv::Point2f& a, const cv::Point2f& b) {
 }
 static std::string live_camera_feed_text = "Live Camera Feed";
 
-void ExtensiometerWorkerThread()
+void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
 {
     // 1. Setup Camera (Runs once when thread starts)
     cv::VideoCapture cap(1); // Try external first
@@ -1476,6 +1464,8 @@ void ExtensiometerWorkerThread()
         // =========================================================
         // 4. DRAW MARKERS (Overlay on top of lines)
         // =========================================================
+        static bool lostMarkerDetected = false;
+
         if (centers.size() == 2) {
             live_camera_feed_text = "Live Camera Feed";
 
@@ -1520,10 +1510,17 @@ void ExtensiometerWorkerThread()
             cv::circle(frame_display, p2, 5, cv::Scalar(0, 0, 255), -1);
         }
         else {
+            // Not exactly 2 markers found - show searching message
             live_camera_feed_text = "Live Camera Feed (Searching for markers...)";
 
             /*cv::putText(frame_display, "Searching for markers...", cv::Point(30, 50),
                 cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 2);*/
+
+            if (LR10KAppGlobals::opticalSourceAsExtensiometer)
+            {
+                if (!g_Extensiometer.lostMarkerDetectedlost_tracking && tabData->test_unfinished_test_started && tabData->test_running_test)
+                    g_Extensiometer.lostMarkerDetectedlost_tracking = true;
+            }
         }
 
         // =========================================================
@@ -1560,7 +1557,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
         if (g_pThreadCV == nullptr)
         {
             g_CV_stopFlag = false;
-            g_pThreadCV = std::make_unique<std::thread>(ExtensiometerWorkerThread);
+            g_pThreadCV = std::make_unique<std::thread>(ExtensiometerWorkerThread, tabData);
         }
     }
     else
@@ -1573,6 +1570,36 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             g_pThreadCV = nullptr;
         }
     }
+
+    // =============================================
+    // Popups
+
+    if (g_Extensiometer.lostMarkerDetectedlost_tracking)
+    {
+        // Show a message
+		if (!ImGui::IsPopupOpen(mainGUIGlobals::popUpID_ExtensiometerLostMarkerUnderTest))
+        {
+            DockingApps::console.ExecCommand(tabData, "pause");
+            ImGui::OpenPopup(mainGUIGlobals::popUpID_ExtensiometerLostMarkerUnderTest);
+        }
+    }
+
+	if (ImGui::BeginPopup(mainGUIGlobals::popUpID_ExtensiometerLostMarkerUnderTest))
+	{
+		ImGui::Text("The test got paused! Lost tracking of the two markers on the test piece...");
+		ImGui::Text("Open the extensiometer view to check if the tracking of\n the two markers can be regained.");
+
+		if (ImGui::Button("Abort", ImVec2(120, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+			g_Extensiometer.lostMarkerDetectedlost_tracking = false;
+		}
+		ImGui::SetItemDefaultFocus();
+
+		ImGui::EndPopup();
+	}
+
+    // =============================================
 
     // =========================================================
     // 2. WINDOW UI (Foreground Logic)
@@ -1620,6 +1647,18 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             ImGui::SameLine();
             ImGui::Text(g_Extensiometer.is_active ? "CAMERA ACTIVE" : "CAMERA OFF");
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Keep camera running even if this window is closed.");
+            ImGui::SameLine(0.0f, 40.0f);
+
+            ImGui::BeginDisabled(tabData->test_unfinished_test_started || tabData->current_temp_preSaveLocation == "");
+            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.23f, 0.72f, 0.57f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.23f, 0.8f, 0.7f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.23f, 0.9f, 0.8f));
+
+            if (ImGui::Button("Start Test"))
+                DockingApps::console.ExecCommand(tabData, "start");
+            ImGui::PopStyleColor(3);
+            ImGui::EndDisabled();
+
             ImGui::Separator();
 
             if (prev_active != g_Extensiometer.is_active) DockingApps::mainFileSystem.SaveApplicationSettings();
@@ -1706,6 +1745,10 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 30));
                         ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage);
 
+                        // Go to zero point from extensiometers perspective
+                        //ImGui::SameLine();
+                        //ImGui::Button("Go to zero point (from ext. perspective)");
+
                         ImGui::Text("Start length (ε_n, σ_t, ε_t):");
                         ImGui::InputFloat("##Start length 2", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
                         ImGui::Text("More material properties in the calculator view.");
@@ -1750,16 +1793,18 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         ImGui::SeparatorText("Calibration");
                         ImGui::Text("Detected L0: %.1f px", g_Extensiometer.initial_dist_px);
 
+                        ImGui::BeginDisabled(tabData->test_unfinished_test_started);
                         if (ImGui::Button("SET L0 / RESET", ImVec2(-1, 40))) {
                             g_Extensiometer.reset_requested = true;
                         }
+                        ImGui::EndDisabled();
 
                         ImGui::SeparatorText("Region of Interest");
 
-                        // Slider from 0% to 45% (cutting 50% would leave 0 pixels)
+                        // Slider from 0% to 47% (cutting 50% would leave 0 pixels)
                         float prev_restrictive_area = g_Extensiometer.restrictive_area;
 
-                        ImGui::SliderFloat("##Restrict sides", &g_Extensiometer.restrictive_area, 0.0f, 0.45f, "%.2f");
+                        ImGui::SliderFloat("##Restrict sides", &g_Extensiometer.restrictive_area, 0.0f, 0.47f, "%.2f");
                         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Percentage of image width to ignore from left and right sides.");
                         ImGui::Text("Restrict sides");
 
@@ -1767,7 +1812,6 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         if (prev_restrictive_area != g_Extensiometer.restrictive_area) DockingApps::mainFileSystem.SaveApplicationSettings();
 
                         ImGui::Spacing();
-
                         ImGui::SeparatorText("Color Segmentation (HSV)");
 
                         // =========================================================
@@ -2047,7 +2091,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
                     DockingApps::calculator.CalculateStresses(tabData);
 
                     // Update graph
-                    TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
+                    //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
                 }
             }
             ImGui::SetItemTooltip("This will update the load error.");
@@ -2135,13 +2179,13 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
         // --------------------
         if (ImGui::BeginTabItem("Break Detection"))
         {
-            DockingApps::mutexControl.BreakDetection();
+            //DockingApps::mutexControl.BreakDetection();
             // The break detection threshold from UTS
             ImGui::SeparatorText("Break Detection");
-            float breakThreshold = LR10KAppGlobals::breakThreshold.load() * 100;
+            float breakThreshold = LR10KAppGlobals::breakThreshold * 100;
             ImGui::BeginDisabled(disableTestSettingsAdjustments);
-            ImGui::BeginDisabled(LR10KAppGlobals::enable_breakThreshold.load() == 1);
-            ImGui::Text("Will End Test when %.0f %%\nof maximum load. (UTS)", LR10KAppGlobals::breakThreshold.load() * 100);
+            ImGui::BeginDisabled(LR10KAppGlobals::enable_breakThreshold == 1);
+            ImGui::Text("Will End Test when %.0f %% of maximum load found.", LR10KAppGlobals::breakThreshold * 100);
             if (ImGui::InputFloat("##Break detection", &breakThreshold, (1.0f), (5.0f), "%.0f"))
             {
                 if (breakThreshold < 0.0f)
@@ -2149,20 +2193,20 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
                 else if (breakThreshold > 100.0f)
                     breakThreshold = 100.0f;
 
-                LR10KAppGlobals::breakThreshold.store(breakThreshold / 100);
-                DockingApps::mutexControl.breakThresholdStatusChanged.notify_all();
+                LR10KAppGlobals::breakThreshold = breakThreshold / 100;
+                //DockingApps::mutexControl.breakThresholdStatusChanged.notify_all();
                 DockingApps::mainFileSystem.SaveApplicationSettings();
             }
             ImGui::SameLine(); ImGui::Text("%%");
             ImGui::EndDisabled();
-            int pointerBreakThresholdEnabled = LR10KAppGlobals::enable_breakThreshold.load();
+            int pointerBreakThresholdEnabled = LR10KAppGlobals::enable_breakThreshold;
             bool manual = ImGui::RadioButton("Manual", &pointerBreakThresholdEnabled, 0); ImGui::SameLine();
             bool automatic = ImGui::RadioButton("Automatic", &pointerBreakThresholdEnabled, 1);
             ImGui::SetItemTooltip("Will be when load gets above\n15 N, then lower than 15 N.");
             if (manual || automatic)
             {
-                LR10KAppGlobals::enable_breakThreshold.store(pointerBreakThresholdEnabled);
-                DockingApps::mutexControl.enable_breakThresholdStatusChanged.notify_all();
+                LR10KAppGlobals::enable_breakThreshold = pointerBreakThresholdEnabled;
+                //DockingApps::mutexControl.enable_breakThresholdStatusChanged.notify_all();
                 DockingApps::mainFileSystem.SaveApplicationSettings();
             }
             ImGui::EndDisabled();
@@ -2300,7 +2344,7 @@ void AppMainWidgets::SidePanelContainer(TabControl::TabTestDataClass* tabData)
             // ============================================================
             // TAB 2: EXTRA (Crucial Points, Description, Adjustments)
             // ============================================================
-            if (ImGui::BeginTabItem("Information"))
+            if (ImGui::BeginTabItem("Information & Points"))
             {
                 // --- Sub-Window 1: Quick Report ---
                 if (g_WindowStates.show_quick_report)
@@ -2344,27 +2388,243 @@ void AppMainWidgets::SidePanelContainer(TabControl::TabTestDataClass* tabData)
 
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Graph Settings"))
-            {
-                // --- Sub-Window 1: Graph Adjustment ---
-                if (ImGui::BeginChild("GraphAdjPanel", ImVec2(0, 260), true, ImGuiWindowFlags_MenuBar))
-                {
-                    if (ImGui::BeginMenuBar()) { ImGui::Text("Graph Axes"); ImGui::EndMenuBar(); }
-
-                    ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
-                    DockingApps::mainWidgets.PlotGraphAdjustmentDraw(tabData);
-                    ImGui::EndDisabled();
-                }
-                ImGui::EndChild();
-
-                ImGui::EndTabItem();
-            }
 
             ImGui::EndTabBar();
         }
     }
 
     ImGui::End();
+}
+
+// The custom crosshair that helps add points to the plot (made by Gemini)
+void customPlotCrosshair(TabControl::TabTestDataClass* tabData, StressStrainContext ctx)
+{
+    // 1. Setup State
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImDrawList* draw_list = ImPlot::GetPlotDrawList();
+    ImPlotPoint mouse_plot = ImPlot::GetPlotMousePos();
+    ImVec2 mouse_screen = ImPlot::PlotToPixels(mouse_plot); // Current mouse position in screen pixels
+
+    // Get plot boundaries in screen pixels
+    ImVec2 plot_min = ImPlot::GetPlotPos();
+    ImVec2 plot_max = ImVec2(plot_min.x + ImPlot::GetPlotSize().x, plot_min.y + ImPlot::GetPlotSize().y);
+
+    // Skip drawing if mouse is outside the plot area
+    if (!ImPlot::IsPlotHovered()) return;
+
+    // 2. Visual Settings
+    ImGui::SetMouseCursor(ImGuiMouseCursor_None); // Hide OS cursor
+    ImU32 lineColor = ImGui::GetColorU32(ImGuiCol_CheckMark); // Or use specific color
+    ImU32 labelBgColor = ImGui::GetColorU32(ImGuiCol_PopupBg, 0.85f); // Semi-transparent bg
+    ImU32 labelTextColor = ImGui::GetColorU32(ImGuiCol_Text);
+    float thickness = 1.0f; // Always 1 pixel thick, regardless of zoom
+
+    // 3. Draw Crosshair Lines (Screen Space)
+    ImPlot::PushPlotClipRect();
+
+    // Vertical Line (Load Axis)
+    draw_list->AddLine(ImVec2(mouse_screen.x, plot_min.y), ImVec2(mouse_screen.x, plot_max.y), lineColor, thickness);
+
+    // Horizontal Line (Extension Axis)
+    draw_list->AddLine(ImVec2(plot_min.x, mouse_screen.y), ImVec2(plot_max.x, mouse_screen.y), lineColor, thickness);
+
+    ImPlot::PopPlotClipRect();
+
+    // 4. Draw Tooltip (The Box with Values)
+    // We manually draw a tooltip near the cursor to avoid flickering "standard" tooltips
+
+    char label_buf[128]; // Increased size to 128 to be perfectly safe with dynamic strings
+
+    if (LR10KAppGlobals::showStressStrain)
+    {
+        // The graph is ALREADY displaying Stress and Strain.
+        // Therefore, the mouse's X/Y coordinates are exactly what we need!
+        double current_stress = mouse_plot.y;
+        double current_strain = mouse_plot.x;
+
+        snprintf(label_buf, sizeof(label_buf),
+            "Stress:    %.2f %s\nStrain:    %.3f %%",
+            current_stress, LR10KAppGlobals::GetUnitOption<const char*>(3),
+            current_strain);
+    }
+    else
+    {
+        // The graph is displaying Load and Extension.
+        // The mouse coordinates are Load (y) and Extension (x).
+        snprintf(label_buf, sizeof(label_buf),
+            "Load:      %.1f %s\nExtension: %.3f %s",
+            mouse_plot.y, LR10KAppGlobals::GetUnitOption<const char*>(1),
+            mouse_plot.x, LR10KAppGlobals::GetUnitOption<const char*>(0));
+    }
+
+    ImVec2 label_size = ImGui::CalcTextSize(label_buf);
+    ImVec2 label_pos = ImVec2(mouse_screen.x + 15, mouse_screen.y + 15); // Offset from cursor
+    ImVec2 label_pad = style.FramePadding;
+
+    // Keep tooltip on screen (optional simple clamping)
+    if (label_pos.x + label_size.x > plot_max.x) label_pos.x = mouse_screen.x - label_size.x - 15;
+    if (label_pos.y + label_size.y > plot_max.y) label_pos.y = mouse_screen.y - label_size.y - 15;
+
+    // Draw Tooltip Box
+    draw_list->AddRectFilled(
+        label_pos,
+        ImVec2(label_pos.x + label_size.x + label_pad.x * 2, label_pos.y + label_size.y + label_pad.y * 2),
+        labelBgColor,
+        style.WindowRounding
+    );
+
+    // Draw Tooltip Border
+    draw_list->AddRect(
+        label_pos,
+        ImVec2(label_pos.x + label_size.x + label_pad.x * 2, label_pos.y + label_size.y + label_pad.y * 2),
+        lineColor,
+        style.WindowRounding
+    );
+
+    // Draw Text
+    draw_list->AddText(ImVec2(label_pos.x + label_pad.x, label_pos.y + label_pad.y), labelTextColor, label_buf);
+}
+
+// The custom marked area that defines the amount of cut of delta l
+void cuttedOutAreaMarkedDeltaL()
+{
+    if (defaultValuesGUI::offsetZeroPointExtensionAxis > 0)
+    {
+        ImGuiStyle& style = ImGui::GetStyle();
+        const ImVec4 crosshairColor = style.Colors[ImGuiCol_CheckMark];
+
+        // Get ImGui window DrawList
+        ImDrawList* draw_list = ImPlot::GetPlotDrawList();
+
+        ImVec2 rFilledmin = ImPlot::PlotToPixels(ImPlotPoint(0.0f, ImPlot::GetPlotLimits().Y.Max));
+        ImVec2 rFilledmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
+
+        ImVec2 rmin = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, ImPlot::GetPlotLimits().Y.Max));
+        ImVec2 rmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
+
+        const ImU32 colorFilledRect = IM_COL32(0, 0, 0, 166); // RGBA
+        const ImU32 colorFilledText = IM_COL32(171, 255, 183, 220); // RGBA
+        const ImU32 colorEndLine = ImGui::ColorConvertFloat4ToU32(crosshairColor);
+
+        ImPlot::PushPlotClipRect();
+        ImPlot::GetPlotDrawList()->AddRectFilled(rFilledmin, rFilledmax, colorFilledRect);
+        ImPlot::GetPlotDrawList()->AddLine(rmin, rmax, colorEndLine, 0.5f);
+
+        ImPlot::PopPlotClipRect();
+
+        ImPlot::PushStyleColor(ImPlotCol_InlayText, ImGui::ColorConvertU32ToFloat4(colorFilledText));
+        ImPlot::PlotText("Filtered out", defaultValuesGUI::offsetZeroPointExtensionAxis / 2, ImPlot::GetPlotLimits().Y.Max / 2, ImVec2(-5.0f, 26.0f), ImPlotTextFlags_Vertical);
+        ImPlot::PopStyleColor();
+    }
+}
+
+// Add this helper function somewhere above your UI code or in common.cpp
+int FindClosestRawDataIndex(const ImVector<ImVec2>& rawData, double target_x)
+{
+    if (rawData.empty()) return -1;
+
+    int best_idx = 0;
+    double min_distance = DBL_MAX;
+
+    // Loop through raw data ONCE (O(N) efficiency)
+    for (int i = 0; i < rawData.Size; i++)
+    {
+        double distance = std::abs(rawData[i].x - target_x);
+        if (distance < min_distance)
+        {
+            min_distance = distance;
+            best_idx = i;
+        }
+    }
+    return best_idx;
+}
+
+double max_load_seen = 0.0;
+bool test_started = false;
+
+// Inside your live data loop (where you receive 'current_load'):
+void CheckForFracture(double current_load, TabControl::TabTestDataClass* tabData)
+{
+    if (tabData == nullptr) return;
+
+    // 1. Keep track of the highest load (UTS)
+    if (current_load > max_load_seen) {
+        max_load_seen = current_load;
+    }
+
+    // 2. Ignore the first 10 Newtons of noise when the machine starts moving
+    if (max_load_seen > 10.0) {
+        test_started = true;
+    }
+
+    if (test_started && tabData->LR10KTensileData.Data.Size > 2)
+    {
+        int latestPointIndex = tabData->LR10KTensileData.Data.Size - 1;
+        const ImVec2 latestDataPoint = tabData->LR10KTensileData.Data[latestPointIndex];
+
+        int prevPointIndex = tabData->LR10KTensileData.Data.Size - 2;
+        const ImVec2 prevDataPoint = tabData->LR10KTensileData.Data[prevPointIndex];
+
+        const float limit = 15.0f;
+
+        // Check if the current test has passed 15 N
+        if (current_load >= limit) {
+            tabData->testHasGoneAbove15N = true;
+        }
+
+        bool is_fractured = false;
+        ImVec2 fracture_point = latestDataPoint; // Default fracture point to the latest reading
+
+        // ---------------------------------------------------------
+        // MANUAL MODE: User defined a specific % drop from max load
+        // ---------------------------------------------------------
+        if (LR10KAppGlobals::enable_breakThreshold)
+        {
+            double fracture_threshold = max_load_seen * LR10KAppGlobals::breakThreshold;
+            double near_zero_threshold = 5.0;
+
+            if (current_load < fracture_threshold || current_load < near_zero_threshold)
+            {
+                is_fractured = true;
+            }
+        }
+        // ---------------------------------------------------------
+        // AUTOMATIC MODE: Smart detection
+        // ---------------------------------------------------------
+        else
+        {
+            if (tabData->testHasGoneAbove15N)
+            {
+                // Condition A: Sudden massive drop in load between two immediate ticks
+                // (e.g., the current load is 25% lower than the load just a fraction of a second ago)
+                if (current_load <= (prevDataPoint.y * 0.75))
+                {
+                    is_fractured = true;
+                    // Because the drop happens AFTER the break, the actual break point was the previous point!
+                    fracture_point = prevDataPoint;
+                }
+                // Condition B: Load gradually (or suddenly) drops below the absolute 15N limit 
+                else if (current_load < limit)
+                {
+                    is_fractured = true;
+                }
+            }
+        }
+
+        // ---------------------------------------------------------
+        // TRIGGER END TEST
+        // ---------------------------------------------------------
+        if (is_fractured)
+        {
+            // Only end the test if the fracture point hasn't already been assigned
+            // (Assuming your fracture point is index 3)
+            if (tabData->plot_importantDataPoints[3].first.y == 0)
+            {
+                tabData->AssignPoint_BreakPoint(tabData, fracture_point);
+                LR10KControlSystem::EndTest(tabData);
+            }
+        }
+    }
 }
 
 void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
@@ -2389,8 +2649,12 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         }
         else
         {
-            // Real extension from LR 10K Tensile Machine
-            LR10KExtension = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
+            if (LR10KAppGlobals::opticalSourceAsExtensiometer)
+                // Real extension from the optical camera source (comes from the Computer Vision thread)
+                LR10KExtension = g_Extensiometer.results.travel_mm;
+            else
+                // Real extension from LR 10K Tensile Machine
+                LR10KExtension = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
         }
 
         if (!mainGUIGlobals::useDemoModeLiveLoad)
@@ -2438,10 +2702,18 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         AddNewPointFromLoadAndExtension(tabData, LR10KExtension, LR10KLoad);
 
     // -------------------------------------------------------------------------
+    // ------------------ Check for fracture -----------------------------------
+    // -------------------------------------------------------------------------
+    CheckForFracture(LR10KLoad, tabData);
+
+    // -------------------------------------------------------------------------
     // ------------------- Calculate Nominal and True Strain -------------------
     // -------------------------------------------------------------------------
-    const double L_0 = tabData->length;        // Start Length
-    const double A_0 = tabData->area;          // Start Area
+    // 2. Fetch constants safely (ensure A_0 and L_0 are not 0)
+    StressStrainContext ctx;
+    ctx.RawData = tabData->LR10KTensileData.Data.Data; // Pointer to your raw array
+    ctx.Area0 = (tabData->area > 0) ? tabData->area : 1.0;
+    ctx.Length0 = (tabData->length > 0) ? tabData->length : 1.0;
 
     // Draw plot view
     const char* typeOfTest = LR10KAppGlobals::tensionTesting ? "Tension" : "Compression";
@@ -2452,42 +2724,42 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     // Buttons for graph
     ImGui::Spacing();
 
-    bool disableNominalTrueGraph =
-        (!tabData->tension && 1 == tabData->compressionOptionPicked)
-        || ((tabData->calcPoint_NominalStressStrainUTS[0] == 0 || tabData->calcPoint_NominalStressStrainUTS[0] == INFINITY) && (tabData->calcPoint_NominalStressStrain_yield[0] == 0 || tabData->calcPoint_NominalStressStrain_yield[0] == INFINITY))
-        || ((tabData->calcPoint_NominalStressStrainUTS[1] == 0 || tabData->calcPoint_NominalStressStrainUTS[1] == INFINITY) && (tabData->calcPoint_NominalStressStrain_yield[1] == 0 || tabData->calcPoint_NominalStressStrain_yield[1] == INFINITY));
-
-    // If user is inside true/nominal graph and changes values so it gets unvalid
-    if (disableNominalTrueGraph && !LR10KAppGlobals::toggleGraphType)
-    {
-        LR10KAppGlobals::toggleGraphType = true;
-        TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
-    }
-
-    ImGui::BeginDisabled(disableNominalTrueGraph || defaultValuesGUI::invalidStressDataNotUpdated);
-
-    bool toggleGraph = ImGui::Button("Toggle Graph Type", { 180, 30 });
     ImGui::SetItemTooltip("Recalculate strength(s) to update the stress-strain graph");
-    if (toggleGraph)
+    if (ImGui::Button("Toggle Graph Type", { 180, 45 }))
     {
-        LR10KAppGlobals::toggleGraphType = !LR10KAppGlobals::toggleGraphType;
+        LR10KAppGlobals::showStressStrain = !LR10KAppGlobals::showStressStrain;
+		tabData->request_graph_autofit = true;
 
         // Change graph extension based on the highest value
-        TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
+        //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
 
         PlaySoundEffect("buttonClick0");
 
         tabData->MarkTabAsUnsaved();
     }
 
-    ImGui::EndDisabled();
+    ImGui::SameLine();
+    // A single, clean button to replace the sliders
+    if (ImGui::Button("Reset Graph View", { 180, 45 }))
+    {
+        // This tells ImPlot to auto-fit the axes on the very next frame
+        ImPlot::SetNextAxesToFit();
+    }
+
+    ImGui::SameLine(0.0f, 20.0f);
+    if (ImGui::Button(g_WindowStates.show_calculator ? "Hide Calculator" : "View Calculator"))
+        g_WindowStates.show_calculator = !g_WindowStates.show_calculator;
+
+    ImGui::SameLine();
+    if (ImGui::Button(g_WindowStates.show_extensiometer ? "Hide Extensiometer" : "View Extensiometer"))
+        g_WindowStates.show_extensiometer = !g_WindowStates.show_extensiometer;
 
     // --- NEW: Optical Source Checkbox ---
     bool prev_opt_as_ext = LR10KAppGlobals::opticalSourceAsExtensiometer;
 
-    ImGui::SameLine();
+    ImGui::SameLine(0.0f, 20.0f);
     ImGui::BeginGroup(); // Group to align vertically with the button
-    ImGui::BeginDisabled(!g_Extensiometer.is_active);
+    ImGui::BeginDisabled(!g_Extensiometer.is_active || tabData->test_unfinished_test_started);
     ImGui::Checkbox("Use Optical Ext.", &LR10KAppGlobals::opticalSourceAsExtensiometer);
     ImGui::EndDisabled();
     ImGui::EndGroup();
@@ -2504,15 +2776,28 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     else
     {
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Use the camera-based extensiometer for Extension (X-Axis) instead of the machine encoder.\nEnsure the Extensiometer window is open and calibrated!");
+            ImGui::SetTooltip("Use the camera-based extensiometer for Extension (X-Axis) instead of the machine encoder.\nEnsure the Extensiometer is calibrated!");
     }
+
     // -------------------------------------
 
-    if (LR10KAppGlobals::toggleGraphType)
-    {
-        ImGui::Text("Ctrl+Click to add a new crucial point, or click and drag");
-    }
 
+    ImGui::Spacing();
+    ImGui::Text("Testing Graph");
+    ImGui::SameLine();
+    HelpMarker(
+        "Graph Controls:\n"
+        "\n"
+        "View:\n"
+        "- Scroll Wheel: Zoom in and out\n"
+        "- Left Click + Drag: Pan the view\n"
+        "- Double-Click: Auto-fit graph to data\n"
+        "\n"
+        "Points & Markers:\n"
+        "- Ctrl + Left Click: Snap a new marker exactly onto the line\n"
+        "- Left Click + Drag Marker: Slide a point along the graph line\n"
+        "- Ctrl + Z: Undo a point\n"
+    );
     ImGui::Spacing();
 
     // Start plot graph
@@ -2524,213 +2809,80 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     str.append(" % load error)");
     ImGui::SeparatorText(str.c_str());
 
-    // The custom crosshair that helps add points to the plot (made by Gemini)
-    auto customPlotCrosshair = []() -> void
-        {
-            // 1. Setup State
-            ImGuiStyle& style = ImGui::GetStyle();
-            ImDrawList* draw_list = ImPlot::GetPlotDrawList();
-            ImPlotPoint mouse_plot = ImPlot::GetPlotMousePos();
-            ImVec2 mouse_screen = ImPlot::PlotToPixels(mouse_plot); // Current mouse position in screen pixels
-
-            // Get plot boundaries in screen pixels
-            ImVec2 plot_min = ImPlot::GetPlotPos();
-            ImVec2 plot_max = ImVec2(plot_min.x + ImPlot::GetPlotSize().x, plot_min.y + ImPlot::GetPlotSize().y);
-
-            // Skip drawing if mouse is outside the plot area
-            if (!ImPlot::IsPlotHovered()) return;
-
-            // 2. Visual Settings
-            ImGui::SetMouseCursor(ImGuiMouseCursor_None); // Hide OS cursor
-            ImU32 lineColor = ImGui::GetColorU32(ImGuiCol_CheckMark); // Or use specific color
-            ImU32 labelBgColor = ImGui::GetColorU32(ImGuiCol_PopupBg, 0.85f); // Semi-transparent bg
-            ImU32 labelTextColor = ImGui::GetColorU32(ImGuiCol_Text);
-            float thickness = 1.0f; // Always 1 pixel thick, regardless of zoom
-
-            // 3. Draw Crosshair Lines (Screen Space)
-            ImPlot::PushPlotClipRect();
-
-            // Vertical Line (Load Axis)
-            draw_list->AddLine(ImVec2(mouse_screen.x, plot_min.y), ImVec2(mouse_screen.x, plot_max.y), lineColor, thickness);
-
-            // Horizontal Line (Extension Axis)
-            draw_list->AddLine(ImVec2(plot_min.x, mouse_screen.y), ImVec2(plot_max.x, mouse_screen.y), lineColor, thickness);
-
-            ImPlot::PopPlotClipRect();
-
-            // 4. Draw Tooltip (The Box with Values)
-            // We manually draw a tooltip near the cursor to avoid flickering "standard" tooltips
-
-            char label_buf[64];
-            sprintf(label_buf, "Load:      %.1f N\nExtension: %.3f mm", mouse_plot.y, mouse_plot.x);
-
-            ImVec2 label_size = ImGui::CalcTextSize(label_buf);
-            ImVec2 label_pos = ImVec2(mouse_screen.x + 15, mouse_screen.y + 15); // Offset from cursor
-            ImVec2 label_pad = style.FramePadding;
-
-            // Keep tooltip on screen (optional simple clamping)
-            if (label_pos.x + label_size.x > plot_max.x) label_pos.x = mouse_screen.x - label_size.x - 15;
-            if (label_pos.y + label_size.y > plot_max.y) label_pos.y = mouse_screen.y - label_size.y - 15;
-
-            // Draw Tooltip Box
-            draw_list->AddRectFilled(
-                label_pos,
-                ImVec2(label_pos.x + label_size.x + label_pad.x * 2, label_pos.y + label_size.y + label_pad.y * 2),
-                labelBgColor,
-                style.WindowRounding
-            );
-
-            // Draw Tooltip Border
-            draw_list->AddRect(
-                label_pos,
-                ImVec2(label_pos.x + label_size.x + label_pad.x * 2, label_pos.y + label_size.y + label_pad.y * 2),
-                lineColor,
-                style.WindowRounding
-            );
-
-            // Draw Text
-            draw_list->AddText(ImVec2(label_pos.x + label_pad.x, label_pos.y + label_pad.y), labelTextColor, label_buf);
-        };
-
-    // The custom marked area that defines the amount of cut of delta l
-    auto cuttedOutAreaMarkedDeltaL = []() -> void
-        {
-            if (defaultValuesGUI::offsetZeroPointExtensionAxis > 0)
-            {
-                ImGuiStyle& style = ImGui::GetStyle();
-                const ImVec4 crosshairColor = style.Colors[ImGuiCol_CheckMark];
-
-                // Get ImGui window DrawList
-                ImDrawList* draw_list = ImPlot::GetPlotDrawList();
-
-                ImVec2 rFilledmin = ImPlot::PlotToPixels(ImPlotPoint(0.0f, ImPlot::GetPlotLimits().Y.Max));
-                ImVec2 rFilledmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
-
-                ImVec2 rmin = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, ImPlot::GetPlotLimits().Y.Max));
-                ImVec2 rmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
-
-                const ImU32 colorFilledRect = IM_COL32(0, 0, 0, 166); // RGBA
-                const ImU32 colorFilledText = IM_COL32(171, 255, 183, 220); // RGBA
-                const ImU32 colorEndLine = ImGui::ColorConvertFloat4ToU32(crosshairColor);
-
-                ImPlot::PushPlotClipRect();
-                ImPlot::GetPlotDrawList()->AddRectFilled(rFilledmin, rFilledmax, colorFilledRect);
-                ImPlot::GetPlotDrawList()->AddLine(rmin, rmax, colorEndLine, 0.5f);
-
-                ImPlot::PopPlotClipRect();
-
-                ImPlot::PushStyleColor(ImPlotCol_InlayText, ImGui::ColorConvertU32ToFloat4(colorFilledText));
-                ImPlot::PlotText("Filtered out", defaultValuesGUI::offsetZeroPointExtensionAxis / 2, ImPlot::GetPlotLimits().Y.Max / 2, ImVec2(-5.0f, 26.0f), ImPlotTextFlags_Vertical);
-                ImPlot::PopStyleColor();
-            }
-        };
-
-    // If user clicks on a point and moves the cursor, the point should also move to a
-    // next valid point that matches the X-value with a round of accuracy of 2 decimals.
-    auto adjustCrucialPointWithMouse = [](TabControl::TabTestDataClass* tabData) -> void
-        {
-            std::vector<std::tuple<ImPlotPoint, int, bool>>* pointDataVector = &tabData->plot_dataPoints;
-            ImPlotPoint mouse = ImPlot::GetPlotMousePos();
-
-            float xPoint = mouse.x;
-            float yPoint = mouse.y;
-
-            float xPointMouse = Extra::tools.SetPrecisionFloat(xPoint, 2);
-            float yPointMouse = Extra::tools.SetPrecisionFloat(yPoint, 2);
-
-            // Set up
-            static bool activePointFound = false;
-            static std::tuple<ImPlotPoint, int, bool> pointDataActive;
-            static int pointDataIndex;
-
-            // Check every data point added to plot if mouse is within range
-            if (!activePointFound)
-            {
-                for (int i = 0; i < pointDataVector->size(); i++)
-                {
-                    ImPlotPoint pointData = std::get<ImPlotPoint>(pointDataVector->at(i));
-                    float xPlotCompareValueMin = Extra::tools.SetPrecisionFloat(pointData.x - 0.060f, 6);
-                    float yPlotCompareValueMin = Extra::tools.SetPrecisionFloat(pointData.y - 300.0f, 2);
-                    float xPlotCompareValueMax = Extra::tools.SetPrecisionFloat(pointData.x + 0.060f, 6);
-                    float yPlotCompareValueMax = Extra::tools.SetPrecisionFloat(pointData.y + 300.0f, 2);
-
-                    // Depending on if loaded in from file or added by user using mouse pointer
-                    bool withinRangeX = xPointMouse >= xPlotCompareValueMin && xPointMouse <= xPlotCompareValueMax;
-                    bool withinRangeY = yPointMouse >= yPlotCompareValueMin && yPointMouse <= yPlotCompareValueMax;
-
-                    // Check if within range, and accept it as valid (-+) data point
-                    if (std::get<bool>(pointDataVector->at(i)) && ImGui::IsMouseClicked(0) && withinRangeX && withinRangeY)
-                    {
-                        activePointFound    = true;
-                        pointDataActive     = pointDataVector->at(i);
-                        pointDataIndex      = i;
-                    }
-                }
-            }
-            else
-            {
-                // Check if x point from mouse cursor is within range of any plot point, and snap to it if found
-                for (int i = 0; i < tabData->LR10KTensileData.Data.size(); i++)
-                {
-                    // Plot values
-                    float xPlot = tabData->LR10KTensileData.Data[i].x;
-                    float yPlot = tabData->LR10KTensileData.Data[i].y;
-
-                    // The more decimals, the higher the precision - 2 is perfect
-                    float xPointMouseMoving = Extra::tools.SetPrecisionFloat(xPoint, 2);
-                    float xPlotCompareValue = Extra::tools.SetPrecisionFloat(xPlot, 2);
-
-                    // Check if mouse point x is within any valid point
-                    bool withinRange2 = xPointMouseMoving == xPlotCompareValue;
-
-                    if (withinRange2)
-                    {
-                        // Valid point; change the point to the new coordinate
-                        ImPlotPoint newPoint(xPlot, yPlot);
-                        int oldIndex = std::get<int>(pointDataActive);
-                        bool oldBool = std::get<bool>(pointDataActive);
-
-                        // Save
-                        std::tuple<ImPlotPoint, int, bool> newPointData = std::make_tuple(newPoint, oldIndex, oldBool);
-                        pointDataVector->at(pointDataIndex) = newPointData;
-                    }
-                }
-            }
-
-            // Reset if mouse is released
-            if (activePointFound && ImGui::IsMouseReleased(0))
-            {
-                activePointFound = false;
-
-                // Refresh important points (in case it was one moved)
-                TabControl::RefreshUpdateImportantDataPoints(tabData);
-            }
-        };
-
-    if (LR10KAppGlobals::toggleGraphType)
+    // ---------------------------------------------
+    // NEW LOGIC
+    // ---------------------------------------------
+    // Right before ImPlot::BeginPlot("Testing Graph")
+    if (tabData->request_graph_autofit)
     {
-        // Load-extension graph
-        if (ImPlot::BeginPlot("##Tensile Test", ImVec2(-1, -1), ImPlotFlags_NoMouseText))
-        {
-            // Set plot style
-            ImPlot::PushColormap("Dark"); // Paired, Deep
+        ImPlot::SetNextAxesToFit();
+        tabData->request_graph_autofit = false; // Reset it so the user can still zoom/pan afterwards
+    }
 
-            // Show the different axis
-            static ImPlotAxisFlags flags = ImPlotAxisFlags_Foreground;
+    ImPlot::PushStyleVar(ImPlotStyleVar_FitPadding, ImVec2(0.15f, 0.20f));
+
+    // 3. Draw the line
+    if (ImPlot::BeginPlot("##Testing Graph", ImVec2(-1, -1), ImPlotFlags_NoMouseText)) {
+        // ------------------------------------------------------------------
+        // SETUP
+        // ------------------------------------------------------------------
+        // Set plot style
+        ImPlot::PushColormap("Dark"); // Paired, Deep
+
+        // Show the different axis
+        // Start with no flags (which allows full mouse zooming and panning)
+        ImPlotAxisFlags x_flags = ImPlotAxisFlags_Foreground;
+        ImPlotAxisFlags y_flags = ImPlotAxisFlags_Foreground;
+
+        // Only force the auto-fitting if the machine is actively running a test
+        if (!tabData->test_finished)
+        {
+            x_flags |= ImPlotAxisFlags_AutoFit;
+            y_flags |= ImPlotAxisFlags_AutoFit;
+        }
+
+        // 1. Setup the axes based on the toggle state
+        if (LR10KAppGlobals::showStressStrain) {
+            // Setup context with safe denominators
+            //ImPlot::SetupAxes("Strain (%)", "Stress (MPa)", flags, flags); // Set to your preferred units
+            std::string str = "Stress, σ [";
+            str.append(LR10KAppGlobals::GetUnitOption<const char*>(3));
+            str.append("]");
+
+            ImPlot::SetupAxes("Strain, ε", str.c_str(), x_flags, y_flags);
+        }
+        else {
+            //ImPlot::SetupAxes("Extension (mm)", "Load (N)");
             std::string str = "Extension [";
             str.append(LR10KAppGlobals::GetUnitOption<const char*>(4));
             str.append("]");
             std::string str1 = "Load [";
             str1.append(LR10KAppGlobals::GetUnitOption<const char*>(5));
             str1.append("]");
-            ImPlot::SetupAxes(str.c_str(), str1.c_str(), flags, flags);
-            ImPlot::SetupLegend(ImPlotLocation_NorthEast, ImPlotLegendFlags_Outside | ImPlotLegendFlags_Horizontal);
+            ImPlot::SetupAxes(str.c_str(), str1.c_str(), x_flags, y_flags);
+        }
+    
+        ImPlot::SetupLegend(ImPlotLocation_NorthEast, ImPlotLegendFlags_Outside | ImPlotLegendFlags_Horizontal);
 
-            DockingApps::mutexControl.PlotAxis();
-            ImPlot::SetupAxisLimits(ImAxis_X1, 0, LR10KAppGlobals::testing_plot_only_extensionAxis.load(), ImGuiCond_Always);
-            ImPlot::SetupAxisLimits(ImAxis_Y1, 0, LR10KAppGlobals::testing_plot_only_loadAxis.load(), ImGuiCond_Always);
+        ImPlot::SetupAxisLimitsConstraints(ImAxis_X1, 0.0, INFINITY);
+        ImPlot::SetupAxisLimitsConstraints(ImAxis_Y1, 0.0, INFINITY);
 
-            // Plot
+        ImGuiStyle& style = ImGui::GetStyle();
+        const ImVec4 lineColor = style.Colors[ImGuiCol_HeaderHovered];
+        const ImVec4 crosshairColor = style.Colors[ImGuiCol_CheckMark];
+
+        // ------------------------------------------------------------------
+        // ------------------------------------------------------------------
+        // ------------------------------------------------------------------
+
+        // Assuming your real-time data is stored in standard arrays/vectors inside tabData
+        if (LR10KAppGlobals::showStressStrain) {
+            ImPlot::PlotLineG("Engineering stress", LR10KAppGlobals::NominalStressStrainGetter, &ctx, tabData->LR10KTensileData.Data.Size);
+            ImPlot::PlotLineG("True stress", LR10KAppGlobals::TrueStressStrainGetter, &ctx, tabData->LR10KTensileData.Data.Size);
+        }
+        else {
+            // Plot standard Load-Extension in real-time
+            // ImPlot::PlotLine("Load/Extension", &tabData->LR10KTensileData.Data[0].x, ...);
             if (tabData->LR10KTensileData.Data.Size > 0)
             {
                 ImGuiStyle& style = ImGui::GetStyle();
@@ -2739,378 +2891,146 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
 
                 ImPlot::PushStyleColor(ImPlotCol_Line, crosshairColor);
                 ImPlot::PushStyleColor(ImPlotCol_Fill, lineColor);
+
                 ImPlot::PlotLine(tabData->tension ? "Tension" : "Compression"
                     , &tabData->LR10KTensileData.Data[0].x
                     , &tabData->LR10KTensileData.Data[0].y
-                    , tabData->LR10KTensileData.Data.size()
+                    , tabData->LR10KTensileData.Data.Size
                     , ImPlotLineFlags_Shaded, 0, 2 * sizeof(float));
-                ImPlot::PopStyleColor();
-                ImPlot::PopStyleColor();
+
+                ImPlot::PopStyleColor(2);
             }
+        }
 
-            // Have the possibility to add own data points in plot
-            if (tabData->test_finished && ImPlot::IsPlotHovered() && ImGui::IsMouseClicked(0) && ImGui::GetIO().KeyCtrl) {
-                ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+        // Have the possibility to add own data points in plot
+        if (tabData->test_finished && ImPlot::IsPlotHovered() && ImGui::IsMouseClicked(0) && ImGui::GetIO().KeyCtrl) {
 
-                // Get the point and create an uniq ID
-                ImPlotPoint point = ImPlot::GetPlotMousePos();
+            // Get where the mouse currently is in the plot's visual coordinates
+            ImPlotPoint click_pos = ImPlot::GetPlotMousePos();
 
-                // Add the point to the global tuple RefreshUpdateImportantDataPoints(); std::get<ImPlotPoint>(tabData->plot_dataPoints[i])
-                tabData->plot_dataPoints.push_back({ point, 4, false }); // Extra::tools.array_size(TabControl::plot_items) - 1
+            // 1. Determine safe denominators for reverse math
+            double L_0 = tabData->length > 0 ? tabData->length : 1.0;
+
+            // 2. Convert the visual X-coordinate BACK to raw Extension
+            // If we are looking at Strain (%), we multiply by L_0 to get back to raw mm/inches.
+            double raw_click_ext = LR10KAppGlobals::showStressStrain ? (click_pos.x * L_0) : click_pos.x;
+
+            // 3. Find the index of the exact closest point in your real dataset
+            int snap_idx = FindClosestRawDataIndex(tabData->LR10KTensileData.Data, raw_click_ext);
+
+            // 4. If we successfully found a point on the line...
+            if (snap_idx != -1)
+            {
+                // Grab the EXACT raw coordinates from your dataset
+                double snapped_raw_ext = tabData->LR10KTensileData.Data[snap_idx].x;
+                double snapped_raw_load = tabData->LR10KTensileData.Data[snap_idx].y;
+
+                // Save the perfectly snapped point (4 = 'Custom' point)
+                tabData->plot_dataPoints.push_back({ ImPlotPoint(snapped_raw_ext, snapped_raw_load), 4 });
 
                 PlaySoundEffect("buttonClick0");
-                DockingApps::console.AddLog("GUI: Added a crucial point to plot.");
-
+                DockingApps::console.AddLog("GUI: Added a crucial point exactly on the graph line.");
                 tabData->MarkTabAsUnsaved();
-            } else if (!ImPlot::IsPlotHovered())
-                ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+            }
+        }
 
-            // Draw the crucial points
-            if (!tabData->plot_dataPoints.empty())
+        if (!tabData->plot_dataPoints.empty())
+        {
+            // Static array prevents allocating string memory every frame
+            static const char* labels[] = { "Prop.", "Yield", "UTS", "Frac.", "Custom", "NaN" };
+
+            for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
             {
-                std::vector<ImPlotPoint> plot_dataPointsOnly = tabData->GetImportantDataPointsOnly();
+                // Extract saved raw data
+                ImPlotPoint raw_pt = std::get<0>(tabData->plot_dataPoints[i]);
+                int pointID = std::get<1>(tabData->plot_dataPoints[i]);
 
-                ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(1.0f, 1.0f, 1.0f, 1.0f)); // White
-                std::string str = "Points (";
-                str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-                str.append(", ");
-                str.append(LR10KAppGlobals::GetUnitOption<const char*>(3));
-                str.append(")");
-                ImPlot::PlotScatter(
-                    str.c_str()
-                    , &plot_dataPointsOnly[0].x
-                    , &plot_dataPointsOnly[0].y
-                    , plot_dataPointsOnly.size()
-                    , 0, 0, 2 * sizeof(double));
-                ImPlot::PopStyleColor();
+                // 1. Convert back to current view mathematically
+                double draw_x = LR10KAppGlobals::showStressStrain ? LR10KAppGlobals::CalcEpsilon_e(raw_pt.x, ctx.Length0) : raw_pt.x;
+                double draw_y = LR10KAppGlobals::showStressStrain ? LR10KAppGlobals::CalcSigma_e(raw_pt.y, ctx.Area0) : raw_pt.y;
 
-                // Draw text beside points
-                for (int i = 0; i < plot_dataPointsOnly.size(); i++)
+                // 2. Determine colors
+                ImVec4 color = TabControl::CheckIfImportantPoint(tabData, i) ?
+                    ImVec4(1.0f, 1.0f, 1.0f, 0.85f) :
+                    ImVec4(1.0f, 1.0f, 1.0f, 0.3f);
+
+                // 3. Draw the Point/Marker
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 4.0f, color, IMPLOT_AUTO, color);
+                ImPlot::PlotScatter("##HiddenLabel", &draw_x, &draw_y, 1); // Pass 1 point at a time
+
+                // 4. Draw the Annotation (Only if it has a valid ID)
+                if (pointID >= 0 && pointID <= 4)
                 {
-                    DockingApps::mutexControl.PlotAxis();
-                    std::string plotText = std::string("{").append(std::to_string(i)).append("}");
-                    std::string plotText2 = std::string("");
+                    // ImPlot::Annotation draws text with a line pointing exactly to (draw_x, draw_y)
+                    // ImVec2(10, -20) offsets the text box 10px right, 20px up.
+                    ImPlot::Annotation(draw_x, draw_y, color, ImVec2(10, -15), false, "{%d} [%s]", i, labels[pointID]);
+                }
+            }
 
-                    // Show text if it is not an "Other" point
-                    int pointID = std::get<int>(tabData->plot_dataPoints[i]);
-                    if (pointID != IM_ARRAYSIZE(TabControl::plot_items) - 1)
+            // Drag & Snap logic
+            for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
+            {
+                // Get references to our saved data
+                ImPlotPoint& raw_pt = std::get<0>(tabData->plot_dataPoints[i]);
+                int pointID = std::get<1>(tabData->plot_dataPoints[i]);
+
+                // 1. Convert RAW saved data to CURRENT visual coordinates
+                double draw_x = LR10KAppGlobals::showStressStrain ? LR10KAppGlobals::CalcEpsilon_e(raw_pt.x, ctx.Length0) : raw_pt.x;
+                double draw_y = LR10KAppGlobals::showStressStrain ? LR10KAppGlobals::CalcSigma_e(raw_pt.y, ctx.Area0) : raw_pt.y;
+
+                // 2. ImPlot's native drag tool (Creates a draggable circle)
+                // We use 'i' as the unique ID so ImPlot knows which point is which.
+                ImVec4 color = ImVec4(1.0f, 1.0f, 0.0f, 1.0f); // Make it yellow or your preferred color
+
+                bool is_dragging = ImPlot::DragPoint(i, &draw_x, &draw_y, color, 5.0f);
+
+                if (is_dragging)
+                {
+                    // 3. User is moving the mouse!
+                    // Convert the visual drag position BACK to raw Load/Extension format
+                    double dragged_raw_x = LR10KAppGlobals::showStressStrain ? (draw_x * ctx.Length0) : draw_x;
+
+                    // 4. Snap to the closest real line data
+                    int snap_idx = FindClosestRawDataIndex(tabData->LR10KTensileData.Data, dragged_raw_x);
+
+                    if (snap_idx != -1)
                     {
-                        auto add = [](std::string& plotText, const char* str) { plotText.append(str); };
-
-                        add(plotText2, "[");
-                        switch (pointID)
-                        {
-                        case 0:
-                            add(plotText2, "Prop.");
-                            break;
-                        case 1:
-                            add(plotText2, "Yield");
-                            break;
-                        case 2:
-                            add(plotText2, "UTS");
-                            break;
-                        case 3:
-                            add(plotText2, "Frac.");
-                            break;
-                        default:
-                            add(plotText2, "NaN");
-                            break;
-                        }
-                        add(plotText2, "]");
+                        // Lock the point's real coordinates exactly to the line's raw data
+                        raw_pt.x = tabData->LR10KTensileData.Data[snap_idx].x;
+                        raw_pt.y = tabData->LR10KTensileData.Data[snap_idx].y;
                     }
 
-                    ImVec4 colorText = ImVec4(1.0f, 1.0f, 1.0f, 0.3f);
-                    if (TabControl::CheckIfImportantPoint(tabData, i))
-                        colorText = ImVec4(1.0f, 1.0f, 1.0f, 0.85f);
+                    tabData->MarkTabAsUnsaved();
+                }
 
-                    ImPlot::PushStyleColor(ImPlotCol_InlayText, colorText);
-                    ImPlot::PlotText(plotText.c_str(), plot_dataPointsOnly[i].x, plot_dataPointsOnly[i].y, ImVec2(-5, -20), ImPlotTextFlags_Vertical);
-                    ImPlot::PlotText(plotText2.c_str(), plot_dataPointsOnly[i].x, plot_dataPointsOnly[i].y, ImVec2(0, 20));
-                    ImPlot::PopStyleColor();
+                // 5. Draw the text annotation next to the point (from our previous step)
+                if (!is_dragging) // Optional: hide text while dragging for a cleaner look
+                {
+                    // ImPlot::Annotation(draw_x, draw_y, ...); (Insert your annotation code here)
                 }
             }
-
-            // Mark where an offset is placed from 0 to right
-            cuttedOutAreaMarkedDeltaL();
-
-            // Custom figure/blue line in plot
-            if (ImPlot::IsPlotHovered())
-            {
-                customPlotCrosshair();
-                adjustCrucialPointWithMouse(tabData);
-            } else if (!ImPlot::IsPlotHovered())
-                ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
-
-            ImPlot::PopColormap();
-            ImPlot::EndPlot();
         }
-    }
-    else
-    {
-        // Stress-strain graphs
-        if (ImPlot::BeginPlot("##Tensile Test2", ImVec2(-1, -1), ImPlotFlags_NoMouseText))
-        {
-            // Set plot style
-            ImPlot::PushColormap("Dark"); // Paired, Deep
 
-            // Show the different axis
-            static ImPlotAxisFlags flags = ImPlotAxisFlags_Foreground;
-            std::string str = "Stress, σ [";
-            str.append(LR10KAppGlobals::GetUnitOption<const char*>(3));
-            str.append("]");
+        // Mark where an offset is placed from 0 to right
+        cuttedOutAreaMarkedDeltaL();
 
-            ImPlot::SetupAxes("Strain, ε", str.c_str(), flags, flags);
-            ImPlot::SetupLegend(ImPlotLocation_NorthEast, ImPlotLegendFlags_Outside);
+        // Custom figure/blue line in plot
+        if (ImPlot::IsPlotHovered())
+            customPlotCrosshair(tabData, ctx);
+        else
+            ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
 
-            DockingApps::mutexControl.PlotAxis();
-            ImPlot::SetupAxisLimits(ImAxis_X1, 0, LR10KAppGlobals::testing_plot_only_extensionAxis.load(), ImGuiCond_Always);
-            ImPlot::SetupAxisLimits(ImAxis_Y1, 0, LR10KAppGlobals::testing_plot_only_loadAxis.load(), ImGuiCond_Always);
-
-            // Plot
-            if (tabData->LR10KTensileDataNominal.Data.Size > 0)
-            {
-                ImPlot::PlotLine("Engineering stress"
-                    , &tabData->LR10KTensileDataNominal.Data[0].x
-                    , &tabData->LR10KTensileDataNominal.Data[0].y
-                    , tabData->LR10KTensileDataNominal.Data.size()
-                    , 0, 0, 2 * sizeof(float));
-            }
-            if (tabData->LR10KTensileDataTrue.Data.Size > 0)
-            {
-                ImPlot::PlotLine("True stress"
-                    , &tabData->LR10KTensileDataTrue.Data[0].x
-                    , &tabData->LR10KTensileDataTrue.Data[0].y
-                    , tabData->LR10KTensileDataTrue.Data.size()
-                    , 0, 0, 2 * sizeof(float));
-            }
-
-            // Draw the crucial points
-            if (tabData->test_finished && !tabData->plot_dataPoints.empty())
-            {
-                std::vector<ImPlotPoint> plot_importantDataPoints = tabData->GetCrucialDataPointsOnly(tabData);
-
-                std::vector<ImPlotPoint> plot_dataPointsNomOnly;
-                std::vector<ImPlotPoint> plot_dataPointsTrueOnly;
-
-                // Convert to nominal/engineering strain & strain
-                for (int i = 0; i < plot_importantDataPoints.size(); i++)
-                {
-                    ImPlotPoint dataPointNom;
-                    dataPointNom.x = LR10KAppGlobals::CalcEpsilon_e(plot_importantDataPoints[i].x, L_0);
-                    dataPointNom.y = LR10KAppGlobals::CalcSigma_e(plot_importantDataPoints[i].y, A_0);
-
-                    plot_dataPointsNomOnly.push_back(dataPointNom);
-                }
-
-                // Convert to true strain & strain
-                for (int i = 0; i < plot_importantDataPoints.size(); i++)
-                {
-                    ImPlotPoint dataPointNom = plot_dataPointsNomOnly[i];
-
-                    ImPlotPoint dataPointTrue;
-                    dataPointTrue.x = LR10KAppGlobals::CalcEpsilon_t(dataPointNom.x);
-                    dataPointTrue.y = LR10KAppGlobals::CalcSigma_t(dataPointNom.x, dataPointNom.y);
-
-                    plot_dataPointsTrueOnly.push_back(dataPointTrue);
-                }
-
-                ImPlot::PlotScatter(
-                    "Points (ε_e, σ_e)"
-                    , &plot_dataPointsNomOnly[0].x
-                    , &plot_dataPointsNomOnly[0].y
-                    , plot_dataPointsNomOnly.size()
-                    , 0, 0, 2 * sizeof(double));
-
-                ImPlot::PlotScatter(
-                    "Points (ε_t, σ_t)"
-                    , &plot_dataPointsTrueOnly[0].x
-                    , &plot_dataPointsTrueOnly[0].y
-                    , plot_dataPointsTrueOnly.size()
-                    , 0, 0, 2 * sizeof(double));
-
-                // Draw text beside points
-                for (int i = 0; i < plot_dataPointsNomOnly.size(); i++)
-                {
-                    DockingApps::mutexControl.PlotAxis();
-                    std::string plotText = std::string("");
-
-                    int pointID = i;
-                    auto add = [](std::string& plotText, const char* str) { plotText.append(str); };
-
-                    add(plotText, "[");
-                    switch (pointID)
-                    {
-                    case 0:
-                        add(plotText, "Prop.");
-                        break;
-                    case 1:
-                        add(plotText, "Yield");
-                        break;
-                    case 2:
-                        add(plotText, "UTS");
-                        break;
-                    case 3:
-                        add(plotText, "Frac.");
-                        break;
-                    default:
-                        add(plotText, "NaN");
-                        break;
-                    }
-                    add(plotText, "]");
-
-                    ImVec4 colorText = ImVec4(1.0f, 1.0f, 1.0f, 0.85f);
-                    ImPlot::PushStyleColor(ImPlotCol_InlayText, colorText);
-                    ImPlot::PlotText(plotText.c_str(), plot_dataPointsNomOnly[i].x, plot_dataPointsNomOnly[i].y, ImVec2(0, 20));
-                    ImPlot::PopStyleColor();
-                }
-            }
-
-            // Custom figure/blue line in plot
-            if (ImPlot::IsPlotHovered())
-            {
-                customPlotCrosshair();
-                adjustCrucialPointWithMouse(tabData);
-
-                ImPlotPoint mouse = ImPlot::GetPlotMousePos();
-
-                ImGui::BeginTooltip();
-                ImGui::Text("Stress:  %.2f MPa", mouse.y);
-                ImGui::Text("Strain:  %.2f %%", mouse.x * 100);
-                ImGui::EndTooltip();
-            } else if (!ImPlot::IsPlotHovered())
-                ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
-
-            ImPlot::PopColormap();
-            ImPlot::EndPlot();
-        }
+        ImPlot::PopColormap();
+        ImPlot::EndPlot();
     }
 
-    // This makes the graph axis update smoothly
-    static bool startNewThread = true;
-    static int runningOnCurrentTabId = 0;
+    ImPlot::PopStyleVar();
 
-    if (startNewThread || runningOnCurrentTabId != tabData->tabId)
-    {
-        if (startNewThread)
-        {
-            startNewThread = false;
-
-            // Create a new thread to handle information, so it doesn't stall the main thread (old thread being destroyed when disconnecting from old COM port)
-            LR10KAppGlobals::m_pThreadPlotAxisUpdater = std::make_unique<std::thread>(TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater, tabData);
-            // Let the thread run independently detached from main
-            LR10KAppGlobals::m_pThreadPlotAxisUpdater->detach();
-
-            // Start the thread
-            LR10KAppGlobals::m_pThreadPlotAxisUpdater_stopFlag.store(false);
-        }
-
-        // Stop the old thread and start a new one in the next iteration
-        if (runningOnCurrentTabId != tabData->tabId)
-        {
-            LR10KAppGlobals::m_pThreadPlotAxisUpdater_stopFlag.store(true);
-
-            runningOnCurrentTabId = tabData->tabId;
-            startNewThread = true;
-        }
-    }
+    // Remove a crucial point with hotkey
+    if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+        TabControl::CrucialPointsUndoPoint(tabData);
 
     ImGui::End();
-}
-
-void AppMainWidgets::PlotGraphAdjustmentDraw(TabControl::TabTestDataClass* tabData)
-{
-    if (tabData == nullptr) return;
-
-    // E.g. mm and in
-    const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8);
-    // E.g. N and lbf
-    const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9);
-
-    // Settings :: Axis minimum and maximum values
-    float loadYAxisMin = 5.0f;
-    float loadYAxisMax = 100000.0f;
-    float extensionXAxisMin = 0.05f;
-    float extensionXAxisMax = 10000.0f;
-
-    //ImGui::SeparatorText("Axis'");
-
-    float canvasWidth = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
-    float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-
-    DockingApps::mutexControl.PlotAxis();
-    ImGui::BeginDisabled(!tabData->test_finished);
-    // Adjust how far the load axis (y) goes in the plot
-    ImGui::Text("Adjust Y-axis (Ctrl+Click):");
-    float loadAxis = LR10KAppGlobals::testing_plot_only_loadAxis.load();
-    ImGui::BeginChild("##Load y-axisInputFloat_child", ImVec2(canvasWidth, 30), false, ImGuiWindowFlags_NoBackground);
-    std::string str1 = "View %.0f ";
-    str1.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
-    std::string str2 = "View %.1f ";
-    str2.append(LR10KAppGlobals::GetUnitOption<const char*>(6));
-    ImGui::SliderFloat("##Plot y-axis", &loadAxis, loadYAxisMin, loadYAxisMax, LR10KAppGlobals::toggleGraphType ? str1.c_str() : str2.c_str(), ImGuiSliderFlags_AlwaysClamp);
-    LR10KAppGlobals::testing_plot_only_loadAxis.store(loadAxis);
-
-    ImGui::SameLine();
-
-    DockingApps::mutexControl.PlotAxis();
-    loadAxis = LR10KAppGlobals::testing_plot_only_loadAxis.load();
-    DockingApps::mutexControl.testing_plot_only_loadAxisStatusChanged.notify_all();
-    ImGui::PushButtonRepeat(true);
-    if (ImGui::ArrowButton("##Load y-axisInputFloat_child_up", ImGuiDir_Down))
-    {
-        LR10KAppGlobals::toggleGraphType ? loadAxis += 10.0f : loadAxis += 0.5f;
-        if (loadAxis < 0.3f)
-            loadAxis = 0.3f;
-    }
-    ImGui::SameLine(0.0f, spacing);
-    if (ImGui::ArrowButton("##Load y-axisInputFloat_child_down", ImGuiDir_Up))
-{
-        LR10KAppGlobals::toggleGraphType ? loadAxis -= 10.0f : loadAxis -= 0.5f;
-        if (loadAxis < 0.3f)
-            loadAxis = 0.3f;
-    }
-    ImGui::PopButtonRepeat();
-    LR10KAppGlobals::testing_plot_only_loadAxis.store(loadAxis);
-    DockingApps::mutexControl.testing_plot_only_loadAxisStatusChanged.notify_all();
-    ImGui::EndChild();
-
-    ImGui::Spacing();
-    ImGui::Spacing();
-
-    // Adjust how far the extension axis (x) goes in the
-    DockingApps::mutexControl.PlotAxis();
-    ImGui::Text("Adjust X-axis (Ctrl+Click):");
-    ImGui::BeginChild("##Extension x-axisInputFloat_child", ImVec2(canvasWidth, 30), false, ImGuiWindowFlags_NoBackground);
-    float extensionAxis = LR10KAppGlobals::testing_plot_only_extensionAxis.load();
-    std::string str = "View %.3f ";
-    str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-    ImGui::SliderFloat("##Plot x-axis", &extensionAxis, extensionXAxisMin, extensionXAxisMax, LR10KAppGlobals::toggleGraphType ? str.c_str() : "View %.3f %%", ImGuiSliderFlags_AlwaysClamp);
-    LR10KAppGlobals::testing_plot_only_extensionAxis.store(extensionAxis);
-    DockingApps::mutexControl.testing_plot_only_extensionAxisStatusChanged.notify_all();
-
-    ImGui::SameLine();
-
-    DockingApps::mutexControl.PlotAxis();
-    extensionAxis = LR10KAppGlobals::testing_plot_only_extensionAxis.load();
-    ImGui::PushButtonRepeat(true);
-    if (ImGui::ArrowButton("##Load x-axisInputFloat_child_right", ImGuiDir_Left))
-    {
-        LR10KAppGlobals::toggleGraphType ? extensionAxis += 0.1 : extensionAxis += 0.005;
-        if (extensionAxis < 0.3f)
-            extensionAxis = 0.3f;
-    }
-    ImGui::SameLine(0.0f, spacing);
-    if (ImGui::ArrowButton("##Load x-axisInputFloat_child_left", ImGuiDir_Right))
-    {
-        LR10KAppGlobals::toggleGraphType ? extensionAxis -= 0.1 : extensionAxis -= 0.005;
-        if (extensionAxis < 0.3f)
-            extensionAxis = 0.3f;
-    }
-    ImGui::PopButtonRepeat();
-    LR10KAppGlobals::testing_plot_only_extensionAxis.store(extensionAxis);
-    DockingApps::mutexControl.testing_plot_only_extensionAxisStatusChanged.notify_all();
-    ImGui::EndChild();
-    ImGui::EndDisabled();
 }
 
 void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
@@ -3172,7 +3092,6 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
     }
 
     ImGui::TextColored(ImVec4({ 0.952f, 0.619f, 0.046f, 1.00f }), "Testing Cycle Status:");
-    ImGui::SameLine();
     ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), statusForTest.c_str());
 
     ImGui::Spacing();
@@ -3185,23 +3104,49 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
     // Warn user
     ImVec4 textColor = mainGUIGlobals::useDemoMode ? (ImVec4)ImColor::HSV(0.149f, 0.860f, 1.0f) : ImVec4({ 1.0f, 1.0f, 1.0f, 1.00f });
 
-    str = "Load:      %s ";
-    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
-    ImGui::TextColored(textColor, str.c_str(), TabControl::LR10KLoadNice.c_str());
-    str = "Extension: %s ";
-    str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-    ImGui::TextColored(textColor, str.c_str(), TabControl::LR10KExtensionNice.c_str());
+    if (LR10KAppGlobals::showStressStrain)
+    {
+        // 1. Get the raw numeric values. 
+        // (Replace these with your actual raw variables if you have them, e.g., TabControl::LR10KLoad)
+        double currentLoad = std::stod(TabControl::LR10KLoadNice);
+        double currentExt = std::stod(TabControl::LR10KExtensionNice);
+
+        // 2. Safe denominators
+        double A_0 = tabData->area > 0 ? tabData->area : 1.0;
+        double L_0 = tabData->length > 0 ? tabData->length : 1.0;
+
+        // 3. Calculate current Stress & Strain
+        double current_stress = LR10KAppGlobals::CalcSigma_e(currentLoad, A_0);
+        double current_strain = LR10KAppGlobals::CalcEpsilon_e(currentExt, L_0);
+
+        // 4. Draw Stress
+        std::string strY = "Stress:    %.2f "; // Added spacing to align with Strain
+        strY.append(LR10KAppGlobals::GetUnitOption<const char*>(3));
+        ImGui::TextColored(textColor, strY.c_str(), current_stress);
+
+        // 5. Draw Strain
+        std::string strX = "Strain:    %.3f %%";
+        ImGui::TextColored(textColor, strX.c_str(), current_strain);
+    }
+    else
+    {
+        // Draw standard Load
+        std::string strY = "Load:      %s ";
+        strY.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
+        ImGui::TextColored(textColor, strY.c_str(), TabControl::LR10KLoadNice.c_str());
+
+        // Draw standard Extension
+        std::string strX = "Extension: %s ";
+        strX.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
+        ImGui::TextColored(textColor, strX.c_str(), TabControl::LR10KExtensionNice.c_str());
+    }
 }
 
 void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
 
-    // Undo crucial point with hot key Ctrl+Z
-    if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
-        TabControl::CrucialPointsUndoPoint(tabData);
-
-    ImGui::Text("You can undo an undefined\npoint with Ctrl+Z.");
+    ImGui::Text("You can undo a point with Ctrl+Z.");
     ImGui::Spacing();
     // Add a automatic UTS point if no one is added yet
     ImGui::BeginDisabled(!tabData->test_finished);
@@ -3224,13 +3169,13 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
     ImGui::EndDisabled();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::SeparatorText("Crucial points added by user");
+    ImGui::SeparatorText("Crucial points added");
 
     // Options for crucial points
     if (!tabData->plot_dataPoints.empty())
     {
         // All data points (using a pointer since data will be manipulated)
-        std::vector<std::tuple<ImPlotPoint, int, bool>>* pointData = &tabData->plot_dataPoints;
+        std::vector<std::tuple<ImPlotPoint, int>>* pointData = &tabData->plot_dataPoints;
 
         for (int i = 0; i < pointData->size(); i++)
         {
@@ -3241,65 +3186,41 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
             // A label
             ImGui::Text("{%d}", i);
 
-            // Warning
-            if (!std::get<bool>(pointData->at(i)))
+            // 1. Get the raw saved point
+            ImPlotPoint raw_pt = std::get<ImPlotPoint>(pointData->at(i));
+
+            // 2. Safely grab the area and length for math
+            double A_0 = tabData->area > 0 ? tabData->area : 1.0;
+            double L_0 = tabData->length > 0 ? tabData->length : 1.0;
+
+            // 3. Draw text based on which graph is currently toggled
+            if (LR10KAppGlobals::showStressStrain)
             {
-                ImGui::TextColored((ImVec4)ImColor::HSV(0.149f, 0.860f, 1.0f), "(not snapped to any point!)");
-            }
+                // Convert raw data to Stress/Strain
+                double current_stress = LR10KAppGlobals::CalcSigma_e(raw_pt.y, A_0);
+                double current_strain = LR10KAppGlobals::CalcEpsilon_e(raw_pt.x, L_0);
 
-            for (int j = 0; j < tabData->LR10KTensileData.Data.Size; j++)
+                // Draw Stress
+                std::string strY = "Stress: %.2f ";
+                strY.append(LR10KAppGlobals::GetUnitOption<const char*>(3)); // Usually index 3 for Stress
+                ImGui::Text(strY.c_str(), current_stress);
+
+                // Draw Strain
+                std::string strX = "Strain: %.3f %%";
+                ImGui::Text(strX.c_str(), current_strain);
+            }
+            else
             {
-                float xPlot = tabData->LR10KTensileData.Data[j].x;
-                float xPoint = std::get<ImPlotPoint>(pointData->at(i)).x;
+                // Draw standard Load
+                std::string strY = "Load: %.0f ";
+                strY.append(LR10KAppGlobals::GetUnitOption<const char*>(1)); // Usually index 1 for Force
+                ImGui::Text(strY.c_str(), raw_pt.y);
 
-                // -------------------------------------------------------------
-                // ---------------- SNAPPING POINT TO GRAPH LINE ---------------
-                // -------------------------------------------------------------
-
-                // This precision is only for loading in files, and is not possible with mouse pointer
-                xPlot = Extra::tools.SetPrecisionFloat(xPlot, 5);
-                xPoint = Extra::tools.SetPrecisionFloat(xPoint, 5);
-
-                // Precision for mouse pointer
-                float xPlotMouseAdd = Extra::tools.SetPrecisionFloat(xPlot, 2);
-                float xPointMouseAdd = Extra::tools.SetPrecisionFloat(xPoint, 2);
-
-                // Depending on if loaded in from file or added by user using mouse pointer
-                bool withinRange = (!ImGui::GetIO().KeyCtrl && xPoint == xPlot) || (ImGui::GetIO().KeyCtrl && xPointMouseAdd == xPlotMouseAdd);
-
-                // Check if within range, and accept it as valid -+ data point
-                if (!std::get<bool>(pointData->at(i)) && withinRange)
-                {
-                    // Snap onto the closest one (only the Y-axis)
-                    std::get<ImPlotPoint>(pointData->at(i)).x = tabData->LR10KTensileData.Data[j].x;
-
-                    // Find the closest valid graph Y-point that has a connection with the X-point found by all of the data (*the user won't add two point very close to each other)
-                    for (int k = 0; k < tabData->LR10KTensileData.Data.Size; k++)
-                    {
-                        ImPlotPoint plotDataPoint;
-                        plotDataPoint.x = tabData->LR10KTensileData.Data[k].x;
-                        plotDataPoint.y = tabData->LR10KTensileData.Data[k].y;
-
-                        if (plotDataPoint.x == std::get<ImPlotPoint>(pointData->at(i)).x)
-                        {
-                            // Snap onto the closest one (only the Y-axis)
-                            std::get<ImPlotPoint>(pointData->at(i)).y = plotDataPoint.y;
-                            std::get<bool>(pointData->at(i)) = true;
-
-                            break;
-                        }
-                    }
-                }
-
-                if (std::get<bool>(pointData->at(i))) break;
+                // Draw standard Extension
+                std::string strX = "Extension: %.2f ";
+                strX.append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Usually index 0 for Distance
+                ImGui::Text(strX.c_str(), raw_pt.x);
             }
-
-            std::string str = "Load: %.0f ";
-            str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
-            ImGui::Text(str.c_str(), std::get<ImPlotPoint>(pointData->at(i)).y);
-            str = "Extension: %.2f ";
-            str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-            ImGui::Text(str.c_str(), std::get<ImPlotPoint>(pointData->at(i)).x);
 
             // A delete button with a uniq ID
             ImGui::PushID(std::string("deleteButtonPoint").append(std::to_string(i)).c_str());
@@ -3321,8 +3242,6 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
             ImGui::SameLine();
             if (tabData->plot_dataPoints.size() > i) // Need to double check, or else it might fail
             {
-                ImGui::BeginDisabled(!std::get<bool>(pointData->at(i)));
-
                 if (!tabData->plot_dataPoints.empty())
                 {
                     bool comboTension = false;
@@ -3368,7 +3287,6 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
                         PlaySoundEffect("buttonClick0");
                     }
                 }
-                ImGui::EndDisabled();
             }
 
             ImGui::Spacing();
@@ -3387,18 +3305,54 @@ void AppMainWidgets::QuickReportWindowDraw(TabControl::TabTestDataClass* tabData
     if (tabData->test_finished)
     {
         // Sum up critical points from plot
-        ImGui::Text("Proportional limit Load: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(0)).y, "%.0f", LR10KAppGlobals::GetUnitOption<const char*>(1)).c_str());
-        ImGui::Text("Proportional limit Extension: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(0)).x, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(0)).x), LR10KAppGlobals::GetUnitOption<const char*>(0)).c_str());
-        ImGui::Separator();
-        ImGui::Text("Yielding (lower) Load: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(1)).y, "%.0f", LR10KAppGlobals::GetUnitOption<const char*>(1)).c_str());
-        ImGui::Text("Yielding (lower) Extension: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(1)).x, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(1)).x), LR10KAppGlobals::GetUnitOption<const char*>(0)).c_str());
-        ImGui::Separator();
-        ImGui::Text("Ultimate Tensile Load: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(2)).y, "%.0f", LR10KAppGlobals::GetUnitOption<const char*>(1)).c_str());
-        ImGui::Text("Ultimate Tensile Extension: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(2)).x, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(2)).x), LR10KAppGlobals::GetUnitOption<const char*>(0)).c_str());
-        ImGui::Separator();
-        ImGui::Text("Fracture Load: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(3)).y, "%.0f", LR10KAppGlobals::GetUnitOption<const char*>(1)).c_str());
-        ImGui::Text("Fracture Extension: %s", Extra::widgets.notNullValueChecker(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(3)).x, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(3)).x), LR10KAppGlobals::GetUnitOption<const char*>(0)).c_str());
-        ImGui::Separator();
+        // 1. Safe denominators for math
+        double A_0 = tabData->area > 0 ? tabData->area : 1.0;
+        double L_0 = tabData->length > 0 ? tabData->length : 1.0;
+
+        // 2. The names of your crucial points in order
+        const char* pointNames[4] = {
+            "Proportional limit",
+            "Yielding (lower)",
+            "Ultimate Tensile",
+            "Fracture"
+        };
+
+        // 3. Loop through the 4 points
+        for (int i = 0; i < 4; i++)
+        {
+            // Get the raw data point
+            ImPlotPoint raw_pt = std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(i));
+
+            if (LR10KAppGlobals::showStressStrain)
+            {
+                // --- STRESS / STRAIN VIEW ---
+                double stress = LR10KAppGlobals::CalcSigma_e(raw_pt.y, A_0);
+                double strain = LR10KAppGlobals::CalcEpsilon_e(raw_pt.x, L_0);
+
+                // Stress
+                ImGui::Text("%s Stress: %s", pointNames[i],
+                    Extra::widgets.notNullValueChecker(stress, "%.2f", LR10KAppGlobals::GetUnitOption<const char*>(3)).c_str());
+
+                // Strain (Using "%" as the unit string)
+                ImGui::Text("%s Strain: %s", pointNames[i],
+                    Extra::widgets.notNullValueChecker(strain, "%.3f", "%").c_str());
+            }
+            else
+            {
+                // --- LOAD / EXTENSION VIEW ---
+                // Load
+                ImGui::Text("%s Load: %s", pointNames[i],
+                    Extra::widgets.notNullValueChecker(raw_pt.y, "%.0f", LR10KAppGlobals::GetUnitOption<const char*>(1)).c_str());
+
+                // Extension
+                const char* ext_format = LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(raw_pt.x);
+                ImGui::Text("%s Extension: %s", pointNames[i],
+                    Extra::widgets.notNullValueChecker(raw_pt.x, ext_format, LR10KAppGlobals::GetUnitOption<const char*>(0)).c_str());
+            }
+
+            // Add the separator after each point (matches your original code)
+            ImGui::Separator();
+        }
     }
     else {
         ImGui::Text("Finish a test to get a\nsummary of critical points.");
@@ -3497,7 +3451,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::EndDisabled();
 
     ImGui::SameLine();
-    ImGui::BeginDisabled(mainGUIGlobals::useDemoMode || !tabData->test_finished);
+    ImGui::BeginDisabled(mainGUIGlobals::useDemoMode || !LR10KAppGlobals::configurationDone || tabData->test_running_test);
     if (Extra::widgets.widgetCreate_ButtonType2("Return to zero point", { sizeWidth, sizeHeight }, 0.6f)) // Light gray
         DockingApps::console.ExecCommand(tabData, "rezero");
     ImGui::EndDisabled();

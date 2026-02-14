@@ -84,12 +84,6 @@ struct AppMainWidgets {
     void PlotWindowDraw(TabControl::TabTestDataClass* tabData);
 
     /**
-        @brief The settings for controlling the plot/graph settings.
-        @param tabData -
-    **/
-    void PlotGraphAdjustmentDraw(TabControl::TabTestDataClass* tabData);
-
-    /**
         @brief Here it is possible to see the current load and extension, and
                 also set the current zero point position. And also save the plot
                 as a .XLSX file.

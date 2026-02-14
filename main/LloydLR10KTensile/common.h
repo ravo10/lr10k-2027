@@ -35,7 +35,7 @@ if (appDataFolderPath.first)
 }*/
 // And insert: #include "..\init.h" in "imgui.h".
 // 
-static const char* LR10KAppVersion = "1.0.6 [06.02.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
+static const char* LR10KAppVersion = "1.0.7 [06.02.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
 
 
 // ###############################################--------------------------------------------------------------------------------------------------------------
@@ -159,6 +159,26 @@ using json = nlohmann::json; //!< The JSON manager.
 // -----------------------------------------------------------------------------
 
 /**
+    @struct AppWindowStates
+    @brief     A group of window booleans, used to control e.g. the settings or calculator window.
+**/
+struct AppWindowStates
+{
+    bool show_settings = false;    //!< Used for showing/hiding the settings for LR 10K.
+    bool show_calculator = false;    //!< Used for showing/hiding the calculator for the stress/strain data from LR 10K.
+    bool show_graph = true;
+    bool show_quick_report = false;    //!< Used for showing/hiding the quick report for the LR 10K.
+    bool show_description = false;
+    bool show_console = false;    //!< Used for showing/hiding the console.
+    bool show_docs = false;    //!< Used for showing/hiding the documentation window.
+    bool show_extensiometer = false;    //!< Used for showing/hiding the extensiometer window.
+    // Add more here as you need them
+};
+
+// "extern" tells the compiler: "This variable exists somewhere else, don't create it here."
+extern AppWindowStates g_WindowStates;
+
+/**
     @namespace mainGUIGlobals
     @brief     These values are used for controlling special features in GUI. They are also saved in settings file that load on start.
 **/
@@ -183,6 +203,7 @@ namespace mainGUIGlobals {
     inline extern bool showPopUp_ConnectionTimeout = false;                                 //!< Will display the pop up when true.
     static const char* popUpID_DimensionsNotAdded = "Dimensions for test piece not added";  //!< Pop Up ID for Dimension not added..
     static const char* popUpID_SomethingUnexpectedHappend = "Something unexpeced happend";  //!< Pop Up ID for the Something unexpeced happend.
+    static const char* popUpID_ExtensiometerLostMarkerUnderTest = "Extensiometer lost tracking markers";  //!< Pop Up ID for if the extensiometer lost tracking points under testing.
 
     /**
         @brief The pop-up window to warn about adding dimensions.
@@ -193,6 +214,11 @@ namespace mainGUIGlobals {
         if (ImGui::BeginPopupModal(mainGUIGlobals::popUpID_DimensionsNotAdded, NULL, ImGuiWindowFlags_AlwaysAutoResize))
         {
             ImGui::Text("Please fill in all the dimensions for your test piece\nin the calculator. (e.g.: length, width and thickness)");
+            if (ImGui::Button("Open the calculator window", ImVec2(0, 0)))
+            {
+                g_WindowStates.show_calculator = true;
+                ImGui::CloseCurrentPopup();
+            }
             ImGui::NewLine();
 
             if (ImGui::Button("Abort", ImVec2(120, 0)))
@@ -203,26 +229,6 @@ namespace mainGUIGlobals {
         }
     };
 }
-
-/**
-    @struct AppWindowStates
-    @brief     A group of window booleans, used to control e.g. the settings or calculator window.
-**/
-struct AppWindowStates
-{
-    bool show_settings      = false;    //!< Used for showing/hiding the settings for LR 10K.
-    bool show_calculator    = false;    //!< Used for showing/hiding the calculator for the stress/strain data from LR 10K.
-    bool show_graph         = true;
-    bool show_quick_report  = false;    //!< Used for showing/hiding the quick report for the LR 10K.
-    bool show_description   = false;    
-    bool show_console       = false;    //!< Used for showing/hiding the console.
-    bool show_docs          = false;    //!< Used for showing/hiding the documentation window.
-    bool show_extensiometer = false;    //!< Used for showing/hiding the extensiometer window.
-    // Add more here as you need them
-};
-
-// "extern" tells the compiler: "This variable exists somewhere else, don't create it here."
-extern AppWindowStates g_WindowStates;
 
 /**
     @struct AppExtensiometer
@@ -242,6 +248,7 @@ struct AppExtensiometer
     double initial_dist_px = 0.0;
     double smooth_dist_px = 0.0;
     bool initialized = false;
+    bool lostMarkerDetectedlost_tracking = false;
 
     //! \note Instance of settings (initialized with your prototype defaults)
     struct MaskSettings {
@@ -271,6 +278,14 @@ extern ID3D12Resource* g_pResourceMask;
 
 extern TextureUploadContext g_CameraUploadCtx;
 extern TextureUploadContext g_MaskUploadCtx;
+
+// -----------------------------------------------
+//! \note A struct to hold everything the getter needs. RawData (Assuming your data is stored as ImVec2 (x=ext, y=load)), Area0 and Length0.
+extern struct StressStrainContext {
+    const ImVec2* RawData; // Assuming your data is stored as ImVec2 (x=ext, y=load)
+    double Area0;
+    double Length0;
+};
 
 //! \note Extensiometer settings thread
 extern std::unique_ptr<std::thread> g_pThreadCV;
@@ -314,7 +329,7 @@ namespace defaultValuesGUI {
     //! \details Used for controlling the amount of increment each axis should expand when hitting the "end point" of the graph (loadAxis and extensionAxis), when showing the stress-graph
     inline extern const float stressAxisIncrement{ 20.0f };    //!< N/mm^2 sigma (MPa)
     //! \details Used for controlling the amount of increment each axis should expand when hitting the "end point" of the graph (loadAxis and extensionAxis), when showing the stress-graph
-    inline extern const float strainAxisIncrement{ 0.015f };    //!< Unit less epsilon
+    inline extern const float strainAxisIncrement{ 0.0015f };    //!< Unit less epsilon
 
     //! \details Used for calculator, for calculating material properties
     inline extern float calc_thickness{ 0.0f }; //!< mm
@@ -359,8 +374,8 @@ namespace LR10KAppGlobals {
     //! \details Index 8 is e.g. inches and index 9 is e.g. the lbf convertion scalar. and index 10 is e.g. the lbf/in^2 scalar
     static const std::vector<std::vector<std::variant<const char*, double>>> unitsConvertion
     {
-        { "mm", "N", "mm/min", "N/mm^2", "millimeter", "newton", "MPa [N/mm^2]", "MPa", 1.0f, 1.0f, 1.0f },
-        { "in", "lbf", "in/min", "lbf/in^2", "inches", "foot-pound", "psi [lbf/in^2]", "psi", 0.0393700787, 0.2248089431, (0.2248089431 / sqrt(0.0393700787)) * 100 }
+        { "mm", "N", "mm/min", "N/mm^2", "millimeter", "newton", "MPa [N/mm^2]", "MPa", 1.0f, 1.0f, 1.2f },
+        { "in", "lbf", "in/min", "lbf/in^2", "inches", "foot-pound", "psi [lbf/in^2]", "psi", 0.0393700787, 0.2248089431, (0.2248089431 / sqrt(0.0393700787)) * 100, ""}
     };
     //! \details The index of the unit vector.
     inline extern int unitsConvertionIndex = 0;
@@ -407,9 +422,14 @@ namespace LR10KAppGlobals {
     }; //!< (These are changing values)
 
     //! \details The break threshold for a live testing. Will stop the test if the break point is e.g. 30 % lower than the UTS point.
-    inline extern std::atomic<float> breakThreshold = 0.1f;  //!< \note percentage. This setting is not sent to the LR 10K, but calculated inside the software.
+    //inline extern std::atomic<float> breakThreshold = 0.1f;  //!< \note percentage. This setting is not sent to the LR 10K, but calculated inside the software.
     //! \brief Enable or disable break threshold automatic detection.
-    inline extern std::atomic<int> enable_breakThreshold = 1;
+    //inline extern std::atomic<int> enable_breakThreshold = 1;
+
+    //! \details The break threshold for a live testing. Will stop the test if the break point is e.g. 30 % lower than the UTS point.
+    inline extern float breakThreshold = 0.2f;  //!< \note percentage. This setting is not sent to the LR 10K, but calculated inside the software.
+    //! \brief Enable or disable break threshold automatic detection.
+    inline extern int enable_breakThreshold = 1;
 
     //! \brief The range of which the extensiometer can travle.
     inline extern float extensiometerRange = 1000.0f;
@@ -435,12 +455,7 @@ namespace LR10KAppGlobals {
     }; //!< (These are changing values)
 
     //! \note Plot adjustment setting
-    inline extern bool toggleGraphType = true;                                       //!< \details Graph type for viewing nominal and true stress and strain. False if stress graph is visible.
-
-    inline extern std::unique_ptr<std::thread> m_pThreadPlotAxisUpdater = nullptr;   //!< The thread that update the plot axis constantly smoothly
-    inline extern std::atomic<bool> m_pThreadPlotAxisUpdater_PauseUpdate(false);     //!< Need to pause a function in the thread.
-    inline extern std::atomic<bool> m_pThreadPlotAxisUpdater_PauseUpdate2(false);    //!< Need to pause a function in the thread.
-    inline extern std::atomic<bool> m_pThreadPlotAxisUpdater_stopFlag(false);        //!< Need to stop the threads "while loop" before joining it.
+    inline extern bool showStressStrain = true; //!< \details Graph type for viewing nominal and true stress and strain. False if stress graph is visible.
 
     //! \note Plot adjustment setting
     inline extern std::atomic<float> testing_plot_only_loadAxis(defaultValuesGUI::loadAxis);            //!< \details This controls how far the y-axis goes.
@@ -460,14 +475,19 @@ namespace LR10KAppGlobals {
     //! \note Calculator values; these will only be reset when the software closes
     inline extern float calc_diameter = defaultValuesGUI::calc_diameter;   //!< mm
 
-    //! \note Calculator
+    //! \note Calculator: For Nominal Stress
     double CalcSigma_e(double f, double a_0);
-    //! \note Calculator
+    //! \note Calculator: For Nominal Strain
     double CalcEpsilon_e(double delta_L, double l_0);
-    //! \note Calculator
+    //! \note Calculator: For True Stress
     double CalcSigma_t(double epsilon_e, double sigma_e);
-    //! \note Calculator
+    //! \note Calculator: For True Strain
     double CalcEpsilon_t(double epsilon_e);
+
+    //! \details The getter function that ImPlot will call for every point. Calculator: Getter for ImPlot (Nominal Stress).
+    ImPlotPoint NominalStressStrainGetter(int idx, void* user_data);
+    //! \details The getter function that ImPlot will call for every point. Calculator: Getter for Implot (True Stress).
+    ImPlotPoint TrueStressStrainGetter(int idx, void* user_data);
 
     static std::filesystem::path LocalFolderPath;           //!< Used for getting the Local AppData folder.
     static std::filesystem::path configSettingPathFile;     //!< Used for getting the configuration settings file.
@@ -500,10 +520,10 @@ struct MutexControl {
 
     // -------------------------------------------------------------------------
 
-    //! \details Mutex to protect "testing_plot_only_loadAxis".
-    std::mutex testing_plot_only_loadAxisMutex;
-    //! \details Mutex to protect "testing_plot_only_extensionAxis".
-    std::mutex testing_plot_only_extensionAxisMutex;
+    ////! \details Mutex to protect "testing_plot_only_loadAxis".
+    //std::mutex testing_plot_only_loadAxisMutex;
+    ////! \details Mutex to protect "testing_plot_only_extensionAxis".
+    //std::mutex testing_plot_only_extensionAxisMutex;
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
@@ -514,16 +534,16 @@ struct MutexControl {
     // -------------------------------------------------------------------------
 
     //! \details Synchronize access to "testing_plot_only_loadAxis".
-    std::condition_variable breakThresholdStatusChanged;
+    //std::condition_variable breakThresholdStatusChanged;
     //! \details Synchronize access to "testing_plot_only_extensionAxis".
-    std::condition_variable enable_breakThresholdStatusChanged;
+    //std::condition_variable enable_breakThresholdStatusChanged;
 
     // -------------------------------------------------------------------------
 
-    //! \details Synchronize access to "testing_plot_only_loadAxis".
-    std::condition_variable testing_plot_only_loadAxisStatusChanged;
-    //! \details Synchronize access to "testing_plot_only_extensionAxis".
-    std::condition_variable testing_plot_only_extensionAxisStatusChanged;
+    ////! \details Synchronize access to "testing_plot_only_loadAxis".
+    //std::condition_variable testing_plot_only_loadAxisStatusChanged;
+    ////! \details Synchronize access to "testing_plot_only_extensionAxis".
+    //std::condition_variable testing_plot_only_extensionAxisStatusChanged;
 
     /**
         @brief Status message change.
@@ -542,30 +562,18 @@ struct MutexControl {
     /**
         @brief Break detection.
     **/
-    void BreakDetection()
-    {
-        std::unique_lock<std::mutex> lock1(breakThresholdMutex);
-        breakThresholdStatusChanged.wait(lock1, [] { return LR10KAppGlobals::breakThreshold.load(); });
+    //void BreakDetection()
+    //{
+    //    std::unique_lock<std::mutex> lock1(breakThresholdMutex);
+    //    breakThresholdStatusChanged.wait(lock1, [] { return LR10KAppGlobals::breakThreshold.load(); });
 
-        // Boolean check is not necesarry...
-        /*if (lockNr2)
-        {
-            std::unique_lock<std::mutex> lock2(enable_breakThresholdMutex);
-            enable_breakThresholdStatusChanged.wait(lock2, [] { return LR10KAppGlobals::enable_breakThreshold.load(); });
-        }*/
-    }
-
-    /**
-        @brief Plot axis for extension and load.
-    **/
-    void PlotAxis()
-    {
-        std::unique_lock<std::mutex> lock1(testing_plot_only_loadAxisMutex);
-        std::unique_lock<std::mutex> lock2(testing_plot_only_extensionAxisMutex);
-
-        testing_plot_only_loadAxisStatusChanged.wait(lock1, [] { return LR10KAppGlobals::testing_plot_only_loadAxis.load(); });
-        testing_plot_only_extensionAxisStatusChanged.wait(lock2, [] { return LR10KAppGlobals::testing_plot_only_extensionAxis.load(); });
-    }
+    //    // Boolean check is not necesarry...
+    //    /*if (lockNr2)
+    //    {
+    //        std::unique_lock<std::mutex> lock2(enable_breakThresholdMutex);
+    //        enable_breakThresholdStatusChanged.wait(lock2, [] { return LR10KAppGlobals::enable_breakThreshold.load(); });
+    //    }*/
+    //}
 };
 
 /**
@@ -615,11 +623,9 @@ namespace TabControl {
         RollingBuffer LR10KTensileDataNominal;  //!< This is a placeholder (calculated nominal stress inserted here from "testing_LR10KTensileData").
         RollingBuffer LR10KTensileDataTrue;     //!< This is a placeholder (calculated true stress inserted here from "testing_LR10KTensileData").
 
-        float LR10LoadNewtonAxis;               //!< Holds the last load axis value registred.
-        float LR10ExtensionAxis;                //!< Holds the last extension axis value registred.
         float LR10OffsetZeroPointExtensionAxis; //!< Holds the offset from zero point relative to the extension axis. (remove som slack)
 
-        std::vector<std::tuple<ImPlotPoint, int, bool>> plot_dataPoints;    //!< This holds every custom data point classes added by the user (ID and Data) [ImPlotPoint], prop. index [int] and if it is snapped onto graph [bool].
+        std::vector<std::tuple<ImPlotPoint, int>> plot_dataPoints;    //!< This holds every custom data point classes added by the user (ID and Data) [ImPlotPoint], prop. index [int]. (will always be snapped onto the graph after the new update)
         std::vector<std::pair<ImPlotPoint, int>> plot_importantDataPoints{ {}, {}, {}, {} };  //!< This holds the four important data used for the quick report [ImPlotPoint], in acending order + Every data points property index are stored here, from "plot_items" [int].
         float settings_speedAndPlot[3];             //!< Settings for the test. mm/min, mm/min & percentage (These are changing values)
         float oldLoadErrorValue;                    //!< Is used to get the difference value for the load error after a test is finished; to know how much to increase/decrease the load. Is set on Star Test[1], Load File[2] and update load error[3].
@@ -630,6 +636,7 @@ namespace TabControl {
         bool test_unfinished_test_started;          //!< True if a test has begun, but is not yet ended.
         bool test_running_test;                     //!< True if the user has started running the test and false if it is paused.
         bool test_finished;                         //!< True if testing is ended and finished.
+        bool request_graph_autofit;                 //!< This will be true when the graph needs an update; e.g. when opening a tab/loading a file.
         size_t tabId;                               //!< Hold the uniq id for the tab.
         bool unsavedThingsInTab;                    //!< Will become true when the tab has been saved atleast one time after opening it
         bool updatedGraphOnOpen;                    //!< Used for when opening the tab after it has been selected, to know if the graph has been auto. updated.
@@ -678,8 +685,6 @@ namespace TabControl {
         **/
         TabTestDataClass()
         {
-            LR10ExtensionAxis = LR10KAppGlobals::testing_plot_only_extensionAxis.load();
-            LR10LoadNewtonAxis = LR10KAppGlobals::testing_plot_only_loadAxis.load();
             LR10OffsetZeroPointExtensionAxis = 0.0f;
 
             settings_speedAndPlot[0] = LR10KAppGlobals::testing_speedAndPlotActual[0];
@@ -694,6 +699,7 @@ namespace TabControl {
             test_unfinished_test_started = false;
             test_running_test = false;
             test_finished = false;
+            request_graph_autofit = true;
             tabId = -1;
             unsavedThingsInTab = false;
             updatedGraphOnOpen = false;
@@ -813,7 +819,7 @@ namespace TabControl {
     inline extern void RefreshUpdateImportantDataPoints(TabTestDataClass* tabData, bool markTabUnsaved = true);
     inline extern void CrucialPointsUndoPoint(TabTestDataClass* tabData);
 
-    inline extern void AutoAdjustNormalExtensionLoadVariabels(TabTestDataClass* tabData, bool updateGraphType = false, bool doNotMarkAsUnsaved = false);
+    //inline extern void AutoAdjustNormalExtensionLoadVariabels(TabTestDataClass* tabData, bool doNotMarkAsUnsaved = false);
     inline extern UINT __cdecl AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabTestDataClass* tabData);
 
     inline extern void PreventExtremeLimitsLR10K(TabTestDataClass* tabData);
@@ -914,6 +920,12 @@ struct AppCalculator
         @param tabData -
     **/
     void AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabData);
+    /**
+        @brief Set material properties. This is used to set the area, start length, end length ++ which to be manually entered. This has to be executed before "CalculateStresses".
+        @param tabData -
+        @param initDimensions -
+    **/
+    void SetMaterialProperties(TabControl::TabTestDataClass* tabData, bool initDimensions = 1);
     /**
         @brief Calculates stress points. Converting to crucial points to plot for nominal stress. This has to be executed before "CalculateStresses".
         @param tabData          -

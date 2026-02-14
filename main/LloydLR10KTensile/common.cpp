@@ -101,6 +101,47 @@ double CalculateYoungsModulus(const std::vector<double>& strainData, const std::
     return slope; // This is your Young's Modulus in MPa (if stress is MPa)
 }
 
+// -----------------------------------------------------------------------------
+// --------------------------------- Convertion --------------------------------
+// -----------------------------------------------------------------------------
+
+ImPlotPoint LR10KAppGlobals::NominalStressStrainGetter(int idx, void* user_data) {
+    // Cast the void* back to our struct
+    StressStrainContext* ctx = (StressStrainContext*)user_data;
+
+    // Grab the raw load/extension point at this specific index
+    double extension = ctx->RawData[idx].x;
+    double load = ctx->RawData[idx].y;
+
+    // Calculate real-time stress and strain
+    double strain = LR10KAppGlobals::CalcEpsilon_e(extension, ctx->Length0);
+    double stress = LR10KAppGlobals::CalcSigma_e(load, ctx->Area0);
+
+    // Return the calculated point to ImPlot
+    return ImPlotPoint(strain, stress);
+}
+
+ImPlotPoint LR10KAppGlobals::TrueStressStrainGetter(int idx, void* user_data) {
+    // Cast the void* back to our struct
+    StressStrainContext* ctx = (StressStrainContext*)user_data;
+
+    // Grab the raw load/extension point at this specific index
+    double extension = ctx->RawData[idx].x;
+    double load = ctx->RawData[idx].y;
+
+    // Calculate real-time stress and strain
+    double strain = LR10KAppGlobals::CalcEpsilon_e(extension, ctx->Length0);
+    double stress = LR10KAppGlobals::CalcSigma_e(load, ctx->Area0);
+
+    // Calculate the true stress
+    ImVec2 stressStrainTrue;
+    stressStrainTrue.x = LR10KAppGlobals::CalcEpsilon_t(strain);
+    stressStrainTrue.y = LR10KAppGlobals::CalcSigma_t(strain, stress);
+
+    // Return the calculated point to ImPlot
+    return ImPlotPoint(stressStrainTrue.x, stressStrainTrue.y);
+}
+
 
 /**
     @brief  Gets the correct value from the units conversion.
@@ -121,6 +162,36 @@ ReturnType LR10KAppGlobals::GetUnitOption(int index, int unitIndex)
     }
     // Return a default value or handle the out-of-bounds case as needed.
     return ReturnType{};
+}
+
+void AppCalculator::SetMaterialProperties(TabControl::TabTestDataClass* tabData, bool initDimensions)
+{
+    const double T_0 = LR10KAppGlobals::calc_thickness;      // Start Thickness
+    const double W_0 = LR10KAppGlobals::calc_width;          // Start Width
+    const double L_0 = LR10KAppGlobals::calc_length;         // Start Length
+    const double D_0 = LR10KAppGlobals::calc_diameter;       // Start Diameter
+    double A_0 = 0; // Start Area
+    if (LR10KAppGlobals::areaOptionPicked == 0)
+    {
+        A_0 = T_0 * W_0;
+        tabData->area = A_0; // Calculated above
+
+        if (initDimensions)
+        {
+            tabData->thickness = T_0;
+            tabData->width = W_0;
+        }
+    }
+    else if (LR10KAppGlobals::areaOptionPicked == 1)
+    {
+        A_0 = (M_PI * D_0) / 4;
+        tabData->area = A_0; // Calculated above
+
+        if (initDimensions)
+            tabData->diameter = D_0;
+    }
+    if (initDimensions)
+        tabData->length = L_0;
 }
 
 void AppCalculator::AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabData)
@@ -148,10 +219,9 @@ void AppCalculator::AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabDa
         points.y *= loadScalar;
 
         const int index = std::get<int>(tabData->plot_dataPoints[i]);
-        const bool snappedOnto = std::get<bool>(tabData->plot_dataPoints[i]);
 
         // Save
-        tabData->plot_dataPoints[i] = std::make_tuple(points, index, snappedOnto);
+        tabData->plot_dataPoints[i] = std::make_tuple(points, index);
     }
 
     // Crucial points
@@ -185,27 +255,8 @@ void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData,
     const double L_0 = LR10KAppGlobals::calc_length;         // Start Length
     const double D_0 = LR10KAppGlobals::calc_diameter;       // Start Diameter
     double A_0 = 0; // Start Area
-    if (LR10KAppGlobals::areaOptionPicked == 0)
-    {
-        A_0 = T_0 * W_0;
-        tabData->area = A_0; // Calculated above
 
-        if (initDimensions)
-        {
-            tabData->thickness = T_0;
-            tabData->width = W_0;
-        }
-    }
-    else if (LR10KAppGlobals::areaOptionPicked == 1)
-    {
-        A_0 = (M_PI * D_0) / 4;
-        tabData->area = A_0; // Calculated above
-
-        if (initDimensions)
-            tabData->diameter   = D_0;
-    }
-    if (initDimensions)
-        tabData->length = L_0;
+    SetMaterialProperties(tabData, initDimensions);
 
     // -------------------------------------------------------------------------
     // Reset all previous calculated properties
@@ -455,7 +506,6 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
     ImGui::Begin("Calculator", showCalculator, window_flags);
 
-
     ImGui::Spacing();
 
     // ------------------------------------------------------------------
@@ -558,6 +608,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             ImGui::Spacing();
 
             // Start values
+            ImGui::BeginDisabled(tabData->test_unfinished_test_started);
             if (LR10KAppGlobals::areaOptionPicked == 0)
             {
                 ImGui::Text("Start thickness (σ_n, σ_t):");
@@ -578,6 +629,8 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             bool option1_rectangular = ImGui::RadioButton("Rectangle", &LR10KAppGlobals::areaOptionPicked, 0); ImGui::SameLine();
             bool option2_circual = ImGui::RadioButton("Circle", &LR10KAppGlobals::areaOptionPicked, 1);
             if (option1_rectangular || option2_circual) DockingApps::mainFileSystem.SaveApplicationSettings();
+
+            ImGui::EndDisabled();
 
             if (!std::isnan(tabData->area) && tabData->area > -1)
             {
@@ -680,6 +733,11 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     tabData->calcYoungsModulus = 0.000f;
             }
 
+            // SI Units
+            if (LR10KAppGlobals::unitsConvertionIndex == 0)
+                // Convert to GPa
+                tabData->calcYoungsModulus /= 1000;
+
             static std::string str1 = "";
             static std::string str2 = "";
             static std::string str3 = "";
@@ -696,7 +754,10 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::SeparatorText("Young's Modulus (E-module)");
                     ImGui::Text("Strain range set to 0.05 %% - 0.25 %%,\naccording to ASTM D638 / ISO 527.");
                     str2 = "Young's modulus, E-module: %0.3f ";
-                    str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    if (LR10KAppGlobals::unitsConvertionIndex == 0)
+                        str2.append("GPa");
+                    else
+                        str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
                     ImGui::TextColored(colorText2, str2.c_str(), tabData->calcYoungsModulus);
                     ImGui::Spacing();
 
@@ -773,7 +834,10 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
                     ImGui::SeparatorText("Young's Modulus (E-module)");
                     str = "Young's modulus: E-module Bending = %0.3f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    if (LR10KAppGlobals::unitsConvertionIndex == 0)
+                        str2.append("GPa");
+                    else
+                        str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
                     ImGui::TextColored(colorText2, str.c_str(), tabData->calcYoungsModulus);
 
                     ImGui::SeparatorText("UTS Bending");
@@ -834,7 +898,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             ImGui::Text("Will only affect the\nresult for calculation(s).");
             ImGui::Text("* Fracture point is needed.");
 
-            ImGui::BeginDisabled(fracturePointExtension <= 0 && !mainGUIGlobals::useDemoMode || !LR10KAppGlobals::toggleGraphType);
+            ImGui::BeginDisabled(fracturePointExtension <= 0 && !mainGUIGlobals::useDemoMode);
             ImGui::InputFloat("##Offset zero point ext.", &defaultValuesGUI::offsetZeroPointExtensionAxis, (0.01f), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(defaultValuesGUI::offsetZeroPointExtensionAxis), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
 
             // Will only be active if a fracture point is added
@@ -1753,6 +1817,9 @@ void AppMainFileSystem::OpenLR10KTestFileBrowserLogic()
 
             PlaySoundEffect("saveFileSuccess");
 
+            // This tells ImPlot to auto-fit the axes on the very next frame
+            tabDataLoaded->request_graph_autofit = true;
+
             DockingApps::console.AddLog("Successfully loaded plot data to a new tab!");
         }
         else
@@ -1853,9 +1920,9 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["maximumLoadAllowedInsideLR10K"] = LR10KAppGlobals::maximumLoadAllowedInsideLR10K;
         settings["maximumExtensionAllowedInsideLR10K"] = LR10KAppGlobals::maximumExtensionAllowedInsideLR10K;
 
-        DockingApps::mutexControl.BreakDetection();
-        settings["breakThreshold"] = LR10KAppGlobals::breakThreshold.load();
-        settings["enable_breakThreshold"] = LR10KAppGlobals::enable_breakThreshold.load();
+        //DockingApps::mutexControl.BreakDetection();
+        //settings["breakThreshold"] = LR10KAppGlobals::breakThreshold.load();
+        //settings["enable_breakThreshold"] = LR10KAppGlobals::enable_breakThreshold.load();
 
         settings["extensiometerRange"]  = LR10KAppGlobals::extensiometerRange;
         settings["enable_extensiomter"] = LR10KAppGlobals::enable_extensiomter;
@@ -1933,8 +2000,8 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["maximumLoadAllowedInsideLR10K"]       = 10000.0f;
         settings["maximumExtensionAllowedInsideLR10K"]  = 500.0f;
 
-        settings["breakThreshold"] = 0.1f;
-        settings["enable_breakThreshold"] = 0;
+        /*settings["breakThreshold"] = 0.1f;
+        settings["enable_breakThreshold"] = 0;*/
 
         settings["extensiometerRange"]  = 1000.0f;
         settings["enable_extensiomter"] = 0;
@@ -1995,8 +2062,8 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     std::string_view LR10KTravelDistanceActionAfter             = "LR10KTravelDistanceActionAfter";
     std::string_view maximumLoadAllowedInsideLR10K              = "maximumLoadAllowedInsideLR10K";
     std::string_view maximumExtensionAllowedInsideLR10K         = "maximumExtensionAllowedInsideLR10K";
-    std::string_view breakThreshold                             = "breakThreshold";
-    std::string_view enable_breakThreshold                      = "enable_breakThreshold";
+    /*std::string_view breakThreshold                             = "breakThreshold";
+    std::string_view enable_breakThreshold                      = "enable_breakThreshold";*/
     std::string_view extensiometerRange                         = "extensiometerRange";
     std::string_view enable_extensiomter                        = "enable_extensiomter";
     std::string_view fileBrowsing_LastLR10KSaveAsLocation       = "fileBrowsing_LastLR10KSaveAsLocation";
@@ -2040,8 +2107,8 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     if (!settings.contains(std::string{ LR10KTravelDistanceActionAfter          })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ maximumLoadAllowedInsideLR10K           })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ maximumExtensionAllowedInsideLR10K      })) thereIsAnUnvalidKey = true;
-    if (!settings.contains(std::string{ breakThreshold                          })) thereIsAnUnvalidKey = true;
-    if (!settings.contains(std::string{ enable_breakThreshold                   })) thereIsAnUnvalidKey = true;
+    /*if (!settings.contains(std::string{ breakThreshold                          })) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ enable_breakThreshold                   })) thereIsAnUnvalidKey = true;*/
     if (!settings.contains(std::string{ extensiometerRange                      })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ enable_extensiomter                     })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ fileBrowsing_LastLR10KSaveAsLocation    })) thereIsAnUnvalidKey = true;
@@ -2133,8 +2200,8 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
         LR10KAppGlobals::maximumLoadAllowedInsideLR10K      = settings["maximumLoadAllowedInsideLR10K"];
         LR10KAppGlobals::maximumExtensionAllowedInsideLR10K = settings["maximumExtensionAllowedInsideLR10K"];
 
-        LR10KAppGlobals::breakThreshold                     = settings["breakThreshold"];
-        LR10KAppGlobals::enable_breakThreshold              = settings["enable_breakThreshold"];
+        /*LR10KAppGlobals::breakThreshold                     = settings["breakThreshold"];
+        LR10KAppGlobals::enable_breakThreshold              = settings["enable_breakThreshold"];*/
 
         LR10KAppGlobals::extensiometerRange                 = settings["extensiometerRange"];
         LR10KAppGlobals::enable_extensiomter                = settings["enable_extensiomter"];
@@ -2418,7 +2485,7 @@ void TabControl::RefreshUpdateImportantDataPoints(TabControl::TabTestDataClass* 
     if (tabData == nullptr) return;
 
     // Refresh and update crucial points added to the important data points vector plot_importantDataPoints
-    std::vector<std::tuple<ImPlotPoint, int, bool>> allDataPoints   = tabData->plot_dataPoints;
+    std::vector<std::tuple<ImPlotPoint, int>> allDataPoints   = tabData->plot_dataPoints;
     tabData->plot_importantDataPoints.clear();
 
     // Try and write all of the important data properties
@@ -2460,7 +2527,7 @@ void TabControl::CrucialPointsUndoPoint(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
 
-    std::vector<std::tuple<ImPlotPoint, int, bool>>* dataPoints = &tabData->plot_dataPoints;
+    std::vector<std::tuple<ImPlotPoint, int>>* dataPoints = &tabData->plot_dataPoints;
 
     // Check if the last point has an property ID == 4, or contiune to check
     for (int i = dataPoints->size() - 1; i > 0; i--)
@@ -2479,73 +2546,64 @@ void TabControl::CrucialPointsUndoPoint(TabControl::TabTestDataClass* tabData)
     @param updateGraphType    - 
     @param doNotMarkAsUnsaved - 
 **/
-void TabControl::AutoAdjustNormalExtensionLoadVariabels(TabControl::TabTestDataClass* tabData, bool updateGraphType, bool doNotMarkAsUnsaved)
-{
-    if (tabData == nullptr) return;
-
-    if (updateGraphType)
-        LR10KAppGlobals::toggleGraphType = true;
-
-    RollingBuffer LR10KTensileData = tabData->LR10KTensileData;
-
-    if (LR10KTensileData.Data.Size > 0)
-    {   
-        if (!LR10KAppGlobals::toggleGraphType
-            && tabData->LR10KTensileDataNominal.Data.Size > 0
-            && tabData->LR10KTensileDataTrue.Data.Size > 0
-            && !LR10KAppGlobals::m_pThreadPlotAxisUpdater_PauseUpdate.load())
-        {
-            // Make a copy, since the values could change (since it is calulated every time) and then the application will crash
-            // Only need to read also
-            RollingBuffer testing_LR10KTensileDataNomCopy   = tabData->LR10KTensileDataNominal;
-            RollingBuffer testing_LR10KTensileDataTrueCopy  = tabData->LR10KTensileDataTrue;
-
-            // Nominal and true stres
-            // Find the largest values
-            float largestY = 0;
-            float largestX = testing_LR10KTensileDataTrueCopy.Data[testing_LR10KTensileDataTrueCopy.Data.Size - 1].x;
-
-            for (int i = 0; i < testing_LR10KTensileDataNomCopy.Data.Size; i++)
-            {
-                if (testing_LR10KTensileDataNomCopy.Data[i].y > largestY)
-                    largestY = testing_LR10KTensileDataNomCopy.Data[i].y;
-                if (testing_LR10KTensileDataNomCopy.Data[i].x > largestX)
-                    largestX = testing_LR10KTensileDataNomCopy.Data[i].x;
-            }
-            for (int i = 0; i < tabData->LR10KTensileDataTrue.Data.Size; i++)
-            {
-                if (testing_LR10KTensileDataTrueCopy.Data[i].y > largestY)
-                    largestY = testing_LR10KTensileDataTrueCopy.Data[i].y;
-                if (testing_LR10KTensileDataTrueCopy.Data[i].x > largestX)
-                    largestX = testing_LR10KTensileDataTrueCopy.Data[i].x;
-            }
-
-            LR10KAppGlobals::testing_plot_only_loadAxis     .store(largestY + defaultValuesGUI::stressAxisIncrement * LR10KAppGlobals::GetUnitOption<double>(10));
-            DockingApps::mutexControl.testing_plot_only_loadAxisStatusChanged.notify_all();
-            LR10KAppGlobals::testing_plot_only_extensionAxis.store(largestX + defaultValuesGUI::strainAxisIncrement);
-            DockingApps::mutexControl.testing_plot_only_extensionAxisStatusChanged.notify_all();
-        }
-        else if (LR10KAppGlobals::toggleGraphType && LR10KTensileData.Data.Size > 0)
-        {
-            // Find the largest values
-            float largestY = 0;
-            float largestX = LR10KTensileData.Data[LR10KTensileData.Data.Size - 1].x;
-            for (int i = 0; i < LR10KTensileData.Data.Size; i++)
-            {
-                if (LR10KTensileData.Data[i].y > largestY)
-                    largestY = LR10KTensileData.Data[i].y;
-            }
-
-            LR10KAppGlobals::testing_plot_only_extensionAxis.store(largestX + defaultValuesGUI::extensionAxisIncrement * LR10KAppGlobals::GetUnitOption<double>(8));
-            DockingApps::mutexControl.testing_plot_only_extensionAxisStatusChanged.notify_all();
-            LR10KAppGlobals::testing_plot_only_loadAxis     .store(largestY + defaultValuesGUI::loadAxisIncrement * LR10KAppGlobals::GetUnitOption<double>(9));
-            DockingApps::mutexControl.testing_plot_only_loadAxisStatusChanged.notify_all();
-        }
-    }
-
-    if (!doNotMarkAsUnsaved)
-        tabData->MarkTabAsUnsaved();
-}
+//void TabControl::AutoAdjustNormalExtensionLoadVariabels(TabControl::TabTestDataClass* tabData, bool doNotMarkAsUnsaved)
+//{
+//    if (tabData == nullptr) return;
+//
+//    DockingApps::calculator.SetMaterialProperties(tabData);
+//
+//    StressStrainContext ctx;
+//    ctx.RawData = tabData->LR10KTensileData.Data.Data; // Pointer to your raw array
+//    ctx.Area0 = (tabData->area > 0) ? tabData->area : 1.0;
+//    ctx.Length0 = (tabData->length > 0) ? tabData->length : 1.0;
+//
+//    RollingBuffer LR10KTensileData = tabData->LR10KTensileData;
+//
+//    if (LR10KTensileData.Data.Size > 0)
+//    {
+//		// Find the largest values
+//		float largestY = 0;
+//		float largestX = ctx.RawData[LR10KTensileData.Data.Size - 1].x;
+//
+//        if (LR10KAppGlobals::showStressStrain)
+//        {
+//			for (int i = 0; i < LR10KTensileData.Data.Size; i++)
+//            {
+//				// Nominal stress should always be the highest
+//                ImPlotPoint stressStrain = LR10KAppGlobals::TrueStressStrainGetter(i, &ctx);
+//
+//                if (stressStrain.y > largestY)
+//					largestY = stressStrain.y;
+//
+//                if (stressStrain.x > largestX)
+//					largestX = stressStrain.x;
+//            }
+//
+//			LR10KAppGlobals::testing_plot_only_extensionAxis.store(largestX); // + defaultValuesGUI::strainAxisIncrement
+//			DockingApps::mutexControl.testing_plot_only_extensionAxisStatusChanged.notify_all();
+//
+//            LR10KAppGlobals::testing_plot_only_loadAxis.store(largestY + defaultValuesGUI::stressAxisIncrement * LR10KAppGlobals::GetUnitOption<double>(10));
+//            DockingApps::mutexControl.testing_plot_only_loadAxisStatusChanged.notify_all();
+//        }
+//        else
+//        {
+//            for (int i = 0; i < LR10KTensileData.Data.Size; i++)
+//            {
+//                if (LR10KTensileData.Data[i].y > largestY)
+//                    largestY = LR10KTensileData.Data[i].y;
+//            }
+//
+//            LR10KAppGlobals::testing_plot_only_extensionAxis.store(largestX + defaultValuesGUI::extensionAxisIncrement * LR10KAppGlobals::GetUnitOption<double>(8));
+//            DockingApps::mutexControl.testing_plot_only_extensionAxisStatusChanged.notify_all();
+//
+//            LR10KAppGlobals::testing_plot_only_loadAxis.store(largestY + defaultValuesGUI::loadAxisIncrement * LR10KAppGlobals::GetUnitOption<double>(9));
+//            DockingApps::mutexControl.testing_plot_only_loadAxisStatusChanged.notify_all();
+//        }
+//    }
+//
+//    if (!doNotMarkAsUnsaved)
+//        tabData->MarkTabAsUnsaved();
+//}
 
 /**
     @brief Tries to prevent hitting extreme limits for LR 10K. Load and extension.
@@ -2627,10 +2685,10 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
 {
     LR10KController _LR10KController;
 
-    while (!mainGUIGlobals::done && !LR10KAppGlobals::m_pThreadPlotAxisUpdater_stopFlag.load())
+    while (!mainGUIGlobals::done)
     {
         // The controller for "PauseUpdate2" is in the main_dx11.cpp, and will destroy this thread when a test is finished
-        if (tabData != nullptr && !LR10KAppGlobals::m_pThreadPlotAxisUpdater_PauseUpdate2.load())
+        if (tabData != nullptr)
         {
             // Check if the LR 10K hits any limits to End Test
 
@@ -2642,7 +2700,7 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
                 PreventUserLimitsLR10K(tabData);
 
             // Update the graph (this will create a smooth animation also inside this hook)
-            AutoAdjustNormalExtensionLoadVariabels(tabData, false, true);
+            //AutoAdjustNormalExtensionLoadVariabels(tabData, true);
 
             if (!tabData->test_finished)
             {
@@ -2710,9 +2768,9 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
                 ImPlotPoint UTSPoint = tabData->GetUTS(); // UTS
 
                 // Try detecting break
-                DockingApps::mutexControl.BreakDetection();
+                /*DockingApps::mutexControl.BreakDetection();
                 if (DetectIfABreakHasOccured(tabData, UTSPoint, LR10KAppGlobals::enable_breakThreshold.load(), LR10KAppGlobals::breakThreshold.load()))
-                    LR10KControlSystem::EndTest(tabData);
+                    LR10KControlSystem::EndTest(tabData);*/
 
                 // Check if there is a physical crash or not to stop the machine
                 DockingApps::mutexControl.StatusMessage();
@@ -2748,6 +2806,8 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
 **/
 bool TabControl::DetectIfABreakHasOccured(TabControl::TabTestDataClass* tabData, ImPlotPoint UTSPoint, int enable_automaticBreakDetection, float breakThreshold)
 {
+    std::cout << "Detecting break... UTS: " << UTSPoint.y << std::endl;
+
     if (tabData == nullptr || tabData->plot_importantDataPoints[3].first.y > 0) return false;
 
     // Latest data point from tabData
@@ -2924,7 +2984,7 @@ void TabControl::CalculateDataFromTest(TabControl::TabTestDataClass* tabData)
     }
 
     // Update graph
-    TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
+    //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
 }
 
 /**
@@ -2994,7 +3054,7 @@ void AppMainTabSystem::CreateTabMenuSystem(TabControl::TabTestDataClass* tabData
         if (ImGui::TabItemButton("+ New Test", ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip)
             && TabControl::activeTestTabsId.Size < TabControl::MAXTABS && notALockedTab)
         {
-            TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData, true, true);
+            //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData, true);
             TabControl::TabTestDataClass* newTabTestData = new TabControl::TabTestDataClass;
 
             CreateANewTab(newTabTestData);
@@ -3042,15 +3102,8 @@ void AppMainTabSystem::CreateTabMenuSystem(TabControl::TabTestDataClass* tabData
                     // Update graph
                     if (!activeTabData->updatedGraphOnOpen)
                     {
-                        TabControl::AutoAdjustNormalExtensionLoadVariabels(activeTabData, false, true);
+                        //TabControl::AutoAdjustNormalExtensionLoadVariabels(activeTabData, true);
                         activeTabData->updatedGraphOnOpen = true;
-                    }
-
-                    // If no test has started, set it back to normal view... Always
-                    if (notALockedTab && !activeTabData->test_finished)
-                    {
-                        if (!LR10KAppGlobals::toggleGraphType)
-                            LR10KAppGlobals::toggleGraphType = true;
                     }
 
                     // Name of tab
@@ -3265,7 +3318,7 @@ void TabControl::TabTestDataClass::AssignPoint_PropotionalLimit(TabControl::TabT
     // Only assign if point x and y is not NaN, which can happen...
     if (!std::isnan(propotionalLimitPoint.x) && !std::isnan(propotionalLimitPoint.y) && propotionalLimitPoint.y > 0 && propotionalLimitPoint.x > 0)
     {
-        plot_dataPoints.push_back({ propotionalLimitPoint, 0, false });
+        plot_dataPoints.push_back({ propotionalLimitPoint, 0 });
 
         // Assign correct data point index ID Globally
         plot_importantDataPoints[0] = { propotionalLimitPoint, 0 }; // Propotional limit point has index ID 0
@@ -3298,16 +3351,12 @@ void TabControl::TabTestDataClass::AssignPoint_YieldPoint(TabControl::TabTestDat
 }
 void TabControl::TabTestDataClass::AssignPoint_UltimateTensileStrength(TabControl::TabTestDataClass* tabData)
 {
-    // Order checker
-    if ((tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked)) && 0 == plot_importantDataPoints[0].first.x
-        /*|| plot_importantDataPoints[1].first.x == 0*/) return; // This is the best logic it seems
-
     ImPlotPoint UTSPoint = this->GetUTS(); // UTS
 
     // Only assign if point x and y is not NaN, which can happen when using Demo mode...
     if ((!std::isnan(UTSPoint.x) && !std::isnan(UTSPoint.y) && UTSPoint.y > 0 && UTSPoint.x > 0))
     {
-        plot_dataPoints.push_back({ UTSPoint, 2, false });
+        plot_dataPoints.push_back({ UTSPoint, 2 });
 
         // Assign correct data point index ID Globally
         plot_importantDataPoints[2] = { UTSPoint, 2 }; // Ultimate Tensile Strength
@@ -3317,21 +3366,15 @@ void TabControl::TabTestDataClass::AssignPoint_UltimateTensileStrength(TabContro
         DockingApps::console.AddLog("Could not add Ultimate Tensile Strength since one or more points were NaN...");
 
     TabControl::RefreshUpdateImportantDataPoints(tabData);
+    DockingApps::calculator.CalculateStressPoints(tabData);
+    DockingApps::calculator.CalculateStresses(tabData);
 }
 void TabControl::TabTestDataClass::AssignPoint_BreakPoint(TabControl::TabTestDataClass* tabData, ImPlotPoint breakPoint)
 {
-    // Order checker
-    if (tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked))
-    {
-        if (0 == plot_importantDataPoints[0].first.x
-            /*|| plot_importantDataPoints[1].first.x == 0*/
-            || 0 == plot_importantDataPoints[2].first.x) return;
-    }
-
     // Only assign if point x and y is not NaN, which can happen...
     if (!std::isnan(breakPoint.x) && !std::isnan(breakPoint.y) && breakPoint.y > 0 && breakPoint.x > 0)
     {
-        plot_dataPoints.push_back({ breakPoint, 3, false });
+        plot_dataPoints.push_back({ breakPoint, 3 });
 
         // Assign correct data point index ID Globally
         plot_importantDataPoints[3] = { breakPoint, 3 }; // Break point has index ID 3
@@ -3381,10 +3424,9 @@ void TabControl::TabTestDataClass::ConvertUnitsBackToBase(TabControl::TabTestDat
             points.y /= unitConvOld_force;
 
             const int index = std::get<int>(tabData->plot_dataPoints[i]);
-            const bool snappedOnto = std::get<bool>(tabData->plot_dataPoints[i]);
 
             // Save
-            tabData->plot_dataPoints[i] = std::make_tuple(points, index, snappedOnto);
+            tabData->plot_dataPoints[i] = std::make_tuple(points, index);
         }
 
         // Crucial points
@@ -3439,10 +3481,9 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestData
         points.y *= unitConv_force;
 
         const int index             = std::get<int>(tabData->plot_dataPoints[i]);
-        const bool snappedOnto      = std::get<bool>(tabData->plot_dataPoints[i]);
 
         // Save
-        tabData->plot_dataPoints[i] = std::make_tuple(points, index, snappedOnto);
+        tabData->plot_dataPoints[i] = std::make_tuple(points, index);
     }
 
     // Crucial points
@@ -3488,8 +3529,8 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestData
     }
 
     // Update graph
-    if (updateGlobals)
-        TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
+    //if (updateGlobals)
+        //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
 }
 void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::TabTestDataClass* tabData)
 {
@@ -3527,10 +3568,9 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::Ta
         points.y *= unitConv_force;
 
         const int index             = std::get<int>(tabData->plot_dataPoints[i]);
-        const bool snappedOnto      = std::get<bool>(tabData->plot_dataPoints[i]);
 
         // Save
-        tabData->plot_dataPoints[i] = std::make_tuple(points, index, snappedOnto);
+        tabData->plot_dataPoints[i] = std::make_tuple(points, index);
     }
 
     // Crucial points
@@ -3569,7 +3609,7 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::Ta
     }
 
     // Update graph
-    TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
+    //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
 
     // Update to new unit
     LR10KAppGlobals::unitsConvertionIndex = tabData->unitsConvertionIndex;
@@ -4588,7 +4628,6 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
             }
 
             tabData->tension = LR10KAppGlobals::tensionTesting;
-            LR10KAppGlobals::toggleGraphType = true;
 
             tabData->test_running_test = true;
             tabData->test_unfinished_test_started = true;
@@ -5137,6 +5176,14 @@ void AppConsole::ExecCommand(TabControl::TabTestDataClass* tabData, const char* 
         // AFTER TESTING
         else if (Stricmp(command_line, "REZERO") == 0)
         {
+            if (tabData->test_unfinished_test_started)
+            {
+                if (LR10KControlSystem::EndTest(tabData))
+                    AddLog("[testing] Ended test!");
+                else
+                    AddLog("[error] Could not end test...");
+            }
+
             if (LR10KControlSystem::ReturnToZeroPoint(tabData))
                 AddLog("[after testing] Returning to zero point!");
             else

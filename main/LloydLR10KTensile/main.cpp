@@ -528,12 +528,6 @@ int main(int, char**)
             DockingApps::mainFileSystem.PreSaveLR10KTestBrowserLogic(tabData);
             DockingApps::mainFileSystem.SaveXlsxBrowserLogic(tabData);
             DockingApps::mainFileSystem.OpenLR10KTestFileBrowserLogic();
-
-            // Allow adjusting axis in plot (switch it on and off based on if a test i complete)
-            if (tabData->test_finished && !LR10KAppGlobals::m_pThreadPlotAxisUpdater_PauseUpdate2.load())
-                LR10KAppGlobals::m_pThreadPlotAxisUpdater_PauseUpdate2.store(true);
-            else if (!tabData->test_finished && LR10KAppGlobals::m_pThreadPlotAxisUpdater_PauseUpdate2.load())
-                LR10KAppGlobals::m_pThreadPlotAxisUpdater_PauseUpdate2.store(false);
         }
 
         if (!loadingApplication1 && !loadingApplication2)
@@ -571,9 +565,7 @@ int main(int, char**)
                     // Calculator for LR 10K Stress
                     if (g_WindowStates.show_calculator)
                     {
-                        ImGui::BeginDisabled(disableWidgets1);
-                            DockingApps::calculator.Draw(tabData, &g_WindowStates.show_calculator, viewOptions_window_flags);
-                        ImGui::EndDisabled();
+                        DockingApps::calculator.Draw(tabData, &g_WindowStates.show_calculator, viewOptions_window_flags);
                     }
                     // Console
                     if (g_WindowStates.show_console)
