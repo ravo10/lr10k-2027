@@ -542,6 +542,9 @@ int main(int, char**)
             // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
             else
             {
+                // Stress calculation
+                TabControl::CalculateDataFromTest(tabData);
+
                 // Main window
                 DockingApps::main.Draw(tabData, &mainGUIGlobals::enableSound, &show_demo_window);
 

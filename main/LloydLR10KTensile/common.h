@@ -337,6 +337,8 @@ namespace defaultValuesGUI {
     inline extern float calc_width{ 0.0f };     //!< mm
     //! \details Used for calculator, for calculating material properties
     inline extern float calc_length{ 0.0f };    //!< mm
+    //! \details Used for calculator, for calculating material properties
+    inline extern bool useGlobalValuesOnNewTests = false;
 
     //! \details Used for calculator, for calculating material properties when there is a circular area
     inline extern float calc_diameter{ 0.0f };    //!< mm
@@ -474,6 +476,8 @@ namespace LR10KAppGlobals {
     inline extern float calc_length = defaultValuesGUI::calc_length;     //!< mm
     //! \note Calculator values; these will only be reset when the software closes
     inline extern float calc_diameter = defaultValuesGUI::calc_diameter;   //!< mm
+    //! \note Use global values on new tests
+    inline extern bool useGlobalValuesOnNewTests = false;
 
     //! \note Calculator: For Nominal Stress
     double CalcSigma_e(double f, double a_0);
@@ -586,7 +590,7 @@ namespace TabControl {
     inline extern int forcedTabIndexId = 0;             //!< Hold the tab index that will be forced to be set, if a test has started running.
     inline extern ImVector<int> activeTestTabsId{ };   //!< Holds the index ID of all of the current tabs open.
     inline extern int aTestIsStartedOnTabIndexId = -1; //!< Hold the current tab that has an active test running on. -1 if there is no tests running.
-    static const char* plot_items[5]{ "Proportional Limit", "Yielding Strength", "Ultimate Tensile Strength", "Fracture", "Other" }; //!< All of the available crucial/important points options.
+    static const char* plot_items[7]{ "Proportional Limit", "Yielding Strength", "Ultimate Tensile Strength", "Fracture", "Other", "E-Lower Bound", "E-Upper Bound" }; //!< All of the available crucial/important points options.
     static const char* compression_options[2]{ "Normal", "3-point" }; //!< 3-point test will have it's own "logic" for calculating stresses
 
     inline extern float LR10KRawLoad = 0.0f;                        //!< This holds the last known load. This is the actual load. (N). THIS NEEDS TO BE CONVERTED TO BE READABLE.
@@ -658,6 +662,8 @@ namespace TabControl {
         int areaOptionPicked;           //!< 0 - 1, where 0 is for rectangular cross section area and 1 is for circular cross section area
         int compressionOptionPicked;    //!< 0 - 1, where 0 is for Normal compression (like tension) and 1 is for a 3-point test
 
+        bool needs_recalculation; //!< Is not saved, but acts as a dirty flag for wheen calculation needs recalculation.
+
         double calcPoint_NominalStressStrain_PropLimit[2]{ 0, 0 };  //!< Holds the proportional limit nominal stress and strain. (point)
         double calcPoint_TrueStressStrain_PropLimit[2]{ 0, 0 };     //!< Holds the proportional limit true stress and strain. (point)
         float  calcYoungsModulus = 0.0f;                            //!< Holds the E-module that is created from the propotional limit point.
@@ -712,14 +718,16 @@ namespace TabControl {
             current_temp_preSaveLocation = "";
             current_temp_preSaveLocation_StarTestNow = false;
 
-            thickness = -1;
-            width = -1;
-            length = -1;
-            diameter = -1;
-            area = -1;
+            thickness = 0.01;
+            width = 0.01;
+            length = 0.01;
+            diameter = 0.01;
+            area = 0.01;
 
             areaOptionPicked = 0;
             compressionOptionPicked = 0;
+
+            needs_recalculation = false;
         };
 
         /**
@@ -838,6 +846,8 @@ namespace TabControl {
     void CalculateDataFromTest(TabTestDataClass* tabData);
 }
 
+extern int FindClosestRawDataIndex(const ImVector<ImVec2>& rawData, double target_x);
+
 // -----------------------------------------------------------------------------
 // ----------------------------------- LR10K -----------------------------------
 // -----------------------------------------------------------------------------
@@ -921,11 +931,30 @@ struct AppCalculator
     **/
     void AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabData);
     /**
-        @brief Set material properties. This is used to set the area, start length, end length ++ which to be manually entered. This has to be executed before "CalculateStresses".
+        @brief Set material properties. This is used to set locally the area, start length, end length ++ which to be manually entered. This has to be executed before "CalculateStresses".
         @param tabData -
-        @param initDimensions -
+        @param areaOption -
+        @param thickness -
+        @param width -
+        @param length -
+        @param diameter -
     **/
-    void SetMaterialProperties(TabControl::TabTestDataClass* tabData, bool initDimensions = 1);
+    void SetLocalMaterialProperties(TabControl::TabTestDataClass* tabData, int areaOption, double thickness, double width, double length, double diameter);
+    /**
+        @brief Set material properties. This is used to set globally the area, start length, end length ++ which to be manually entered. This has to be executed before "CalculateStresses".
+        @param tabData -
+        @param areaOption -
+        @param thickness -
+        @param width -
+        @param length -
+        @param diameter -
+    **/
+    void SetGlobalMaterialProperties(TabControl::TabTestDataClass* tabData, int areaOption, double thickness, double width, double length, double diameter);
+    /**
+        @brief Add E-module bounds.
+        @param tabData -
+    **/
+    void AddEmoduleBounds(TabControl::TabTestDataClass* tabData);
     /**
         @brief Calculates stress points. Converting to crucial points to plot for nominal stress. This has to be executed before "CalculateStresses".
         @param tabData          -

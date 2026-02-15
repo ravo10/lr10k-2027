@@ -530,6 +530,7 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
     LR10KAppGlobals::testing_speedAndPlotGUI[1] = (LR10KAppGlobals::testing_speedAndPlotActual[1] / LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[1]) * 100;
 
     tabData->fileFinishedLoading = true;
+    tabData->needs_recalculation = true;
 
     return tabData;
 }
@@ -2087,8 +2088,8 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
                     DockingApps::calculator.AdaptTabDataForLoadError(tabData);
 
                     // Calculate stresses
-                    DockingApps::calculator.CalculateStressPoints(tabData);
-                    DockingApps::calculator.CalculateStresses(tabData);
+                    /*DockingApps::calculator.CalculateStressPoints(tabData);
+                    DockingApps::calculator.CalculateStresses(tabData);*/
 
                     // Update graph
                     //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
@@ -2445,7 +2446,7 @@ void customPlotCrosshair(TabControl::TabTestDataClass* tabData, StressStrainCont
         snprintf(label_buf, sizeof(label_buf),
             "Stress:    %.2f %s\nStrain:    %.3f %%",
             current_stress, LR10KAppGlobals::GetUnitOption<const char*>(3),
-            current_strain);
+            current_strain*100);
     }
     else
     {
@@ -2486,21 +2487,60 @@ void customPlotCrosshair(TabControl::TabTestDataClass* tabData, StressStrainCont
 }
 
 // The custom marked area that defines the amount of cut of delta l
-void cuttedOutAreaMarkedDeltaL()
+//void cuttedOutAreaMarkedDeltaL()
+//{
+//    if (defaultValuesGUI::offsetZeroPointExtensionAxis > 0)
+//    {
+//        ImGuiStyle& style = ImGui::GetStyle();
+//        const ImVec4 crosshairColor = style.Colors[ImGuiCol_CheckMark];
+//
+//        // Get ImGui window DrawList
+//        ImDrawList* draw_list = ImPlot::GetPlotDrawList();
+//
+//        ImVec2 rFilledmin = ImPlot::PlotToPixels(ImPlotPoint(0.0f, ImPlot::GetPlotLimits().Y.Max));
+//        ImVec2 rFilledmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
+//
+//        ImVec2 rmin = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, ImPlot::GetPlotLimits().Y.Max));
+//        ImVec2 rmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
+//
+//        const ImU32 colorFilledRect = IM_COL32(0, 0, 0, 166); // RGBA
+//        const ImU32 colorFilledText = IM_COL32(171, 255, 183, 220); // RGBA
+//        const ImU32 colorEndLine = ImGui::ColorConvertFloat4ToU32(crosshairColor);
+//
+//        ImPlot::PushPlotClipRect();
+//        ImPlot::GetPlotDrawList()->AddRectFilled(rFilledmin, rFilledmax, colorFilledRect);
+//        ImPlot::GetPlotDrawList()->AddLine(rmin, rmax, colorEndLine, 0.5f);
+//
+//        ImPlot::PopPlotClipRect();
+//
+//        ImPlot::PushStyleColor(ImPlotCol_InlayText, ImGui::ColorConvertU32ToFloat4(colorFilledText));
+//        ImPlot::PlotText("Filtered out", defaultValuesGUI::offsetZeroPointExtensionAxis / 2, ImPlot::GetPlotLimits().Y.Max / 2, ImVec2(-5.0f, 26.0f), ImPlotTextFlags_Vertical);
+//        ImPlot::PopStyleColor();
+//    }
+//}
+
+// 1. Update the signature to accept tabData
+void cuttedOutAreaMarkedDeltaL(TabControl::TabTestDataClass* tabData)
 {
+    if (tabData == nullptr) return;
+
     if (defaultValuesGUI::offsetZeroPointExtensionAxis > 0)
     {
+        // 2. Convert the raw extension into visual X-coordinates depending on the graph mode
+        double L_0 = tabData->length > 0 ? tabData->length : 1.0;
+        double visual_offset_x = LR10KAppGlobals::showStressStrain
+            ? LR10KAppGlobals::CalcEpsilon_e(defaultValuesGUI::offsetZeroPointExtensionAxis, L_0)
+            : defaultValuesGUI::offsetZeroPointExtensionAxis;
+
         ImGuiStyle& style = ImGui::GetStyle();
         const ImVec4 crosshairColor = style.Colors[ImGuiCol_CheckMark];
 
-        // Get ImGui window DrawList
-        ImDrawList* draw_list = ImPlot::GetPlotDrawList();
-
+        // 3. Use the calculated visual_offset_x instead of the raw variable
         ImVec2 rFilledmin = ImPlot::PlotToPixels(ImPlotPoint(0.0f, ImPlot::GetPlotLimits().Y.Max));
-        ImVec2 rFilledmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
+        ImVec2 rFilledmax = ImPlot::PlotToPixels(ImPlotPoint(visual_offset_x, 0));
 
-        ImVec2 rmin = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, ImPlot::GetPlotLimits().Y.Max));
-        ImVec2 rmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
+        ImVec2 rmin = ImPlot::PlotToPixels(ImPlotPoint(visual_offset_x, ImPlot::GetPlotLimits().Y.Max));
+        ImVec2 rmax = ImPlot::PlotToPixels(ImPlotPoint(visual_offset_x, 0));
 
         const ImU32 colorFilledRect = IM_COL32(0, 0, 0, 166); // RGBA
         const ImU32 colorFilledText = IM_COL32(171, 255, 183, 220); // RGBA
@@ -2509,34 +2549,15 @@ void cuttedOutAreaMarkedDeltaL()
         ImPlot::PushPlotClipRect();
         ImPlot::GetPlotDrawList()->AddRectFilled(rFilledmin, rFilledmax, colorFilledRect);
         ImPlot::GetPlotDrawList()->AddLine(rmin, rmax, colorEndLine, 0.5f);
-
         ImPlot::PopPlotClipRect();
 
         ImPlot::PushStyleColor(ImPlotCol_InlayText, ImGui::ColorConvertU32ToFloat4(colorFilledText));
-        ImPlot::PlotText("Filtered out", defaultValuesGUI::offsetZeroPointExtensionAxis / 2, ImPlot::GetPlotLimits().Y.Max / 2, ImVec2(-5.0f, 26.0f), ImPlotTextFlags_Vertical);
+
+        // Draw the text exactly in the middle of the new visual offset
+        ImPlot::PlotText("Filtered out", visual_offset_x / 2.0, ImPlot::GetPlotLimits().Y.Max / 2.0, ImVec2(-5.0f, 26.0f), ImPlotTextFlags_Vertical);
+
         ImPlot::PopStyleColor();
     }
-}
-
-// Add this helper function somewhere above your UI code or in common.cpp
-int FindClosestRawDataIndex(const ImVector<ImVec2>& rawData, double target_x)
-{
-    if (rawData.empty()) return -1;
-
-    int best_idx = 0;
-    double min_distance = DBL_MAX;
-
-    // Loop through raw data ONCE (O(N) efficiency)
-    for (int i = 0; i < rawData.Size; i++)
-    {
-        double distance = std::abs(rawData[i].x - target_x);
-        if (distance < min_distance)
-        {
-            min_distance = distance;
-            best_idx = i;
-        }
-    }
-    return best_idx;
 }
 
 double max_load_seen = 0.0;
@@ -2936,83 +2957,75 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
 
         if (!tabData->plot_dataPoints.empty())
         {
-            // Static array prevents allocating string memory every frame
-            static const char* labels[] = { "Prop.", "Yield", "UTS", "Frac.", "Custom", "NaN" };
+            static const char* labels[] = { "Prop.", "Yield", "UTS", "Frac.", "Custom", "E-Lower", "E-Upper" };
 
-            for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
-            {
-                // Extract saved raw data
-                ImPlotPoint raw_pt = std::get<0>(tabData->plot_dataPoints[i]);
-                int pointID = std::get<1>(tabData->plot_dataPoints[i]);
+            // 1. PRE-SCAN: Find the current X positions of both E-bounds
+            double e_lower_x = -1.0;
+            double e_upper_x = -1.0;
+            bool has_lower = false;
+            bool has_upper = false;
 
-                // 1. Convert back to current view mathematically
-                double draw_x = LR10KAppGlobals::showStressStrain ? LR10KAppGlobals::CalcEpsilon_e(raw_pt.x, ctx.Length0) : raw_pt.x;
-                double draw_y = LR10KAppGlobals::showStressStrain ? LR10KAppGlobals::CalcSigma_e(raw_pt.y, ctx.Area0) : raw_pt.y;
-
-                // 2. Determine colors
-                ImVec4 color = TabControl::CheckIfImportantPoint(tabData, i) ?
-                    ImVec4(1.0f, 1.0f, 1.0f, 0.85f) :
-                    ImVec4(1.0f, 1.0f, 1.0f, 0.3f);
-
-                // 3. Draw the Point/Marker
-                ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 4.0f, color, IMPLOT_AUTO, color);
-                ImPlot::PlotScatter("##HiddenLabel", &draw_x, &draw_y, 1); // Pass 1 point at a time
-
-                // 4. Draw the Annotation (Only if it has a valid ID)
-                if (pointID >= 0 && pointID <= 4)
-                {
-                    // ImPlot::Annotation draws text with a line pointing exactly to (draw_x, draw_y)
-                    // ImVec2(10, -20) offsets the text box 10px right, 20px up.
-                    ImPlot::Annotation(draw_x, draw_y, color, ImVec2(10, -15), false, "{%d} [%s]", i, labels[pointID]);
-                }
+            for (const auto& pt_tuple : tabData->plot_dataPoints) {
+                if (std::get<1>(pt_tuple) == 5) { e_lower_x = std::get<0>(pt_tuple).x; has_lower = true; }
+                if (std::get<1>(pt_tuple) == 6) { e_upper_x = std::get<0>(pt_tuple).x; has_upper = true; }
             }
 
-            // Drag & Snap logic
+            // 2. CHECK: Are they crossed or overlapping?
+            bool e_bounds_crossed = (has_lower && has_upper && e_lower_x >= e_upper_x);
+
+            // 3. MAIN DRAW LOOP
             for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
             {
-                // Get references to our saved data
                 ImPlotPoint& raw_pt = std::get<0>(tabData->plot_dataPoints[i]);
                 int pointID = std::get<1>(tabData->plot_dataPoints[i]);
 
-                // 1. Convert RAW saved data to CURRENT visual coordinates
                 double draw_x = LR10KAppGlobals::showStressStrain ? LR10KAppGlobals::CalcEpsilon_e(raw_pt.x, ctx.Length0) : raw_pt.x;
                 double draw_y = LR10KAppGlobals::showStressStrain ? LR10KAppGlobals::CalcSigma_e(raw_pt.y, ctx.Area0) : raw_pt.y;
 
-                // 2. ImPlot's native drag tool (Creates a draggable circle)
-                // We use 'i' as the unique ID so ImPlot knows which point is which.
-                ImVec4 color = ImVec4(1.0f, 1.0f, 0.0f, 1.0f); // Make it yellow or your preferred color
+                // 4. Determine colors dynamically
+                ImVec4 color;
+                if (pointID == 5 || pointID == 6)
+                {
+                    if (e_bounds_crossed) {
+                        color = ImVec4(1.0f, 0.2f, 0.2f, 1.0f); // RED: Error state!
+                    }
+                    else {
+                        color = ImVec4(0.2f, 1.0f, 0.2f, 1.0f); // GREEN: Valid state
+                    }
+                }
+                else
+                {
+                    color = TabControl::CheckIfImportantPoint(tabData, i) ? ImVec4(1.0f, 1.0f, 1.0f, 0.85f) : ImVec4(1.0f, 1.0f, 1.0f, 0.3f);
+                }
 
+                // Drag Logic
                 bool is_dragging = ImPlot::DragPoint(i, &draw_x, &draw_y, color, 5.0f);
 
                 if (is_dragging)
                 {
-                    // 3. User is moving the mouse!
-                    // Convert the visual drag position BACK to raw Load/Extension format
                     double dragged_raw_x = LR10KAppGlobals::showStressStrain ? (draw_x * ctx.Length0) : draw_x;
-
-                    // 4. Snap to the closest real line data
                     int snap_idx = FindClosestRawDataIndex(tabData->LR10KTensileData.Data, dragged_raw_x);
 
                     if (snap_idx != -1)
                     {
-                        // Lock the point's real coordinates exactly to the line's raw data
                         raw_pt.x = tabData->LR10KTensileData.Data[snap_idx].x;
                         raw_pt.y = tabData->LR10KTensileData.Data[snap_idx].y;
                     }
 
+                    tabData->needs_recalculation = true;
                     tabData->MarkTabAsUnsaved();
                 }
 
-                // 5. Draw the text annotation next to the point (from our previous step)
-                if (!is_dragging) // Optional: hide text while dragging for a cleaner look
+                // Draw Annotation
+                if (!is_dragging && pointID >= 0 && pointID <= 6)
                 {
-                    // ImPlot::Annotation(draw_x, draw_y, ...); (Insert your annotation code here)
+                    ImPlot::Annotation(draw_x, draw_y, color, ImVec2(10, -15), false, "{%d} [%s]", i, labels[pointID]);
                 }
             }
         }
 
         // Mark where an offset is placed from 0 to right
-        cuttedOutAreaMarkedDeltaL();
+        cuttedOutAreaMarkedDeltaL(tabData);
 
         // Custom figure/blue line in plot
         if (ImPlot::IsPlotHovered())
@@ -3126,7 +3139,7 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
 
         // 5. Draw Strain
         std::string strX = "Strain:    %.3f %%";
-        ImGui::TextColored(textColor, strX.c_str(), current_strain);
+        ImGui::TextColored(textColor, strX.c_str(), current_strain*100);
     }
     else
     {
@@ -3142,18 +3155,179 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
     }
 }
 
+//void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabData)
+//{
+//    if (tabData == nullptr) return;
+//
+//    ImGui::Text("You can undo a point with Ctrl+Z.");
+//    ImGui::Spacing();
+//    // Add a automatic UTS point if no one is added yet
+//    ImGui::BeginDisabled(!tabData->test_finished);
+//    if (ImGui::Button("Find UTS"))
+//    {
+//        tabData->AssignPoint_UltimateTensileStrength(tabData);
+//    }
+//    // Quick check if UTS has already been added (to give a notice)
+//    if (!tabData->plot_importantDataPoints.empty())
+//    {
+//        for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
+//        {
+//            if (tabData->plot_importantDataPoints[i].second == 2)
+//            {
+//                ImGui::SetItemTooltip("Note: A UTS point is already added");
+//                break;
+//            }
+//        }
+//    }
+//    ImGui::EndDisabled();
+//    ImGui::Separator();
+//    ImGui::Spacing();
+//    ImGui::SeparatorText("Crucial points added");
+//
+//    // Options for crucial points
+//    if (!tabData->plot_dataPoints.empty())
+//    {
+//        // All data points (using a pointer since data will be manipulated)
+//        std::vector<std::tuple<ImPlotPoint, int>>* pointData = &tabData->plot_dataPoints;
+//
+//        for (int i = 0; i < pointData->size(); i++)
+//        {
+//            // Text label
+//            std::string id = std::string("##Point ");
+//            id.append(std::to_string(i));
+//
+//            // A label
+//            ImGui::Text("{%d}", i);
+//
+//            // 1. Get the raw saved point
+//            ImPlotPoint raw_pt = std::get<ImPlotPoint>(pointData->at(i));
+//
+//            // 2. Safely grab the area and length for math
+//            double A_0 = tabData->area > 0 ? tabData->area : 1.0;
+//            double L_0 = tabData->length > 0 ? tabData->length : 1.0;
+//
+//            // 3. Draw text based on which graph is currently toggled
+//            if (LR10KAppGlobals::showStressStrain)
+//            {
+//                // Convert raw data to Stress/Strain
+//                double current_stress = LR10KAppGlobals::CalcSigma_e(raw_pt.y, A_0);
+//                double current_strain = LR10KAppGlobals::CalcEpsilon_e(raw_pt.x, L_0);
+//
+//                // Draw Stress
+//                std::string strY = "Stress: %.2f ";
+//                strY.append(LR10KAppGlobals::GetUnitOption<const char*>(3)); // Usually index 3 for Stress
+//                ImGui::Text(strY.c_str(), current_stress);
+//
+//                // Draw Strain
+//                std::string strX = "Strain: %.3f %%";
+//                ImGui::Text(strX.c_str(), current_strain);
+//            }
+//            else
+//            {
+//                // Draw standard Load
+//                std::string strY = "Load: %.0f ";
+//                strY.append(LR10KAppGlobals::GetUnitOption<const char*>(1)); // Usually index 1 for Force
+//                ImGui::Text(strY.c_str(), raw_pt.y);
+//
+//                // Draw standard Extension
+//                std::string strX = "Extension: %.2f ";
+//                strX.append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Usually index 0 for Distance
+//                ImGui::Text(strX.c_str(), raw_pt.x);
+//            }
+//
+//            // A delete button with a uniq ID
+//            ImGui::PushID(std::string("deleteButtonPoint").append(std::to_string(i)).c_str());
+//            // Get uniq ID
+//            if (ImGui::Button("Remove"))
+//            {
+//                tabData->plot_dataPoints.erase(tabData->plot_dataPoints.begin() + i);
+//
+//                PlaySoundEffect("buttonClick0");
+//                DockingApps::console.AddLog("GUI: Removed a crucial point from plot.");
+//
+//                /*TabControl::RefreshUpdateImportantDataPoints(tabData);
+//                DockingApps::calculator.CalculateStressPoints(tabData);
+//                DockingApps::calculator.CalculateStresses(tabData);*/
+//            }
+//            ImGui::PopID();
+//
+//            // Combo selection
+//            ImGui::SameLine();
+//            if (tabData->plot_dataPoints.size() > i) // Need to double check, or else it might fail
+//            {
+//                if (!tabData->plot_dataPoints.empty())
+//                {
+//                    bool comboTension = false;
+//                    bool comboCompression = false;
+//
+//                    if (tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked))
+//                    {
+//                        comboTension = ImGui::Combo(id.c_str(), &std::get<int>(pointData->at(i)), TabControl::plot_items, IM_ARRAYSIZE(TabControl::plot_items));
+//                    }
+//                    else
+//                    {
+//                        if (ImGui::BeginCombo(id.c_str(), TabControl::plot_items[std::get<int>(pointData->at(i))]))
+//                        {
+//                            for (int n = 0; n < IM_ARRAYSIZE(TabControl::plot_items); n++)
+//                            {
+//                                const bool is_selected = (std::get<int>(pointData->at(i)) == n);
+//
+//                                // Disable options for compression that is not supposed to be available to add
+//                                ImGui::BeginDisabled(n == 0 || n == 1 || n == 3);
+//                                    if (ImGui::Selectable(TabControl::plot_items[n], is_selected))
+//                                    {
+//                                        std::get<int>(pointData->at(i)) = n;
+//                                        comboCompression = true;
+//                                    }
+//                                ImGui::EndDisabled();
+//
+//                                // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+//                                if (is_selected)
+//                                    ImGui::SetItemDefaultFocus();
+//                            }
+//                            ImGui::EndCombo();
+//                        }
+//                    }
+//
+//                    if (comboTension || comboCompression)
+//                    {
+//                        //TabControl::RefreshUpdateImportantDataPoints(tabData);
+//
+//                        // Update stresses
+//                        /*DockingApps::calculator.CalculateStressPoints(tabData);
+//                        DockingApps::calculator.CalculateStresses(tabData);*/
+//
+//                        PlaySoundEffect("buttonClick0");
+//                    }
+//                }
+//            }
+//
+//            ImGui::Spacing();
+//            ImGui::Separator();
+//            ImGui::Spacing();
+//        }
+//
+//        ImGui::Spacing();
+//    }
+//}
+
 void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
 
     ImGui::Text("You can undo a point with Ctrl+Z.");
     ImGui::Spacing();
+
     // Add a automatic UTS point if no one is added yet
     ImGui::BeginDisabled(!tabData->test_finished);
+
     if (ImGui::Button("Find UTS"))
     {
         tabData->AssignPoint_UltimateTensileStrength(tabData);
+        tabData->needs_recalculation = true;
+        tabData->MarkTabAsUnsaved();
     }
+
     // Quick check if UTS has already been added (to give a notice)
     if (!tabData->plot_importantDataPoints.empty())
     {
@@ -3166,7 +3340,15 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
             }
         }
     }
+
+    ImGui::SameLine();
+
+    // Add the button to spawn E-module bounds
+    if (ImGui::Button("Add custom E-Module Bounds"))
+        DockingApps::calculator.AddEmoduleBounds(tabData);
+
     ImGui::EndDisabled();
+
     ImGui::Separator();
     ImGui::Spacing();
     ImGui::SeparatorText("Crucial points added");
@@ -3174,16 +3356,13 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
     // Options for crucial points
     if (!tabData->plot_dataPoints.empty())
     {
-        // All data points (using a pointer since data will be manipulated)
         std::vector<std::tuple<ImPlotPoint, int>>* pointData = &tabData->plot_dataPoints;
 
         for (int i = 0; i < pointData->size(); i++)
         {
-            // Text label
-            std::string id = std::string("##Point ");
-            id.append(std::to_string(i));
+            // Push an ID for the whole block so we don't need manual string IDs everywhere
+            ImGui::PushID(i);
 
-            // A label
             ImGui::Text("{%d}", i);
 
             // 1. Get the raw saved point
@@ -3196,35 +3375,30 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
             // 3. Draw text based on which graph is currently toggled
             if (LR10KAppGlobals::showStressStrain)
             {
-                // Convert raw data to Stress/Strain
                 double current_stress = LR10KAppGlobals::CalcSigma_e(raw_pt.y, A_0);
                 double current_strain = LR10KAppGlobals::CalcEpsilon_e(raw_pt.x, L_0);
 
-                // Draw Stress
                 std::string strY = "Stress: %.2f ";
-                strY.append(LR10KAppGlobals::GetUnitOption<const char*>(3)); // Usually index 3 for Stress
+                strY.append(LR10KAppGlobals::GetUnitOption<const char*>(3));
                 ImGui::Text(strY.c_str(), current_stress);
 
-                // Draw Strain
                 std::string strX = "Strain: %.3f %%";
-                ImGui::Text(strX.c_str(), current_strain);
+                ImGui::Text(strX.c_str(), current_strain*100);
             }
             else
             {
-                // Draw standard Load
                 std::string strY = "Load: %.0f ";
-                strY.append(LR10KAppGlobals::GetUnitOption<const char*>(1)); // Usually index 1 for Force
+                strY.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
                 ImGui::Text(strY.c_str(), raw_pt.y);
 
-                // Draw standard Extension
                 std::string strX = "Extension: %.2f ";
-                strX.append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Usually index 0 for Distance
+                strX.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
                 ImGui::Text(strX.c_str(), raw_pt.x);
             }
 
-            // A delete button with a uniq ID
-            ImGui::PushID(std::string("deleteButtonPoint").append(std::to_string(i)).c_str());
-            // Get uniq ID
+            // --------------------------------------------------------
+            // REMOVE BUTTON LOGIC
+            // --------------------------------------------------------
             if (ImGui::Button("Remove"))
             {
                 tabData->plot_dataPoints.erase(tabData->plot_dataPoints.begin() + i);
@@ -3232,66 +3406,64 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
                 PlaySoundEffect("buttonClick0");
                 DockingApps::console.AddLog("GUI: Removed a crucial point from plot.");
 
-                TabControl::RefreshUpdateImportantDataPoints(tabData);
-                DockingApps::calculator.CalculateStressPoints(tabData);
-                DockingApps::calculator.CalculateStresses(tabData);
+                // Trigger recalculation!
+                tabData->needs_recalculation = true;
+                tabData->MarkTabAsUnsaved();
+
+                // FIX FOR VECTOR LOOPING BUG
+                i--; // Decrement i so we don't skip the next item in the vector!
+                ImGui::PopID();
+                continue; // Skip the rest of the loop for this deleted item
             }
-            ImGui::PopID();
 
-            // Combo selection
             ImGui::SameLine();
-            if (tabData->plot_dataPoints.size() > i) // Need to double check, or else it might fail
+
+            // --------------------------------------------------------
+            // COMBO SELECTION LOGIC
+            // --------------------------------------------------------
+            bool comboTension = false;
+            bool comboCompression = false;
+
+            if (tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked))
             {
-                if (!tabData->plot_dataPoints.empty())
+                comboTension = ImGui::Combo("##PointType", &std::get<int>(pointData->at(i)), TabControl::plot_items, IM_ARRAYSIZE(TabControl::plot_items));
+            }
+            else
+            {
+                if (ImGui::BeginCombo("##PointType", TabControl::plot_items[std::get<int>(pointData->at(i))]))
                 {
-                    bool comboTension = false;
-                    bool comboCompression = false;
+                    for (int n = 0; n < IM_ARRAYSIZE(TabControl::plot_items); n++)
+                    {
+                        const bool is_selected = (std::get<int>(pointData->at(i)) == n);
 
-                    if (tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked))
-                    {
-                        comboTension = ImGui::Combo(id.c_str(), &std::get<int>(pointData->at(i)), TabControl::plot_items, IM_ARRAYSIZE(TabControl::plot_items));
-                    }
-                    else
-                    {
-                        if (ImGui::BeginCombo(id.c_str(), TabControl::plot_items[std::get<int>(pointData->at(i))]))
+                        // Disable options for compression that is not supposed to be available
+                        ImGui::BeginDisabled(n == 0 || n == 1 || n == 3 || n == 5 || n == 6);
+                        if (ImGui::Selectable(TabControl::plot_items[n], is_selected))
                         {
-                            for (int n = 0; n < IM_ARRAYSIZE(TabControl::plot_items); n++)
-                            {
-                                const bool is_selected = (std::get<int>(pointData->at(i)) == n);
-
-                                // Disable options for compression that is not supposed to be available to add
-                                ImGui::BeginDisabled(n == 0 || n == 1 || n == 3);
-                                    if (ImGui::Selectable(TabControl::plot_items[n], is_selected))
-                                    {
-                                        std::get<int>(pointData->at(i)) = n;
-                                        comboCompression = true;
-                                    }
-                                ImGui::EndDisabled();
-
-                                // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-                                if (is_selected)
-                                    ImGui::SetItemDefaultFocus();
-                            }
-                            ImGui::EndCombo();
+                            std::get<int>(pointData->at(i)) = n;
+                            comboCompression = true;
                         }
+                        ImGui::EndDisabled();
+
+                        if (is_selected) ImGui::SetItemDefaultFocus();
                     }
-
-                    if (comboTension || comboCompression)
-                    {
-                        TabControl::RefreshUpdateImportantDataPoints(tabData);
-
-                        // Update stresses
-                        DockingApps::calculator.CalculateStressPoints(tabData);
-                        DockingApps::calculator.CalculateStresses(tabData);
-
-                        PlaySoundEffect("buttonClick0");
-                    }
+                    ImGui::EndCombo();
                 }
+            }
+
+            // If the user changed the point type, trigger a recalculation!
+            if (comboTension || comboCompression)
+            {
+                tabData->needs_recalculation = true;
+                tabData->MarkTabAsUnsaved();
+                PlaySoundEffect("buttonClick0");
             }
 
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
+
+            ImGui::PopID(); // Match the PushID at the top of the loop
         }
 
         ImGui::Spacing();
@@ -3335,7 +3507,7 @@ void AppMainWidgets::QuickReportWindowDraw(TabControl::TabTestDataClass* tabData
 
                 // Strain (Using "%" as the unit string)
                 ImGui::Text("%s Strain: %s", pointNames[i],
-                    Extra::widgets.notNullValueChecker(strain, "%.3f", "%").c_str());
+                    Extra::widgets.notNullValueChecker(strain*100, "%.3f", "%").c_str());
             }
             else
             {
