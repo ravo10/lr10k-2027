@@ -483,7 +483,7 @@ void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData,
     // -------------------------------------------------------------------------
     if (saveAppSettings) DockingApps::mainFileSystem.SaveApplicationSettings();
     if (markAsSaved)     tabData->MarkTabAsUnsaved();
-    if (playSound)       PlaySoundEffect("buttonClick1");
+    //if (playSound)       PlaySoundEffect("buttonClick1"); // Too much sound
 }
 
 //void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound, bool markAsSaved, bool saveAppSettings)
@@ -3297,9 +3297,7 @@ void TabControl::CalculateDataFromTest(TabControl::TabTestDataClass* tabData)
         if (condition1)
         {
             // Calculate stresses
-            // TabControl::RefreshUpdateImportantDataPoints(tabData); plot_importantDataPoints
             DockingApps::calculator.CalculateStressPoints(tabData);
-            //DockingApps::calculator.CalculateStresses(tabData);
         }
         else if (condition2)
         {

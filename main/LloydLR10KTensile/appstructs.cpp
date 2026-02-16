@@ -42,6 +42,8 @@ struct Extra_Widgets {
     {
         if (tabData == nullptr) return;
 
+        ImGui::PushID(pushID);
+
         // E.g. mm and in
         const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8);
 
@@ -49,25 +51,16 @@ struct Extra_Widgets {
         float sliderMinValue = LR10KAppGlobals::testing_speedAndPlotMinValuesGUI[settingIndex];
         float sliderMaxValue = LR10KAppGlobals::testing_speedAndPlotMaxValuesGUI[settingIndex];
 
-        // Actual data related
+        // Actual data related boundaries
         float minActual = LR10KAppGlobals::testing_speedAndPlotMinValuesActual[settingIndex] * unitConv_dist;
         float maxActual = LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[settingIndex] * unitConv_dist;
 
         float sizeHeight = 270.0f;
-        float sizeChildHeight = sizeHeight;
-        float sizeChildWidth = sizeWidth + 1;
+        float sizeChildWidth = sizeWidth;
+        float sizeChildHeight = sizeHeight + (includeIncrementer ? 50.0f : 0.0f);
 
-        static bool unSavedChanges = false;
-
-        // To make the increment buttons cover the window
-        if (includeIncrementer)
-        {
-            sizeWidth = 72.5f;
-            sizeChildWidth = sizeWidth + 1;
-            sizeChildHeight = sizeChildHeight + 50;
-        }
-
-        ImGui::PushID(pushID);
+        // REMOVED 'static' so each widget tracks its own save state independently!
+        bool unSavedChanges = false;
 
         // Styling
         ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(r_color, 0.5f, 0.5f));
@@ -76,34 +69,43 @@ struct Extra_Widgets {
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(r_color, 0.9f, 0.9f));
         ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, sizeWidth);
 
-        // Increaser at bottom
+        // Container child
         ImGui::BeginChild("##childAdjuster", ImVec2(sizeChildWidth, sizeChildHeight), false, ImGuiWindowFlags_NoBackground);
-        // The widget
+
+        // 1. The Slider Widget
         ImGui::VSliderFloat(label, ImVec2(sizeWidth, sizeHeight), &LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex], sliderMinValue, sliderMaxValue, "%.0f %%");
 
-        if (ImGui::IsItemDeactivated())
+        // ImGui's built-in way to check if a user just let go of the mouse after dragging
+        if (ImGui::IsItemDeactivatedAfterEdit())
+        {
             unSavedChanges = true;
+        }
 
+        // Capture hover state right after the slider (before drawing buttons)
+        bool sliderHoveredOrActive = ImGui::IsItemActive() || ImGui::IsItemHovered();
+
+        // 2. The Increment/Decrement Buttons
         if (includeIncrementer)
         {
-            // Incrementer
             ImGui::Spacing();
-            float spacing = 3.0f; // ImGui::GetStyle().ItemInnerSpacing.x;
+            float spacing = 3.0f;
+            float btnWidth = (sizeWidth / 2.0f) - (spacing / 2.0f); // Math to perfectly fit both buttons
 
             ImGui::PushButtonRepeat(true);
             ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(r_color, 0.5f, 0.5f));
 
-            float currentValue = LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex];
-            if (ImGui::Button(" - ", ImVec2(sizeWidth / 2 - spacing / 2, 30)) && currentValue > LR10KAppGlobals::testing_speedAndPlotMinValuesGUI[settingIndex])
+            if (ImGui::Button("-", ImVec2(btnWidth, 30)) && LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] > sliderMinValue)
             {
                 LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex]--;
-                unSavedChanges = true;
+                unSavedChanges = true; // Trigger save on button click
             }
+
             ImGui::SameLine(0.0f, spacing);
-            if (ImGui::Button(" + ", ImVec2(sizeWidth / 2 - spacing / 2, 30)) && currentValue < LR10KAppGlobals::testing_speedAndPlotMaxValuesGUI[settingIndex])
+
+            if (ImGui::Button("+", ImVec2(btnWidth, 30)) && LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] < sliderMaxValue)
             {
                 LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex]++;
-                unSavedChanges = true;
+                unSavedChanges = true; // Trigger save on button click
             }
 
             ImGui::PopStyleColor();
@@ -111,59 +113,40 @@ struct Extra_Widgets {
         }
         ImGui::EndChild();
 
-        if (ImGui::IsItemActivated() || ImGui::IsItemHovered())
+        // Make the output value not show "-0" (cleaner approach)
+        if (LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] == 0.0f)
         {
-            float value = LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex];
-
-            char roundedValueChar[10];
-            std::string str;
-
-            // Show tooltip on hover
-            if (settingIndex == 2)
-            {
-                // Only show the percentage
-                sprintf_s(roundedValueChar, "%.2f", value);
-                str.append(tooltipText1);
-                str.append(roundedValueChar);
-                str.append(tooltipText2);
-
-                // Save it globally
-                LR10KAppGlobals::testing_speedAndPlotActual[2] = value;
-            }
-            else
-            {
-                value = maxActual * (value / 100);
-                if (value < minActual) value = minActual;
-
-                sprintf_s(roundedValueChar, "%.2f", value);
-                str.append(tooltipText1);
-                str.append(roundedValueChar);
-                str.append(tooltipText2);
-
-                // Save it globally
-                LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] = value;
-            }
-
-            ImGui::SetTooltip(str.c_str());
+            LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] = 0.0f;
         }
 
-        // Make the output value not show "-0"
-        if (LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] == 0)
+        // 3. Calculate Actual Values (Moved OUTSIDE the hover check)
+        float guiValue = LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex];
+        float displayValue = guiValue;
+
+        if (settingIndex == 2)
         {
-            LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] = abs(LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex]);
+            LR10KAppGlobals::testing_speedAndPlotActual[2] = guiValue;
+        }
+        else
+        {
+            displayValue = maxActual * (guiValue / 100.0f);
+            if (displayValue < minActual) displayValue = minActual;
+
+            LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] = displayValue;
         }
 
-        // Save it to current tab
-        if (unSavedChanges)
+        // 4. Draw Tooltip
+        if (sliderHoveredOrActive)
         {
-            unSavedChanges = false;
+            // ImGui has built-in printf formatting, saving us from using std::string and sprintf_s!
+            ImGui::SetTooltip("%s%.2f%s", tooltipText1, displayValue, tooltipText2);
+        }
 
-            // Save new actual data to current tab (the current tab settings will only be saved on release)
-            if (acceptChanges)
-            {
-                tabData->settings_speedAndPlot[settingIndex] = LR10KAppGlobals::testing_speedAndPlotActual[settingIndex];
-                DockingApps::mainFileSystem.SaveApplicationSettings();
-            }
+        // 5. Save Data
+        if (unSavedChanges && acceptChanges)
+        {
+            tabData->settings_speedAndPlot[settingIndex] = LR10KAppGlobals::testing_speedAndPlotActual[settingIndex];
+            DockingApps::mainFileSystem.SaveApplicationSettings();
         }
 
         ImGui::PopStyleVar();
@@ -1989,7 +1972,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
     const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9);
 
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(800, 700), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(800, 770), ImGuiCond_Once);
 
     bool disableTestSettingsAdjustments = ((tabData->test_running_test && tabData->test_unfinished_test_started) || tabData->test_finished);
 
@@ -2102,7 +2085,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
 
             ImGui::BeginGroup();
             bool acceptChanges = !tabData->test_unfinished_test_started && !tabData->test_finished;
-            bool acceptChanges2 = !tabData->test_running_test && !tabData->test_unfinished_test_started;
+            bool acceptChanges2 = !tabData->test_unfinished_test_started && !tabData->test_running_test;
 
             str = " ";
             str.append(LR10KAppGlobals::GetUnitOption<const char*>(2));
@@ -2507,7 +2490,7 @@ void realtimeDataPlot()
     float* testSettings = LR10KAppGlobals::testing_speedAndPlotGUI;
 
     // 2. Format the text based on the unit conversion index
-    if (LR10KAppGlobals::unitsConvertionIndex == 0)
+    if (LR10KAppGlobals::unitsConvertionIndex == 0 || LR10KAppGlobals::unitsConvertionIndex == 1)
     {
         const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8);
 
@@ -2519,11 +2502,11 @@ void realtimeDataPlot()
             LR10KAppGlobals::tensionTesting ? "Tension Testing" : "Compression Testing"
         );
     }
-    else if (LR10KAppGlobals::unitsConvertionIndex == 1)
-    {
-        // Add Imperial/Alternative unit formatting here later
-        snprintf(label_buf, sizeof(label_buf), "Imperial Units Pending...");
-    }
+    //else if (LR10KAppGlobals::unitsConvertionIndex == 1)
+    //{
+    //    // Add Imperial/Alternative unit formatting here later
+    //    snprintf(label_buf, sizeof(label_buf), "Imperial Units Pending...");
+    //}
     else
     {
         // Safety fallback just in case the index is uninitialized (-1)
@@ -3200,7 +3183,7 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
 
     std::string statusForTest = "At rest. No test started yet";
     if (tabData->test_finished)
-        statusForTest = "Open a fresh tab to start a new test. You can\nalso save the test from the menu (or Ctrl+S)";
+        statusForTest = "Open a fresh tab to start a new test.\nYou can also save the test from\nthe menu (or Ctrl+S)";
     else if (tabData->test_unfinished_test_started)
     {
         if (tabData->test_running_test)
