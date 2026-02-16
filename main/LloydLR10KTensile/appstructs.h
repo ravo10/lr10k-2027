@@ -99,15 +99,15 @@ struct AppMainWidgets {
     **/
     void CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabData);
 
-    /**
-        @brief This window is used to get a Quick Report over the last test
-                completed. It will contain i.e. yielding, tensile and
-                full rupture load and extension.
-        @param tabData -
-        @param p_open -
-        @param extern_windowFlags -
-    **/
-    void QuickReportWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open, ImGuiWindowFlags extern_windowFlags = 0);
+    ///**
+    //    @brief This window is used to get a Quick Report over the last test
+    //            completed. It will contain i.e. yielding, tensile and
+    //            full rupture load and extension.
+    //    @param tabData -
+    //    @param p_open -
+    //    @param extern_windowFlags -
+    //**/
+    //void QuickReportWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open, ImGuiWindowFlags extern_windowFlags = 0);
 
     /**
         @brief This window is used to write or modify a description of the current test active.

@@ -61,12 +61,13 @@ double LR10KAppGlobals::CalcEpsilon_t(double epsilon_e)
     return std::log(1 + epsilon_e);
 }
 /**
-    @brief  Youngs Modulus
+    @brief  Youngs Modulus. Change the signature to accept limits.
     @param  strainData -
     @param  stressData -
+    @param  lower_limit -
+    @param  upper_limit -
     @retval            -
 **/
-// Change the signature to accept limits:
 double CalculateYoungsModulus(const std::vector<double>& strainData, const std::vector<double>& stressData, double lower_limit, double upper_limit)
 {
     // Ensure the limits are in the correct order in case the user crossed them!
@@ -197,16 +198,16 @@ void AppCalculator::AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabDa
     }
 
     // Crucial points
-    for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-    {
-        ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
-        points.y *= loadScalar;
+    //for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
+    //{
+    //    ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
+    //    points.y *= loadScalar;
 
-        const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
+    //    const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
 
-        // Save
-        tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
-    }
+    //    // Save
+    //    tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
+    //}
 
     // Save new load error
     tabData->oldLoadErrorValue = currentLoadErrorGUI;
@@ -634,11 +635,11 @@ void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestData
 void AppCalculator::SetLocalMaterialProperties(TabControl::TabTestDataClass* tabData, int areaOption, double thickness, double width, double length, double diameter)
 {
     // Save values locally
-    tabData->areaOptionPicked = areaOption;
-    tabData->thickness = thickness;
-    tabData->width = width;
-    tabData->length = length;
-    tabData->diameter = diameter;
+    tabData->areaOptionPicked   = areaOption;
+    tabData->thickness          = thickness;
+    tabData->width              = width;
+    tabData->length             = length;
+    tabData->diameter           = diameter;
 
     // Calculate area
     if (areaOption == 0)
@@ -646,7 +647,7 @@ void AppCalculator::SetLocalMaterialProperties(TabControl::TabTestDataClass* tab
     else if (areaOption == 1)
         tabData->area = (M_PI * diameter) / 4;
 
-    tabData->needs_recalculation = true;
+    //tabData->needs_recalculation = true;
     tabData->MarkTabAsUnsaved();
 }
 
@@ -853,9 +854,6 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
                 if (ImGui::Checkbox("##Load from global values", &LR10KAppGlobals::useGlobalValuesOnNewTests))
                 {
-                    // Update the local material properties in the calculator for the current tab
-                    DockingApps::calculator.SetLocalMaterialProperties(tabData, LR10KAppGlobals::areaOptionPicked, LR10KAppGlobals::calc_thickness, LR10KAppGlobals::calc_width, LR10KAppGlobals::calc_length, LR10KAppGlobals::calc_diameter);
-
                     DockingApps::mainFileSystem.SaveApplicationSettings();
                 }
                 ImGui::SetItemTooltip("If you want new tests to automatically\nload from global values.");
@@ -1429,7 +1427,7 @@ double linearRegressionR2(const std::vector<DataPoint>& data) {
 // ------------------------------- Excel related -------------------------------
 // -----------------------------------------------------------------------------
 
-std::pair<std::vector<double>, std::vector<double>> AppMainExcel::InsertLineCells(CWorkbook* book, CWorksheet* sheet, RollingBuffer* plotData, std::vector<ImPlotPoint> impDataPoints, bool stressData, const double A_0, const double L_0, std::vector<double> sigma_e, std::vector<double> epsilon_e)
+std::pair<std::vector<double>, std::vector<double>> AppMainExcel::InsertLineCells(CWorkbook* book, CWorksheet* sheet, RollingBuffer* plotData, std::vector<std::pair<ImPlotPoint, int>> crucialDataPoints, bool stressData, const double A_0, const double L_0, std::vector<double> sigma_e, std::vector<double> epsilon_e)
 {
     Style style;
     style.horizAlign = ALIGN_H_CENTER;
@@ -1492,11 +1490,12 @@ std::pair<std::vector<double>, std::vector<double>> AppMainExcel::InsertLineCell
         bool haveAlreadyAddedData = false;
 
         // Check each time if there is a match
-        if ((!stressData || addNominalStressStrainValues) && amountOfPointsAdded < impDataPoints.size())
+        if ((!stressData || addNominalStressStrainValues) && amountOfPointsAdded < crucialDataPoints.size())
         {
-            for (int j = 0; j < impDataPoints.size(); j++)
+            for (int j = 0; j < crucialDataPoints.size(); j++)
             {
-                ImPlotPoint dataPoint = impDataPoints[j];
+                ImPlotPoint dataPoint = std::get<0>(crucialDataPoints[j]);
+                int id = std::get<1>(crucialDataPoints[j]);
 
                 if (stressData)
                 {
@@ -1989,26 +1988,26 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
     sheet.BeginRow().AddCell("Plot X", smallTitleCenterdStyleIndex).AddCell("Plot Y", smallTitleCenterdStyleIndex).AddCell("").AddCell("Points X", smallTitleCenterdStyleIndex).AddCell("Points Y", smallTitleCenterdStyleIndex).EndRow();
     sheet.BeginRow().AddCell("").EndRow();
 
-    // Find all important points, and put only the valid ones in (not = 0)
-    // Remove points that are zero
-    std::vector<ImPlotPoint> impDataPoints;
-    for (size_t i = 0; i < tabData.plot_importantDataPoints.size(); i++)
-    {
-        ImPlotPoint dataPoint = tabData.plot_importantDataPoints[i].first;
+    //// Find all important points, and put only the valid ones in (not = 0)
+    //// Remove points that are zero
+    //std::vector<ImPlotPoint> impDataPoints;
+    //for (size_t i = 0; i < tabData.plot_importantDataPoints.size(); i++)
+    //{
+    //    ImPlotPoint dataPoint = tabData.plot_importantDataPoints[i].first;
 
-        if (dataPoint.x > 0.0f && dataPoint.y > 0.0f)
-            impDataPoints.push_back(dataPoint);
-    }
+    //    if (dataPoint.x > 0.0f && dataPoint.y > 0.0f)
+    //        impDataPoints.push_back(dataPoint);
+    //}
 
     // Add more points to the end to expand the graph as it is adjusted/shown in the LR 10K app graph
     // TODO:: Might have to be adjusted for the LR 10K machine stepper - Taking into account the speed set by user | Edit: Seems fine
     RollingBuffer tensileData = tabData.LR10KTensileData;
 
-    //// Take into account that the extension should be changed in Excel sheet for millimeter. It does it automatically for stress calc. (it is in the calc-functions)
-    //for (size_t i = 0; i < tensileData.Data.size(); i++)
-    //{
-    //    tensileData.Data[i].x -= defaultValuesGUI::offsetZeroPointExtensionAxis;
-    //}
+    // Take into account that the extension should be changed in Excel sheet for millimeter. It does it automatically for stress calc. (it is in the calc-functions)
+    for (size_t i = 0; i < tensileData.Data.size(); i++)
+    {
+        tensileData.Data[i].x -= defaultValuesGUI::offsetZeroPointExtensionAxis;
+    }
 
     ImVec2 lastPoint = tensileData.Data[tensileData.Data.size() - 1];
     float incrementer = 0.01f;
@@ -2018,7 +2017,7 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
         incrementer += 0.01f;
     }
 
-    AppMainExcel::InsertLineCells(&book, &sheet, &tensileData, impDataPoints, false, smallTitleCenterdStyleIndex);
+    AppMainExcel::InsertLineCells(&book, &sheet, &tensileData, tabData.GetCrucialDataPoints(), false, smallTitleCenterdStyleIndex);
 
     // Produce a line chart
     AddLR10KLineChart(
@@ -2060,7 +2059,7 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
         // Convertion of important points to nominal stress
         // happens in "InsertLineCells"
 
-        std::pair nomStressStrain = AppMainExcel::InsertLineCells(&book, &sheetNom, &tensileData, impDataPoints, true, A_0, L_0);
+        std::pair nomStressStrain = AppMainExcel::InsertLineCells(&book, &sheetNom, &tensileData, tabData.GetCrucialDataPoints(), true, A_0, L_0);
         std::vector<double> epsilon_e = nomStressStrain.first, sigma_e = nomStressStrain.second;
 
         // Produce a line chart
@@ -2089,7 +2088,7 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
         sheetTrue.BeginRow().AddCell("Plot X", smallTitleCenterdStyleIndex).AddCell("Plot Y", smallTitleCenterdStyleIndex).AddCell("").AddCell("Points X", smallTitleCenterdStyleIndex).AddCell("Points Y", smallTitleCenterdStyleIndex).EndRow();
         sheetTrue.BeginRow().AddCell("").EndRow();
 
-        AppMainExcel::InsertLineCells(&book, &sheetTrue, &tensileData, impDataPoints, true, A_0, L_0, sigma_e, epsilon_e);
+        AppMainExcel::InsertLineCells(&book, &sheetTrue, &tensileData, tabData.GetCrucialDataPoints(), true, A_0, L_0, sigma_e, epsilon_e);
 
         // Produce a line chart
         AddStressLineChart(
@@ -2290,7 +2289,6 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["gui_showSettings"]    = g_WindowStates.show_settings;
         settings["gui_showCalculator"]  = g_WindowStates.show_calculator;
         settings["gui_showGraph"]       = g_WindowStates.show_graph;
-        settings["gui_showQuickReport"] = g_WindowStates.show_quick_report;
         settings["gui_showDescription"] = g_WindowStates.show_description;
         settings["gui_showConsole"]     = g_WindowStates.show_console;
         settings["gui_showDocs"]        = g_WindowStates.show_docs;
@@ -2365,7 +2363,6 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["gui_showSettings"]		= false;
         settings["gui_showCalculator"]		= false;
         settings["gui_showGraph"]			= true;
-        settings["gui_showQuickReport"]		= false;
         settings["gui_showDescription"]		= false;
         settings["gui_showConsole"]			= false;
         settings["gui_showDocs"]			= false;
@@ -2400,11 +2397,11 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
             ,   defaultValuesGUI::speedAndPlot[2]
         };
 
-        settings["thickness"]   = defaultValuesGUI::calc_thickness;
-        settings["width"]       = defaultValuesGUI::calc_width;
-        settings["length"]      = defaultValuesGUI::calc_length;
-        settings["diameter"]    = defaultValuesGUI::calc_diameter;
-        settings["useGlobalValuesOnNewTests"]    = defaultValuesGUI::useGlobalValuesOnNewTests;
+        settings["thickness"]                   = defaultValuesGUI::calc_thickness;
+        settings["width"]                       = defaultValuesGUI::calc_width;
+        settings["length"]                      = defaultValuesGUI::calc_length;
+        settings["diameter"]                    = defaultValuesGUI::calc_diameter;
+        settings["useGlobalValuesOnNewTests"]   = defaultValuesGUI::useGlobalValuesOnNewTests;
 
         settings["areaOptionPicked"]        = 0;
         settings["compressionOptionPicked"] = 0;
@@ -2448,7 +2445,6 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     std::string_view gui_showSettings                           = "gui_showSettings";
     std::string_view gui_showCalculator                         = "gui_showCalculator";
     std::string_view gui_showGraph                              = "gui_showGraph";
-    std::string_view gui_showQuickReport                        = "gui_showQuickReport";
     std::string_view gui_showDescription                        = "gui_showDescription";
     std::string_view gui_showConsole                            = "gui_showConsole";
     std::string_view gui_showDocs                               = "gui_showDocs";
@@ -2494,7 +2490,6 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     if (!settings.contains(std::string{ gui_showSettings                        })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ gui_showCalculator                      })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ gui_showGraph                           })) thereIsAnUnvalidKey = true;
-    if (!settings.contains(std::string{ gui_showQuickReport                     })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ gui_showDescription                     })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ gui_showConsole                         })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ gui_showDocs                            })) thereIsAnUnvalidKey = true;
@@ -2568,7 +2563,6 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
         g_WindowStates.show_settings        = settings["gui_showSettings"];
         g_WindowStates.show_calculator      = settings["gui_showCalculator"];
         g_WindowStates.show_graph           = settings["gui_showGraph"];
-        g_WindowStates.show_quick_report    = settings["gui_showQuickReport"];
         g_WindowStates.show_description     = settings["gui_showDescription"];
         g_WindowStates.show_console         = settings["gui_showConsole"];
         g_WindowStates.show_docs            = settings["gui_showDocs"];
@@ -2603,11 +2597,11 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
         LR10KAppGlobals::testing_speedAndPlotActual[1] = settings["testing_speedAndPlotActual"][1];
         LR10KAppGlobals::testing_speedAndPlotActual[2] = settings["testing_speedAndPlotActual"][2];
 
-        LR10KAppGlobals::calc_thickness = settings["thickness"];
-        LR10KAppGlobals::calc_width     = settings["width"];
-        LR10KAppGlobals::calc_length    = settings["length"];
-        LR10KAppGlobals::calc_diameter  = settings["diameter"];
-        LR10KAppGlobals::useGlobalValuesOnNewTests = settings["useGlobalValuesOnNewTests"];
+        LR10KAppGlobals::calc_thickness             = settings["thickness"];
+        LR10KAppGlobals::calc_width                 = settings["width"];
+        LR10KAppGlobals::calc_length                = settings["length"];
+        LR10KAppGlobals::calc_diameter              = settings["diameter"];
+        LR10KAppGlobals::useGlobalValuesOnNewTests  = settings["useGlobalValuesOnNewTests"];
 
         LR10KAppGlobals::areaOptionPicked           = settings["areaOptionPicked"];
         LR10KAppGlobals::compressionOptionPicked    = settings["compressionOptionPicked"];
@@ -2636,6 +2630,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
 
         // ---------------------------------------------------------------------
         // ------------- Update the GUI information for current tab ------------
+        // ---------------------------------------------------------------------
         if (TabControl::allTabTestData.size() > 0)
         {
             int currentTabId = TabControl::currActiveTabIndexId;
@@ -2898,46 +2893,46 @@ TabControl::TabTestDataClass* TabControl::FindTabTestData(int tabId)
 /**
     @brief Used for refreshing and updating important crucial points list, used in the quick report.
 **/
-void TabControl::RefreshUpdateImportantDataPoints(TabControl::TabTestDataClass* tabData, bool markTabUnsaved)
-{
-    if (tabData == nullptr) return;
-
-    // Refresh and update crucial points added to the important data points vector plot_importantDataPoints
-    std::vector<std::tuple<ImPlotPoint, int>> allDataPoints   = tabData->plot_dataPoints;
-    tabData->plot_importantDataPoints.clear();
-
-    // Try and write all of the important data properties
-    bool propIndexFound[4]{ false, false, false, false };
-    for (int i = 0; i < IM_ARRAYSIZE(propIndexFound); i++)
-    {
-        // Reset important data points vector
-        tabData->plot_importantDataPoints.push_back({});
-
-        // Check every data point, so every property can be added in an acending order
-        for (int j = 0; j < allDataPoints.size(); j++)
-        {
-            // Current looped data
-            ImPlotPoint dataPoint = std::get<ImPlotPoint>(allDataPoints[j]);
-            int dataPointPropIndex = std::get<int>(allDataPoints[j]);
-
-            // Only find one of each
-            if (propIndexFound[i]) continue;
-
-            // Check if it is within the range of valid options
-            //std::cout << "PropIndex: " << propIndex << std::endl;
-            if (dataPointPropIndex == i)
-            {
-                // Write correspondingly in acending order
-                tabData->plot_importantDataPoints.at(i).first   = dataPoint;
-                tabData->plot_importantDataPoints.at(i).second  = dataPointPropIndex;
-                propIndexFound[i] = true;
-            }
-        }
-    }
-
-    if (markTabUnsaved)
-        tabData->MarkTabAsUnsaved();
-}
+//void TabControl::RefreshUpdateImportantDataPoints(TabControl::TabTestDataClass* tabData, bool markTabUnsaved)
+//{
+//    if (tabData == nullptr) return;
+//
+//    // Refresh and update crucial points added to the important data points vector plot_importantDataPoints
+//    std::vector<std::tuple<ImPlotPoint, int>> allDataPoints   = tabData->plot_dataPoints;
+//    tabData->plot_importantDataPoints.clear();
+//
+//    // Try and write all of the important data properties
+//    bool propIndexFound[4]{ false, false, false, false };
+//    for (int i = 0; i < IM_ARRAYSIZE(propIndexFound); i++)
+//    {
+//        // Reset important data points vector
+//        tabData->plot_importantDataPoints.push_back({});
+//
+//        // Check every data point, so every property can be added in an acending order
+//        for (int j = 0; j < allDataPoints.size(); j++)
+//        {
+//            // Current looped data
+//            ImPlotPoint dataPoint = std::get<ImPlotPoint>(allDataPoints[j]);
+//            int dataPointPropIndex = std::get<int>(allDataPoints[j]);
+//
+//            // Only find one of each
+//            if (propIndexFound[i]) continue;
+//
+//            // Check if it is within the range of valid options
+//            //std::cout << "PropIndex: " << propIndex << std::endl;
+//            if (dataPointPropIndex == i)
+//            {
+//                // Write correspondingly in acending order
+//                tabData->plot_importantDataPoints.at(i).first   = dataPoint;
+//                tabData->plot_importantDataPoints.at(i).second  = dataPointPropIndex;
+//                propIndexFound[i] = true;
+//            }
+//        }
+//    }
+//
+//    if (markTabUnsaved)
+//        tabData->MarkTabAsUnsaved();
+//}
 /**
     @brief Used for undoing crucial point.
 **/
@@ -2958,70 +2953,6 @@ void TabControl::CrucialPointsUndoPoint(TabControl::TabTestDataClass* tabData)
         }
     }
 }
-/**
-    @brief Update the extension and load variabels for the normal plot graph view.
-    @param tabData -
-    @param updateGraphType    - 
-    @param doNotMarkAsUnsaved - 
-**/
-//void TabControl::AutoAdjustNormalExtensionLoadVariabels(TabControl::TabTestDataClass* tabData, bool doNotMarkAsUnsaved)
-//{
-//    if (tabData == nullptr) return;
-//
-//    DockingApps::calculator.SetMaterialProperties(tabData);
-//
-//    StressStrainContext ctx;
-//    ctx.RawData = tabData->LR10KTensileData.Data.Data; // Pointer to your raw array
-//    ctx.Area0 = (tabData->area > 0) ? tabData->area : 1.0;
-//    ctx.Length0 = (tabData->length > 0) ? tabData->length : 1.0;
-//
-//    RollingBuffer LR10KTensileData = tabData->LR10KTensileData;
-//
-//    if (LR10KTensileData.Data.Size > 0)
-//    {
-//		// Find the largest values
-//		float largestY = 0;
-//		float largestX = ctx.RawData[LR10KTensileData.Data.Size - 1].x;
-//
-//        if (LR10KAppGlobals::showStressStrain)
-//        {
-//			for (int i = 0; i < LR10KTensileData.Data.Size; i++)
-//            {
-//				// Nominal stress should always be the highest
-//                ImPlotPoint stressStrain = LR10KAppGlobals::TrueStressStrainGetter(i, &ctx);
-//
-//                if (stressStrain.y > largestY)
-//					largestY = stressStrain.y;
-//
-//                if (stressStrain.x > largestX)
-//					largestX = stressStrain.x;
-//            }
-//
-//			LR10KAppGlobals::testing_plot_only_extensionAxis.store(largestX); // + defaultValuesGUI::strainAxisIncrement
-//			DockingApps::mutexControl.testing_plot_only_extensionAxisStatusChanged.notify_all();
-//
-//            LR10KAppGlobals::testing_plot_only_loadAxis.store(largestY + defaultValuesGUI::stressAxisIncrement * LR10KAppGlobals::GetUnitOption<double>(10));
-//            DockingApps::mutexControl.testing_plot_only_loadAxisStatusChanged.notify_all();
-//        }
-//        else
-//        {
-//            for (int i = 0; i < LR10KTensileData.Data.Size; i++)
-//            {
-//                if (LR10KTensileData.Data[i].y > largestY)
-//                    largestY = LR10KTensileData.Data[i].y;
-//            }
-//
-//            LR10KAppGlobals::testing_plot_only_extensionAxis.store(largestX + defaultValuesGUI::extensionAxisIncrement * LR10KAppGlobals::GetUnitOption<double>(8));
-//            DockingApps::mutexControl.testing_plot_only_extensionAxisStatusChanged.notify_all();
-//
-//            LR10KAppGlobals::testing_plot_only_loadAxis.store(largestY + defaultValuesGUI::loadAxisIncrement * LR10KAppGlobals::GetUnitOption<double>(9));
-//            DockingApps::mutexControl.testing_plot_only_loadAxisStatusChanged.notify_all();
-//        }
-//    }
-//
-//    if (!doNotMarkAsUnsaved)
-//        tabData->MarkTabAsUnsaved();
-//}
 
 /**
     @brief Tries to prevent hitting extreme limits for LR 10K. Load and extension.
@@ -3122,68 +3053,68 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
 
             if (!tabData->test_finished)
             {
-                if (tabData->LR10KTensileData.Data.Size > 0)
-                {
-                    // Take the latest data point
-                    int latestPointIndex = tabData->LR10KTensileData.Data.Size - 1;
-                    const ImVec2 latestDataPoint = tabData->LR10KTensileData.Data[latestPointIndex];
+                //if (tabData->LR10KTensileData.Data.Size > 0)
+                //{
+                //    //// Take the latest data point
+                //    //int latestPointIndex = tabData->LR10KTensileData.Data.Size - 1;
+                //    //const ImVec2 latestDataPoint = tabData->LR10KTensileData.Data[latestPointIndex];
 
-                    // -------------------------------------------------------------
-                    // ---------- Try detecting a propotional limit point ----------
-                    // -------------------------------------------------------------
-                    // Calculate delta time in seconds
-                    static int limit = 9; // Needs 9 points to check if there is a linear regression
+                //    //// -------------------------------------------------------------
+                //    //// ---------- Try detecting a propotional limit point ----------
+                //    //// -------------------------------------------------------------
+                //    //// Calculate delta time in seconds
+                //    //static int limit = 9; // Needs 9 points to check if there is a linear regression
 
-                    std::chrono::duration<double> deltaTime = std::chrono::high_resolution_clock::now() - TabControl::timestampForLastAddedRegressionPoint;
+                //    //std::chrono::duration<double> deltaTime = std::chrono::high_resolution_clock::now() - TabControl::timestampForLastAddedRegressionPoint;
 
-                    // 165 ms | 6 points a second
-                    // Always try and search for a new point, and remove the old one,
-                    // if a UTS has not been added yet
-                    if (0 == tabData->plot_importantDataPoints[0].first.y && deltaTime.count() >= 0.165 && LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad() > 100.0f)
-                    {
-                        // Try detecting the propotional limit based on linear regression
-                        static std::vector<DataPoint> data = {  };
-                        data.push_back({ latestDataPoint.x, latestDataPoint.y });
+                //    //// 165 ms | 6 points a second
+                //    //// Always try and search for a new point, and remove the old one,
+                //    //// if a UTS has not been added yet
+                //    //if (0 == tabData->plot_importantDataPoints[0].first.y && deltaTime.count() >= 0.165 && LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad() > 100.0f)
+                //    //{
+                //    //    // Try detecting the propotional limit based on linear regression
+                //    //    static std::vector<DataPoint> data = {  };
+                //    //    data.push_back({ latestDataPoint.x, latestDataPoint.y });
 
-                        // Find the linear regression
-                        double rSquared = linearRegressionR2(data);
+                //    //    // Find the linear regression
+                //    //    double rSquared = linearRegressionR2(data);
 
-                        // rSquared > 0.9 is very certain
-                        // Only add if tension
-                        if (data.size() == limit && rSquared > tabData->calcLinRegressionConst)
-                        {
-                            tabData->AssignPoint_PropotionalLimit(tabData, latestDataPoint);
-                        }
+                //    //    // rSquared > 0.9 is very certain
+                //    //    // Only add if tension
+                //    //    if (data.size() == limit && rSquared > tabData->calcLinRegressionConst)
+                //    //    {
+                //    //        tabData->AssignPoint_PropotionalLimit(tabData, latestDataPoint);
+                //    //    }
 
-                        // Reset and try to find again
-                        if (data.size() > limit)
-                            data = { };
+                //    //    // Reset and try to find again
+                //    //    if (data.size() > limit)
+                //    //        data = { };
 
-                        // Set again
-                        TabControl::timestampForLastAddedRegressionPoint = std::chrono::high_resolution_clock::now();
-                    }
+                //    //    // Set again
+                //    //    TabControl::timestampForLastAddedRegressionPoint = std::chrono::high_resolution_clock::now();
+                //    //}
 
-                    // -------------------------------------------------------------
-                    // ---------------- Try detecting yielding point ---------------
-                    // -------------------------------------------------------------
-                    // REMOVED SINCE IT DOESN'T WORK FOR EVERY CENARIO. OLD CODE. Should be done manually
-                    // Try figuring out if there is a big jump in load, and assume a dip in material strength resistance has occured
-                    // If load decreases over 25 % of load in last point, then there should be a material strength loss that occured for most materials... (assumes)
-                    //if (0 == tabData->plot_importantDataPoints[1].first.y && tabData->LR10KTensileData.Data.Size > 1)
-                    //{
-                    //    int prevPointIndex = tabData->LR10KTensileData.Data.Size - 2;
-                    //    const ImVec2 prevDataPoint = tabData->LR10KTensileData.Data[prevPointIndex];
+                //    // -------------------------------------------------------------
+                //    // ---------------- Try detecting yielding point ---------------
+                //    // -------------------------------------------------------------
+                //    // REMOVED SINCE IT DOESN'T WORK FOR EVERY CENARIO. OLD CODE. Should be done manually
+                //    // Try figuring out if there is a big jump in load, and assume a dip in material strength resistance has occured
+                //    // If load decreases over 25 % of load in last point, then there should be a material strength loss that occured for most materials... (assumes)
+                //    //if (0 == tabData->plot_importantDataPoints[1].first.y && tabData->LR10KTensileData.Data.Size > 1)
+                //    //{
+                //    //    int prevPointIndex = tabData->LR10KTensileData.Data.Size - 2;
+                //    //    const ImVec2 prevDataPoint = tabData->LR10KTensileData.Data[prevPointIndex];
 
-                    //    // 25 % decrease - Actual ending of test occurs when this functions returns true
-                    //    if (latestDataPoint.y <= (prevDataPoint.y - prevDataPoint.y * 0.25))
-                    //    {
-                    //        tabData->AssignPoint_YieldPoint(tabData, latestDataPoint);
-                    //    }
-                    //}
-                }
+                //    //    // 25 % decrease - Actual ending of test occurs when this functions returns true
+                //    //    if (latestDataPoint.y <= (prevDataPoint.y - prevDataPoint.y * 0.25))
+                //    //    {
+                //    //        tabData->AssignPoint_YieldPoint(tabData, latestDataPoint);
+                //    //    }
+                //    //}
+                //}
 
                 // Get latest UTS point (used for detecting break underneath)
-                ImPlotPoint UTSPoint = tabData->GetUTS(); // UTS
+                //ImPlotPoint UTSPoint = tabData->GetUTS(); // UTS
 
                 // Try detecting break
                 /*DockingApps::mutexControl.BreakDetection();
@@ -3222,66 +3153,66 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
     @param  breakThreshold                 - 
     @retval                                - 
 **/
-bool TabControl::DetectIfABreakHasOccured(TabControl::TabTestDataClass* tabData, ImPlotPoint UTSPoint, int enable_automaticBreakDetection, float breakThreshold)
-{
-    std::cout << "Detecting break... UTS: " << UTSPoint.y << std::endl;
-
-    if (tabData == nullptr || tabData->plot_importantDataPoints[3].first.y > 0) return false;
-
-    // Latest data point from tabData
-    RollingBuffer tabDataLoaded = tabData->LR10KTensileData;
-
-    if (tabDataLoaded.Data.Size > 0)
-    {
-        int latestPointIndex = tabDataLoaded.Data.Size - 1;
-        const ImVec2 latestDataPoint = tabDataLoaded.Data[latestPointIndex];
-
-        const float limit = 15.0f;
-        // Check if the current test have not passed 15 N
-        if (latestDataPoint.y >= limit)
-            tabData->testHasGoneAbove15N = true;
-
-        if (0 == enable_automaticBreakDetection) // Manual (default)
-        {
-            if (tabData->testHasGoneAbove15N && latestDataPoint.y <= UTSPoint.y * breakThreshold)
-            {
-                tabData->AssignPoint_UltimateTensileStrength(tabData);
-                tabData->AssignPoint_BreakPoint(tabData, latestDataPoint);
-
-                return true;
-            }
-        }
-        else if (1 == enable_automaticBreakDetection) // Automatic
-        {
-            // Try figuring out if there is a big jump in load, and assume a clean break on part has occured
-            // If load increases over 25 % of load in last point, then there should be a break that occured for most materials... (assumes)
-            if (tabData->testHasGoneAbove15N && tabDataLoaded.Data.Size > 1 && 0 == tabData->plot_importantDataPoints[3].first.y)
-            {
-                int prevPointIndex = tabDataLoaded.Data.Size - 2;
-                const ImVec2 prevDataPoint = tabDataLoaded.Data[prevPointIndex];
-
-                // 25 % increase - Actual ending of test occurs when this functions returns true
-                if (latestDataPoint.y >= prevDataPoint.y * 1.25)
-                {
-                    tabData->AssignPoint_BreakPoint(tabData, prevDataPoint);
-                }
-            }
-
-            // Check if the current point is lower or equal to 15 N, after it has passed 15 N
-            if (tabData->testHasGoneAbove15N && latestDataPoint.y < limit)
-            {
-                tabData->AssignPoint_UltimateTensileStrength(tabData);
-
-                if (0 == tabData->plot_importantDataPoints[3].first.y)
-                    tabData->AssignPoint_BreakPoint(tabData, latestDataPoint);
-
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
+//bool TabControl::DetectIfABreakHasOccured(TabControl::TabTestDataClass* tabData, ImPlotPoint UTSPoint, int enable_automaticBreakDetection, float breakThreshold)
+//{
+//    std::cout << "Detecting break... UTS: " << UTSPoint.y << std::endl;
+//
+//    if (tabData == nullptr || tabData->plot_importantDataPoints[3].first.y > 0) return false;
+//
+//    // Latest data point from tabData
+//    RollingBuffer tabDataLoaded = tabData->LR10KTensileData;
+//
+//    if (tabDataLoaded.Data.Size > 0)
+//    {
+//        int latestPointIndex = tabDataLoaded.Data.Size - 1;
+//        const ImVec2 latestDataPoint = tabDataLoaded.Data[latestPointIndex];
+//
+//        const float limit = 15.0f;
+//        // Check if the current test have not passed 15 N
+//        if (latestDataPoint.y >= limit)
+//            tabData->testHasGoneAbove15N = true;
+//
+//        if (0 == enable_automaticBreakDetection) // Manual (default)
+//        {
+//            if (tabData->testHasGoneAbove15N && latestDataPoint.y <= UTSPoint.y * breakThreshold)
+//            {
+//                tabData->AssignPoint_UltimateTensileStrength(tabData);
+//                tabData->AssignPoint_BreakPoint(tabData, latestDataPoint);
+//
+//                return true;
+//            }
+//        }
+//        else if (1 == enable_automaticBreakDetection) // Automatic
+//        {
+//            // Try figuring out if there is a big jump in load, and assume a clean break on part has occured
+//            // If load increases over 25 % of load in last point, then there should be a break that occured for most materials... (assumes)
+//            if (tabData->testHasGoneAbove15N && tabDataLoaded.Data.Size > 1 && 0 == tabData->plot_importantDataPoints[3].first.y)
+//            {
+//                int prevPointIndex = tabDataLoaded.Data.Size - 2;
+//                const ImVec2 prevDataPoint = tabDataLoaded.Data[prevPointIndex];
+//
+//                // 25 % increase - Actual ending of test occurs when this functions returns true
+//                if (latestDataPoint.y >= prevDataPoint.y * 1.25)
+//                {
+//                    tabData->AssignPoint_BreakPoint(tabData, prevDataPoint);
+//                }
+//            }
+//
+//            // Check if the current point is lower or equal to 15 N, after it has passed 15 N
+//            if (tabData->testHasGoneAbove15N && latestDataPoint.y < limit)
+//            {
+//                tabData->AssignPoint_UltimateTensileStrength(tabData);
+//
+//                if (0 == tabData->plot_importantDataPoints[3].first.y)
+//                    tabData->AssignPoint_BreakPoint(tabData, latestDataPoint);
+//
+//                return true;
+//            }
+//        }
+//    }
+//
+//    return false;
+//}
 
 /**
     @brief  Checks if distance travelled control is activated.
@@ -3321,50 +3252,28 @@ void TabControl::CheckIfDistanceTraveledToLimit(TabControl::TabTestDataClass* ta
     @details Because of a bug that made important points not have the index added etc., this is needed for ALL old files <= 10.10.23.
     @param tabData - 
 **/
-void TabControl::CleanUpImportantPoints(TabControl::TabTestDataClass* tabData)
-{
-    for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-    {
-        // Add correct index if there is a match, otherwise erase it
-        bool aMatch = false;
-        for (int j = 0; j < tabData->plot_dataPoints.size(); j++)
-        {
-            if (tabData->plot_importantDataPoints[i].first.x == std::get<ImPlotPoint>(tabData->plot_dataPoints[j]).x)
-            {
-                aMatch = true;
-
-                // Set the correct index
-                tabData->plot_importantDataPoints[i].second = std::get<int>(tabData->plot_dataPoints[j]);
-            }
-        }
-
-        // Remove the unused ones
-        if (!aMatch && i < tabData->plot_importantDataPoints.size()) //!!Important!!
-            tabData->plot_importantDataPoints.erase(tabData->plot_importantDataPoints.begin() + i);
-    }
-}
-
-/**
-    @brief  Checks if the data point index is an important point or not.
-    @param  tabData        - 
-    @param  dataPointIndex - 
-    @retval                - 
-**/
-bool TabControl::CheckIfImportantPoint(TabControl::TabTestDataClass* tabData, int dataPointIndex)
-{
-    if (dataPointIndex > tabData->plot_dataPoints.size() - 1) return false;
-
-    ImPlotPoint dataPoint = std::get<ImPlotPoint>(tabData->plot_dataPoints[dataPointIndex]);
-    for (int j = 0; j < tabData->plot_importantDataPoints.size(); j++)
-    {
-        ImPlotPoint impDataPoint = tabData->plot_importantDataPoints[j].first;
-
-        if (dataPoint.x == impDataPoint.x)
-            return true;
-    }
-
-    return false;
-}
+//void TabControl::CleanUpImportantPoints(TabControl::TabTestDataClass* tabData)
+//{
+//    for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
+//    {
+//        // Add correct index if there is a match, otherwise erase it
+//        bool aMatch = false;
+//        for (int j = 0; j < tabData->plot_dataPoints.size(); j++)
+//        {
+//            if (tabData->plot_importantDataPoints[i].first.x == std::get<ImPlotPoint>(tabData->plot_dataPoints[j]).x)
+//            {
+//                aMatch = true;
+//
+//                // Set the correct index
+//                tabData->plot_importantDataPoints[i].second = std::get<int>(tabData->plot_dataPoints[j]);
+//            }
+//        }
+//
+//        // Remove the unused ones
+//        if (!aMatch && i < tabData->plot_importantDataPoints.size()) //!!Important!!
+//            tabData->plot_importantDataPoints.erase(tabData->plot_importantDataPoints.begin() + i);
+//    }
+//}
 
 /**
     @brief Main function for calculating e.g. stresses and strain. It is run before main.Draw.
@@ -3373,6 +3282,12 @@ bool TabControl::CheckIfImportantPoint(TabControl::TabTestDataClass* tabData, in
 void TabControl::CalculateDataFromTest(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
+
+    if (LR10KAppGlobals::useGlobalValuesOnNewTests)
+    {
+        // Update the local material properties in the calculator for the current tab
+        DockingApps::calculator.SetLocalMaterialProperties(tabData, LR10KAppGlobals::areaOptionPicked, LR10KAppGlobals::calc_thickness, LR10KAppGlobals::calc_width, LR10KAppGlobals::calc_length, LR10KAppGlobals::calc_diameter);
+    }
 
     // If it is tensile or compression
     bool condition1 = tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked); // Normal tension or compression
@@ -3443,6 +3358,184 @@ void AppMainTabSystem::CreateTabMenuSystem(TabControl::TabTestDataClass* tabData
     // but they tend to make more sense together)
 
     // Expose some other flags which are useful to showcase how they interact with Leading/Trailing tabs
+    //static ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown;
+
+    //if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags))
+    //{
+    //    // Leading TabItemButton(): click the "?" button to open a menu
+    //    if (ImGui::TabItemButton(" ? ", ImGuiTabItemFlags_Leading | ImGuiTabItemFlags_NoTooltip))
+    //        ImGui::OpenPopup("MyHelpMenu");
+    //    if (ImGui::BeginPopup("MyHelpMenu"))
+    //    {
+    //        ImGui::Selectable("These are all of your current tests.\n\nTo start a new test, click the \"+ New Test\" button.\nYou can save a test as an Excel book also.");
+    //        ImGui::EndPopup();
+    //    }
+
+    //    bool notALockedTab = !tabData->test_unfinished_test_started;
+
+    //    // Demo Trailing Tabs: click the "+" button to add a new tab (in your app you may want to use a font icon instead of the "+")
+    //    // Note that we submit it before the regular tabs, but because of the ImGuiTabItemFlags_Trailing flag it will always appear at the end.
+    //    if (ImGui::TabItemButton("+ New Test", ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip)
+    //        && TabControl::activeTestTabsId.Size < TabControl::MAXTABS && notALockedTab)
+    //    {
+    //        //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData, true);
+    //        TabControl::TabTestDataClass* newTabTestData = new TabControl::TabTestDataClass;
+
+    //        CreateANewTab(newTabTestData);
+
+    //        PlaySoundEffect("buttonClick1");
+    //    }
+
+    //    // Submit our regular 
+    //    for (int i = 0; i < TabControl::activeTestTabsId.Size; i++)
+    //    {
+    //        // Get new tab and previous tab
+    //        int tabTestId = TabControl::activeTestTabsId[i];
+    //        TabControl::TabTestDataClass* loopedTabData = TabControl::allTabTestData[tabTestId];
+
+    //        bool open = true;
+    //        char name[16];
+
+    //        // Changing flag depending on if the document is saved or not
+    //        int flags = loopedTabData->unsavedThingsInTab ? ImGuiTabItemFlags_UnsavedDocument : ImGuiTabItemFlags_None;
+
+    //        // Lambda functions for closing current tab.
+    //        static auto closeTab = [](const char* name, int i)
+    //        {
+    //            ImGui::SetTabItemClosed(name);
+    //            TabControl::activeTestTabsId.erase(TabControl::activeTestTabsId.Data + i); // Remove tab
+
+    //            PlaySoundEffect("buttonClick0");
+    //        };
+
+    //        // Lambda functions for tab information.
+    //        static auto tabInformation = [](
+    //            TabControl::TabTestDataClass* activeTabData
+    //            , TabControl::TabTestDataClass* tabData
+    //            , int activeTabTestId
+    //            , const char* name
+    //            , bool notALockedTab)
+    //        {
+    //                // Reset previous active tab, so it can be updated again later
+    //                if (!activeTabData->updatedGraphOnOpen) tabData->updatedGraphOnOpen = false;
+
+    //                std::cout << "This tab ID: " << activeTabData->updatedGraphOnOpen << " and Old tab ID: " << tabData->updatedGraphOnOpen << std::endl;
+
+    //                // Set current active tab index id
+    //                TabControl::currActiveTabIndexId = activeTabTestId;
+
+    //                // Name of tab
+    //                std::string nameOut = name;
+
+    //                ImGui::Text("This is tensile test: %s. You can save the data within the \"Graph\" panel as a .XLSX file, and as a loadable file in the menu.", Trim(nameOut).c_str());
+    //                ImGui::Separator();
+    //                if (activeTabData->test_finished)
+    //                {
+    //                    ImGui::Text("This test is finished. It was completed: %s", activeTabData->date.c_str());
+
+    //                    if (activeTabData->loadedFromFileName.size() > 0)
+    //                    {
+    //                        ImGui::Text("(Represents same data as in file: %s).", activeTabData->loadedFromFileName.c_str());
+    //                    }
+    //                    ImGui::Separator();
+    //                }
+
+    //                // Clean the temporary description, if needed
+    //                static int lastTempDescriptionIdUpdated = -1;
+    //                if (lastTempDescriptionIdUpdated != tabData->tabId)
+    //                {
+    //                    // Clear temporary
+    //                    for (int i = 0; i < IM_ARRAYSIZE(TabControl::tempDescription); i++)
+    //                    {
+    //                        TabControl::tempDescription[i] = {};
+    //                    }
+    //                    // Insert loaded from tabData, once
+    //                    for (int i = 0; i < tabData->description.length(); i++)
+    //                    {
+    //                        TabControl::tempDescription[i] = tabData->description.c_str()[i];
+    //                    }
+
+    //                    // Save status
+    //                    lastTempDescriptionIdUpdated = tabData->tabId;
+    //                }
+
+    //                // Update some GUI values, that will be inherited from tabData (this could be done elsewhere also.., but this one is nice to have here at least)
+    //                defaultValuesGUI::offsetZeroPointExtensionAxis = tabData->LR10OffsetZeroPointExtensionAxis;
+    //        };
+
+    //        // Tab name
+    //        snprintf(name, IM_ARRAYSIZE(name), "%04d      ", tabTestId);
+
+    //        if (TabControl::activeTestTabsId.Size > 1)
+    //        {
+    //            // When a tab becomes active, this returns true
+    //            // When a tab is closed/removed, "open" will be false
+
+    //            // When a test has started running, it should not be
+    //            // possible to change to another tab.
+    //            if (TabControl::forcedTabIndexId == tabTestId && tabData->test_unfinished_test_started)
+    //                flags |= ImGuiTabItemFlags_SetSelected;
+
+    //            bool tabIsActive = ImGui::BeginTabItem(name, &open, flags);
+    //            if (tabIsActive)
+    //            {
+    //                // Update the settings for vertical sliders if it is not the same as the settings from GUI
+    //                if (LR10KAppGlobals::testing_speedAndPlotActual[0] != tabData->settings_speedAndPlot[0] || LR10KAppGlobals::testing_speedAndPlotActual[2] != tabData->settings_speedAndPlot[2])
+    //                {
+    //                    LR10KAppGlobals::testing_speedAndPlotGUI[0] = ((tabData->settings_speedAndPlot[0] / LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[0]) * 100);
+    //                    LR10KAppGlobals::testing_speedAndPlotGUI[2] = tabData->settings_speedAndPlot[2];
+
+    //                    LR10KAppGlobals::testing_speedAndPlotActual[0] = tabData->settings_speedAndPlot[0];
+    //                    LR10KAppGlobals::testing_speedAndPlotActual[2] = tabData->settings_speedAndPlot[2];
+    //                }
+
+    //                // Update the units of the tab if it is not the same as the settings from GUI
+    //                if (tabData->fileFinishedLoading && tabData->unitsConvertionIndex != LR10KAppGlobals::unitsConvertionIndex)
+    //                {
+    //                    LR10KAppGlobals::unitsConvertionIndex = tabData->unitsConvertionIndex;
+    //                    tabData->ConvertUnitsToNewUnit(tabData, LR10KAppGlobals::unitsConvertionIndex, false);
+    //                }
+
+    //                tabInformation(loopedTabData, tabData, tabTestId, name, notALockedTab);
+    //                ImGui::EndTabItem();
+    //            }
+    //        }
+    //        else
+    //        {
+    //            bool tabIsActive = ImGui::BeginTabItem(name, NULL, flags);
+
+    //            if (tabIsActive)
+    //            {
+    //                tabInformation(loopedTabData, tabData, tabTestId, name, notALockedTab);
+    //                ImGui::EndTabItem();
+    //            }
+    //        }
+
+    //        // When trying to close a tab (don't care to remove the actual tab data, to keep everything uniq for this "session")
+
+    //        // Name of tab
+    //        std::string nameOut = name;
+
+    //        std::string popUpID = "Close tab #";
+    //        popUpID.append(Trim(nameOut));
+    //        popUpID.append(" without saving?");
+
+    //        if (!open && TabControl::activeTestTabsId.Size > 1 && notALockedTab)
+    //        {
+    //            if (mainGUIGlobals::ignoreSavingPrompt || !loopedTabData->unsavedThingsInTab)
+    //                closeTab(name, i);
+    //        }
+
+    //        // Prompt window for a single tab when trying to close it.
+    //        bool closeTabCheck = false;
+    //        DockingApps::mainFileSystem.PromptUserToCloseTabBeforeSaving(popUpID.c_str(), (!open && TabControl::activeTestTabsId.Size > 1 && notALockedTab && !mainGUIGlobals::ignoreSavingPrompt && TabControl::allTabTestData[tabTestId]->unsavedThingsInTab), &closeTabCheck);
+    //        if (closeTabCheck) closeTab(name, i);
+    //    }
+
+    //    ImGui::EndTabBar();
+    //}
+
+    // Expose some other flags which are useful to showcase how they interact with Leading/Trailing tabs
     static ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown;
 
     if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags))
@@ -3450,6 +3543,7 @@ void AppMainTabSystem::CreateTabMenuSystem(TabControl::TabTestDataClass* tabData
         // Leading TabItemButton(): click the "?" button to open a menu
         if (ImGui::TabItemButton(" ? ", ImGuiTabItemFlags_Leading | ImGuiTabItemFlags_NoTooltip))
             ImGui::OpenPopup("MyHelpMenu");
+
         if (ImGui::BeginPopup("MyHelpMenu"))
         {
             ImGui::Selectable("These are all of your current tests.\n\nTo start a new test, click the \"+ New Test\" button.\nYou can save a test as an Excel book also.");
@@ -3458,170 +3552,116 @@ void AppMainTabSystem::CreateTabMenuSystem(TabControl::TabTestDataClass* tabData
 
         bool notALockedTab = !tabData->test_unfinished_test_started;
 
-        // Demo Trailing Tabs: click the "+" button to add a new tab (in your app you may want to use a font icon instead of the "+")
-        // Note that we submit it before the regular tabs, but because of the ImGuiTabItemFlags_Trailing flag it will always appear at the end.
+        // Trailing Tabs: "+ New Test"
         if (ImGui::TabItemButton("+ New Test", ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip)
             && TabControl::activeTestTabsId.Size < TabControl::MAXTABS && notALockedTab)
         {
-            //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData, true);
             TabControl::TabTestDataClass* newTabTestData = new TabControl::TabTestDataClass;
-
             CreateANewTab(newTabTestData);
-
             PlaySoundEffect("buttonClick1");
         }
 
-        // Submit our regular 
+        // Submit our regular tabs
         for (int i = 0; i < TabControl::activeTestTabsId.Size; i++)
         {
-            // Get new tab and previous tab
             int tabTestId = TabControl::activeTestTabsId[i];
             TabControl::TabTestDataClass* loopedTabData = TabControl::allTabTestData[tabTestId];
 
-            bool open = true;
-            char name[16];
-
-            // Changing flag depending on if the document is saved or not
+            // 1. Setup Tab Flags
             int flags = loopedTabData->unsavedThingsInTab ? ImGuiTabItemFlags_UnsavedDocument : ImGuiTabItemFlags_None;
+            if (TabControl::forcedTabIndexId == tabTestId && tabData->test_unfinished_test_started)
+                flags |= ImGuiTabItemFlags_SetSelected;
 
-            // Lambda functions for closing current tab.
-            static auto closeTab = [](const char* name, int i)
+            // 2. Setup Close Button Pointer
+            // If there's only 1 tab, or it's locked, pass nullptr so the "X" button hides.
+            // Otherwise, pass a pointer to `open` so ImGui can draw the "X" and modify it.
+            bool open = true;
+            bool* p_open = (TabControl::activeTestTabsId.Size > 1 && notALockedTab) ? &open : nullptr;
+
+            char name[32];
+            snprintf(name, sizeof(name), "%04d      ", tabTestId);
+
+            // 3. Draw the Tab
+            if (ImGui::BeginTabItem(name, p_open, flags))
+            {
+                // ==========================================
+                // TAB SWITCH DETECTOR
+                // ==========================================
+                if (TabControl::currActiveTabIndexId != tabTestId)
+                {
+                    TabControl::currActiveTabIndexId = tabTestId; // Update tracking
+
+                    // Flag this tab to auto-fit its axes on the next frame!
+                    // (You should add `bool request_graph_autofit = false;` to your TabTestDataClass)
+                    loopedTabData->request_graph_autofit = true;
+                }
+
+                // ==========================================
+                // TAB CONTENT / INFORMATION UPDATE
+                // ==========================================
+                // Update the settings for vertical sliders if changed
+                if (LR10KAppGlobals::testing_speedAndPlotActual[0] != loopedTabData->settings_speedAndPlot[0] || LR10KAppGlobals::testing_speedAndPlotActual[2] != loopedTabData->settings_speedAndPlot[2])
+                {
+                    LR10KAppGlobals::testing_speedAndPlotGUI[0] = ((loopedTabData->settings_speedAndPlot[0] / LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[0]) * 100);
+                    LR10KAppGlobals::testing_speedAndPlotGUI[2] = loopedTabData->settings_speedAndPlot[2];
+                    LR10KAppGlobals::testing_speedAndPlotActual[0] = loopedTabData->settings_speedAndPlot[0];
+                    LR10KAppGlobals::testing_speedAndPlotActual[2] = loopedTabData->settings_speedAndPlot[2];
+                }
+
+                // Update units if changed
+                if (loopedTabData->fileFinishedLoading && loopedTabData->unitsConvertionIndex != LR10KAppGlobals::unitsConvertionIndex)
+                {
+                    LR10KAppGlobals::unitsConvertionIndex = loopedTabData->unitsConvertionIndex;
+                    loopedTabData->ConvertUnitsToNewUnit(loopedTabData, LR10KAppGlobals::unitsConvertionIndex, false);
+                }
+
+                // Draw textual info
+                ImGui::Text("This is tensile test: %04d. You can save the data within the \"Graph\" panel as a .XLSX file, and as a loadable file in the menu.", tabTestId);
+                ImGui::Separator();
+
+                if (loopedTabData->test_finished)
+                {
+                    ImGui::Text("This test is finished. It was completed: %s", loopedTabData->date.c_str());
+                    if (!loopedTabData->loadedFromFileName.empty())
+                        ImGui::Text("(Represents same data as in file: %s).", loopedTabData->loadedFromFileName.c_str());
+                    ImGui::Separator();
+                }
+
+                // Apply global variable offset
+                defaultValuesGUI::offsetZeroPointExtensionAxis = loopedTabData->LR10OffsetZeroPointExtensionAxis;
+
+                ImGui::EndTabItem();
+            }
+
+            // 4. Tab Close Logic
+            bool user_clicked_close = (p_open && !open);
+            bool closeTabCheck = false;
+
+            if (user_clicked_close)
+            {
+                // If we don't need a prompt, flag it to close instantly
+                if (mainGUIGlobals::ignoreSavingPrompt || !loopedTabData->unsavedThingsInTab)
+                {
+                    closeTabCheck = true;
+                }
+            }
+
+            // The Prompt function MUST run every frame so ImGui can draw the modal!
+            // It will trigger OpenPopup internally if 'needs_prompt' is true this frame.
+            bool needs_prompt = (user_clicked_close && !mainGUIGlobals::ignoreSavingPrompt && loopedTabData->unsavedThingsInTab);
+
+            std::string popUpID = "Close tab #" + std::to_string(tabTestId) + " without saving?";
+            DockingApps::mainFileSystem.PromptUserToCloseTabBeforeSaving(popUpID.c_str(), needs_prompt, &closeTabCheck);
+
+            // Execute the actual close and array cleanup
+            if (closeTabCheck)
             {
                 ImGui::SetTabItemClosed(name);
-                TabControl::activeTestTabsId.erase(TabControl::activeTestTabsId.Data + i); // Remove tab
-
+                TabControl::activeTestTabsId.erase(TabControl::activeTestTabsId.Data + i);
                 PlaySoundEffect("buttonClick0");
-            };
-
-            // Lambda functions for tab information.
-            static auto tabInformation = [](
-                TabControl::TabTestDataClass* activeTabData
-                , TabControl::TabTestDataClass* tabData
-                , int activeTabTestId
-                , const char* name
-                , bool notALockedTab)
-            {
-                    // Reset previous active tab
-                    if (!activeTabData->updatedGraphOnOpen)
-                        tabData->updatedGraphOnOpen = false; // Reset previous, so it can be updated again later
-
-                    // Set current active tab index id
-                    TabControl::currActiveTabIndexId = activeTabTestId;
-
-                    // Update graph
-                    if (!activeTabData->updatedGraphOnOpen)
-                    {
-                        //TabControl::AutoAdjustNormalExtensionLoadVariabels(activeTabData, true);
-                        activeTabData->updatedGraphOnOpen = true;
-                    }
-
-                    // Name of tab
-                    std::string nameOut = name;
-
-                    ImGui::Text("This is tensile test: %s. You can save the data within the \"Graph\" panel as a .XLSX file, and as a loadable file in the menu.", Trim(nameOut).c_str());
-                    ImGui::Separator();
-                    if (activeTabData->test_finished)
-                    {
-                        ImGui::Text("This test is finished. It was completed: %s", activeTabData->date.c_str());
-
-                        if (activeTabData->loadedFromFileName.size() > 0)
-                        {
-                            ImGui::Text("(Represents same data as in file: %s).", activeTabData->loadedFromFileName.c_str());
-                        }
-                        ImGui::Separator();
-                    }
-
-                    // Clean the temporary description, if needed
-                    static int lastTempDescriptionIdUpdated = -1;
-                    if (lastTempDescriptionIdUpdated != tabData->tabId)
-                    {
-                        // Clear temporary
-                        for (int i = 0; i < IM_ARRAYSIZE(TabControl::tempDescription); i++)
-                        {
-                            TabControl::tempDescription[i] = {};
-                        }
-                        // Insert loaded from tabData, once
-                        for (int i = 0; i < tabData->description.length(); i++)
-                        {
-                            TabControl::tempDescription[i] = tabData->description.c_str()[i];
-                        }
-
-                        // Save status
-                        lastTempDescriptionIdUpdated = tabData->tabId;
-                    }
-
-                    // Update some GUI values, that will be inherited from tabData (this could be done elsewhere also.., but this one is nice to have here at least)
-                    defaultValuesGUI::offsetZeroPointExtensionAxis = tabData->LR10OffsetZeroPointExtensionAxis;
-            };
-
-            // Tab name
-            snprintf(name, IM_ARRAYSIZE(name), "%04d      ", tabTestId);
-
-            if (TabControl::activeTestTabsId.Size > 1)
-            {
-                // When a tab becomes active, this returns true
-                // When a tab is closed/removed, "open" will be false
-
-                // When a test has started running, it should not be
-                // possible to change to another tab.
-                if (TabControl::forcedTabIndexId == tabTestId && tabData->test_unfinished_test_started)
-                    flags |= ImGuiTabItemFlags_SetSelected;
-
-                bool tabIsActive = ImGui::BeginTabItem(name, &open, flags);
-                if (tabIsActive)
-                {
-                    // Update the settings for vertical sliders if it is not the same as the settings from GUI
-                    if (LR10KAppGlobals::testing_speedAndPlotActual[0] != tabData->settings_speedAndPlot[0] || LR10KAppGlobals::testing_speedAndPlotActual[2] != tabData->settings_speedAndPlot[2])
-                    {
-                        LR10KAppGlobals::testing_speedAndPlotGUI[0] = ((tabData->settings_speedAndPlot[0] / LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[0]) * 100);
-                        LR10KAppGlobals::testing_speedAndPlotGUI[2] = tabData->settings_speedAndPlot[2];
-
-                        LR10KAppGlobals::testing_speedAndPlotActual[0] = tabData->settings_speedAndPlot[0];
-                        LR10KAppGlobals::testing_speedAndPlotActual[2] = tabData->settings_speedAndPlot[2];
-                    }
-
-                    // Update the units of the tab if it is not the same as the settings from GUI
-                    if (tabData->fileFinishedLoading && tabData->unitsConvertionIndex != LR10KAppGlobals::unitsConvertionIndex)
-                    {
-                        LR10KAppGlobals::unitsConvertionIndex = tabData->unitsConvertionIndex;
-                        tabData->ConvertUnitsToNewUnit(tabData, LR10KAppGlobals::unitsConvertionIndex, false);
-                    }
-
-                    tabInformation(loopedTabData, tabData, tabTestId, name, notALockedTab);
-                    ImGui::EndTabItem();
-                }
+                i--; // Decrement iterator so we don't skip the next tab
             }
-            else
-            {
-                bool tabIsActive = ImGui::BeginTabItem(name, NULL, flags);
-
-                if (tabIsActive)
-                {
-                    tabInformation(loopedTabData, tabData, tabTestId, name, notALockedTab);
-                    ImGui::EndTabItem();
-                }
-            }
-
-            // When trying to close a tab (don't care to remove the actual tab data, to keep everything uniq for this "session")
-
-            // Name of tab
-            std::string nameOut = name;
-
-            std::string popUpID = "Close tab #";
-            popUpID.append(Trim(nameOut));
-            popUpID.append(" without saving?");
-
-            if (!open && TabControl::activeTestTabsId.Size > 1 && notALockedTab)
-            {
-                if (mainGUIGlobals::ignoreSavingPrompt || !loopedTabData->unsavedThingsInTab)
-                    closeTab(name, i);
-            }
-
-            // Prompt window for a single tab when trying to close it.
-            bool closeTabCheck = false;
-            DockingApps::mainFileSystem.PromptUserToCloseTabBeforeSaving(popUpID.c_str(), (!open && TabControl::activeTestTabsId.Size > 1 && notALockedTab && !mainGUIGlobals::ignoreSavingPrompt && TabControl::allTabTestData[tabTestId]->unsavedThingsInTab), &closeTabCheck);
-            if (closeTabCheck) closeTab(name, i);
-        }
+        } // End of the for-loop
 
         ImGui::EndTabBar();
     }
@@ -3641,45 +3681,76 @@ bool AppMainTabSystem::ThisTabIsNotRunningATest()
 }
 
 
-std::vector<ImPlotPoint> TabControl::TabTestDataClass::GetImportantDataPointsOnly()
+//std::vector<ImPlotPoint> TabControl::TabTestDataClass::GetImportantDataPointsOnly()
+//{
+//    std::vector<ImPlotPoint> onlyDataPoints;
+//
+//    for (int i = 0; i < plot_dataPoints.size(); i++)
+//    {
+//        ImPlotPoint dataPoint;
+//        dataPoint.x = std::get<ImPlotPoint>(plot_dataPoints[i]).x;
+//        dataPoint.y = std::get<ImPlotPoint>(plot_dataPoints[i]).y;
+//
+//        onlyDataPoints.push_back(dataPoint);
+//    }
+//
+//    return onlyDataPoints;
+//}
+
+std::vector<std::pair<ImPlotPoint, int>> TabControl::TabTestDataClass::GetCrucialDataPoints()
 {
-    std::vector<ImPlotPoint> onlyDataPoints;
+    std::vector<std::pair<ImPlotPoint, int>> importantDataPoints;
 
-    for (int i = 0; i < plot_dataPoints.size(); i++)
+    for (auto pt_tuple : plot_dataPoints)
     {
-        ImPlotPoint dataPoint;
-        dataPoint.x = std::get<ImPlotPoint>(plot_dataPoints[i]).x;
-        dataPoint.y = std::get<ImPlotPoint>(plot_dataPoints[i]).y;
+        ImPlotPoint pt = std::get<0>(pt_tuple);
+        int id = std::get<1>(pt_tuple);
 
-        onlyDataPoints.push_back(dataPoint);
+        bool hasTheIdAlready = CheckIfCrucialPointExsists(id);
+
+        // Take the first ID found
+        if (!hasTheIdAlready) importantDataPoints.push_back({ pt , id });
     }
 
-    return onlyDataPoints;
+    return importantDataPoints;
 }
 
-std::vector<ImPlotPoint> TabControl::TabTestDataClass::GetCrucialDataPointsOnly(TabTestDataClass* tabData)
+bool TabControl::TabTestDataClass::CheckIfCrucialPointExsists(int pointID)
 {
-    // Only four - and it will be placed in order since the text underneath will be displayed in order.
-    std::vector<ImPlotPoint> onlyCrucialDataPoints{ {}, {}, {}, {} };
-
-    int pointsAdded = 0;
-    for (int i = 0; i < plot_dataPoints.size(); i++)
-    {
-        if (pointsAdded == 5) break;
-
-        ImPlotPoint dataPoint;
-        dataPoint.x = std::get<ImPlotPoint>(plot_dataPoints[i]).x;
-        dataPoint.y = std::get<ImPlotPoint>(plot_dataPoints[i]).y;
-
-        if (TabControl::CheckIfImportantPoint(tabData, i))
-        {
-            onlyCrucialDataPoints[std::get<int>(plot_dataPoints[i])] = dataPoint;
-            pointsAdded++;
+    bool hasID = std::any_of(
+        plot_dataPoints.begin(),
+        plot_dataPoints.end(),
+        [pointID](const auto& dataTuple) {
+            return std::get<1>(dataTuple) == pointID; // std::get<1> gets the 'int' from the tuple
         }
-    }
+    );
 
-    return onlyCrucialDataPoints;
+    return hasID;
 }
+
+//std::vector<ImPlotPoint> TabControl::TabTestDataClass::GetCrucialDataPointsOnly(TabTestDataClass* tabData)
+//{
+//    // Only four - and it will be placed in order since the text underneath will be displayed in order.
+//    std::vector<ImPlotPoint> onlyCrucialDataPoints{ {}, {}, {}, {} };
+//
+//    int pointsAdded = 0;
+//    for (int i = 0; i < plot_dataPoints.size(); i++)
+//    {
+//        if (pointsAdded == 5) break;
+//
+//        ImPlotPoint dataPoint;
+//        dataPoint.x = std::get<ImPlotPoint>(plot_dataPoints[i]).x;
+//        dataPoint.y = std::get<ImPlotPoint>(plot_dataPoints[i]).y;
+//
+//        if (TabControl::CheckIfImportantPoint(tabData, i))
+//        {
+//            onlyCrucialDataPoints[std::get<int>(plot_dataPoints[i])] = dataPoint;
+//            pointsAdded++;
+//        }
+//    }
+//
+//    return onlyCrucialDataPoints;
+//}
 
 ImPlotPoint TabControl::TabTestDataClass::GetUTS()
 {
@@ -3701,63 +3772,65 @@ ImPlotPoint TabControl::TabTestDataClass::GetUTS()
 }
 ImPlotPoint TabControl::TabTestDataClass::GetFracturePoint(TabTestDataClass* tabData)
 {
-    std::vector<std::pair<ImPlotPoint, int>> plot_importantDataPoints = tabData->plot_importantDataPoints;
     ImPlotPoint fracturePoint(0, 0);
 
-    // Find last important point with index 3
-    for (int i = 0; i < plot_importantDataPoints.size(); i++)
-    {
-        ImPlotPoint dataPoint       = plot_importantDataPoints[i].first;
-        int pointIndex              = plot_importantDataPoints[i].second;
-
-        if (3 == pointIndex)
-        {
-            fracturePoint = dataPoint;
-            break;
+    auto it = std::find_if(
+        tabData->plot_dataPoints.begin(),
+        tabData->plot_dataPoints.end(),
+        [](const auto& dataTuple) {
+            return std::get<1>(dataTuple) == 3;
         }
+    );
+
+    if (it != tabData->plot_dataPoints.end()) {
+        // ID 3 exists! Access the data:
+        ImPlotPoint pointData = std::get<0>(*it);
+        int id = std::get<1>(*it);
+
+        fracturePoint = pointData;
     }
 
     return fracturePoint;
 }
 
-void TabControl::TabTestDataClass::AssignPoint_PropotionalLimit(TabControl::TabTestDataClass* tabData, ImPlotPoint propotionalLimitPoint)
-{
-    if (!tabData->tension && 1 == tabData->compressionOptionPicked) return;
-
-    // Only assign if point x and y is not NaN, which can happen...
-    if (!std::isnan(propotionalLimitPoint.x) && !std::isnan(propotionalLimitPoint.y) && propotionalLimitPoint.y > 0 && propotionalLimitPoint.x > 0)
-    {
-        plot_dataPoints.push_back({ propotionalLimitPoint, 0 });
-
-        // Assign correct data point index ID Globally
-        plot_importantDataPoints[0] = { propotionalLimitPoint, 0 }; // Propotional limit point has index ID 0
-        DockingApps::console.AddLog("Automatically added a Propotional Limit point. (just an assumtion)");
-    }
-    else
-        DockingApps::console.AddLog("Could not add Propotional Limit Point since one or more points were NaN...");
-
-    //TabControl::RefreshUpdateImportantDataPoints(tabData);
-}
-void TabControl::TabTestDataClass::AssignPoint_YieldPoint(TabControl::TabTestDataClass* tabData, ImPlotPoint yieldingPoint)
-{
-    // THIS LOGIC IS NOT FROM THEORY, ONLY ASSUMTION AND IS REMOVED. Easier to do it manually...
-    //// Order checker
-    //if (plot_importantDataPoints[0].first.x == 0) return;
-
-    //// Only assign if point x and y is not NaN, which can happen...
-    //if (!std::isnan(yieldingPoint.x) && !std::isnan(yieldingPoint.y) && yieldingPoint.y > 0 && yieldingPoint.x > 0)
-    //{
-    //    plot_dataPoints.push_back({ yieldingPoint, 1, false });
-
-    //    // Assign correct data point index ID Globally
-    //    plot_importantDataPoints[1] = { yieldingPoint, 1 }; // Yield point has index ID 1
-    //    DockingApps::console.AddLog("Automatically added a Yielding point. (just an assumtion)");
-    //}
-    //else
-    //    DockingApps::console.AddLog("Could not add Propotional Limit Point since one or more points were NaN...");
-
-    //TabControl::RefreshUpdateImportantDataPoints(tabData);
-}
+//void TabControl::TabTestDataClass::AssignPoint_PropotionalLimit(TabControl::TabTestDataClass* tabData, ImPlotPoint propotionalLimitPoint)
+//{
+//    if (!tabData->tension && 1 == tabData->compressionOptionPicked) return;
+//
+//    // Only assign if point x and y is not NaN, which can happen...
+//    if (!std::isnan(propotionalLimitPoint.x) && !std::isnan(propotionalLimitPoint.y) && propotionalLimitPoint.y > 0 && propotionalLimitPoint.x > 0)
+//    {
+//        plot_dataPoints.push_back({ propotionalLimitPoint, 0 });
+//
+//        // Assign correct data point index ID Globally
+//        plot_importantDataPoints[0] = { propotionalLimitPoint, 0 }; // Propotional limit point has index ID 0
+//        DockingApps::console.AddLog("Automatically added a Propotional Limit point. (just an assumtion)");
+//    }
+//    else
+//        DockingApps::console.AddLog("Could not add Propotional Limit Point since one or more points were NaN...");
+//
+//    //TabControl::RefreshUpdateImportantDataPoints(tabData);
+//}
+//void TabControl::TabTestDataClass::AssignPoint_YieldPoint(TabControl::TabTestDataClass* tabData, ImPlotPoint yieldingPoint)
+//{
+//    // THIS LOGIC IS NOT FROM THEORY, ONLY ASSUMTION AND IS REMOVED. Easier to do it manually...
+//    //// Order checker
+//    //if (plot_importantDataPoints[0].first.x == 0) return;
+//
+//    //// Only assign if point x and y is not NaN, which can happen...
+//    //if (!std::isnan(yieldingPoint.x) && !std::isnan(yieldingPoint.y) && yieldingPoint.y > 0 && yieldingPoint.x > 0)
+//    //{
+//    //    plot_dataPoints.push_back({ yieldingPoint, 1, false });
+//
+//    //    // Assign correct data point index ID Globally
+//    //    plot_importantDataPoints[1] = { yieldingPoint, 1 }; // Yield point has index ID 1
+//    //    DockingApps::console.AddLog("Automatically added a Yielding point. (just an assumtion)");
+//    //}
+//    //else
+//    //    DockingApps::console.AddLog("Could not add Propotional Limit Point since one or more points were NaN...");
+//
+//    //TabControl::RefreshUpdateImportantDataPoints(tabData);
+//}
 void TabControl::TabTestDataClass::AssignPoint_UltimateTensileStrength(TabControl::TabTestDataClass* tabData)
 {
     ImPlotPoint UTSPoint = this->GetUTS(); // UTS
@@ -3766,17 +3839,10 @@ void TabControl::TabTestDataClass::AssignPoint_UltimateTensileStrength(TabContro
     if ((!std::isnan(UTSPoint.x) && !std::isnan(UTSPoint.y) && UTSPoint.y > 0 && UTSPoint.x > 0))
     {
         plot_dataPoints.push_back({ UTSPoint, 2 });
-
-        // Assign correct data point index ID Globally
-        plot_importantDataPoints[2] = { UTSPoint, 2 }; // Ultimate Tensile Strength
         DockingApps::console.AddLog("Automatically added a Ultimate Tensile Strength point. (just an assumtion)");
     }
     else
         DockingApps::console.AddLog("Could not add Ultimate Tensile Strength since one or more points were NaN...");
-
-    /*TabControl::RefreshUpdateImportantDataPoints(tabData);
-    DockingApps::calculator.CalculateStressPoints(tabData);
-    DockingApps::calculator.CalculateStresses(tabData);*/
 }
 void TabControl::TabTestDataClass::AssignPoint_BreakPoint(TabControl::TabTestDataClass* tabData, ImPlotPoint breakPoint)
 {
@@ -3786,7 +3852,7 @@ void TabControl::TabTestDataClass::AssignPoint_BreakPoint(TabControl::TabTestDat
         plot_dataPoints.push_back({ breakPoint, 3 });
 
         // Assign correct data point index ID Globally
-        plot_importantDataPoints[3] = { breakPoint, 3 }; // Break point has index ID 3
+        //plot_importantDataPoints[3] = { breakPoint, 3 }; // Break point has index ID 3
         DockingApps::console.AddLog("Automatically added a Break/Fracture point. (just an assumption)");
     }
     else
@@ -3838,18 +3904,18 @@ void TabControl::TabTestDataClass::ConvertUnitsBackToBase(TabControl::TabTestDat
             tabData->plot_dataPoints[i] = std::make_tuple(points, index);
         }
 
-        // Crucial points
-        for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-        {
-            ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
-            points.x /= unitConvOld_dist;
-            points.y /= unitConvOld_force;
+        //// Crucial points
+        //for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
+        //{
+        //    ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
+        //    points.x /= unitConvOld_dist;
+        //    points.y /= unitConvOld_force;
 
-            const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
+        //    const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
 
-            // Save
-            tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
-        }
+        //    // Save
+        //    tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
+        //}
     }
 }
 void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestDataClass* tabData, int unitsIndex, bool saveUnitIndex, bool updateGlobals, bool markAsSaved)
@@ -3895,18 +3961,18 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestData
         tabData->plot_dataPoints[i] = std::make_tuple(points, index);
     }
 
-    // Crucial points
-    for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-    {
-        ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
-        points.x *= unitConv_dist;
-        points.y *= unitConv_force;
+    //// Crucial points
+    //for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
+    //{
+    //    ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
+    //    points.x *= unitConv_dist;
+    //    points.y *= unitConv_force;
 
-        const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
+    //    const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
 
-        // Save
-        tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
-    }
+    //    // Save
+    //    tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
+    //}
 
     // -------------------------------------------------------------------------
     // -------------------------------- Finished -------------------------------
@@ -3982,18 +4048,18 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::Ta
         tabData->plot_dataPoints[i] = std::make_tuple(points, index);
     }
 
-    // Crucial points
-    for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-    {
-        ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
-        points.x *= unitConv_dist;
-        points.y *= unitConv_force;
+    //// Crucial points
+    //for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
+    //{
+    //    ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
+    //    points.x *= unitConv_dist;
+    //    points.y *= unitConv_force;
 
-        const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
+    //    const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
 
-        // Save
-        tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
-    }
+    //    // Save
+    //    tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
+    //}
 
     // -------------------------------------------------------------------------
     // -------------------------------- Finished -------------------------------
@@ -5122,7 +5188,7 @@ bool LR10KControlSystem::EndTest(TabControl::TabTestDataClass* tabData)
         TabControl::aTestIsStartedOnTabIndexId = -1; // Reset
 
         // Automated assignment of crucial points
-        if (0 == tabData->plot_importantDataPoints[2].first.y) // Will also be assigned at automatic break point detection to get this point first... (just for visuals)
+        if (!tabData->CheckIfCrucialPointExsists(2)) // Will also be assigned at automatic break point detection to get this point first... (just for visuals)
             tabData->AssignPoint_UltimateTensileStrength(tabData);
 
         LR10KDataDeEncryptionSystem::warnErrorStatus_Reset();

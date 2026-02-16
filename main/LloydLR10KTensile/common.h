@@ -167,7 +167,6 @@ struct AppWindowStates
     bool show_settings = false;    //!< Used for showing/hiding the settings for LR 10K.
     bool show_calculator = false;    //!< Used for showing/hiding the calculator for the stress/strain data from LR 10K.
     bool show_graph = true;
-    bool show_quick_report = false;    //!< Used for showing/hiding the quick report for the LR 10K.
     bool show_description = false;
     bool show_console = false;    //!< Used for showing/hiding the console.
     bool show_docs = false;    //!< Used for showing/hiding the documentation window.
@@ -630,7 +629,7 @@ namespace TabControl {
         float LR10OffsetZeroPointExtensionAxis; //!< Holds the offset from zero point relative to the extension axis. (remove som slack)
 
         std::vector<std::tuple<ImPlotPoint, int>> plot_dataPoints;    //!< This holds every custom data point classes added by the user (ID and Data) [ImPlotPoint], prop. index [int]. (will always be snapped onto the graph after the new update)
-        std::vector<std::pair<ImPlotPoint, int>> plot_importantDataPoints{ {}, {}, {}, {} };  //!< This holds the four important data used for the quick report [ImPlotPoint], in acending order + Every data points property index are stored here, from "plot_items" [int].
+        //std::vector<std::pair<ImPlotPoint, int>> plot_importantDataPoints{ {}, {}, {}, {} };  //!< This holds the four important data used for the quick report [ImPlotPoint], in acending order + Every data points property index are stored here, from "plot_items" [int].
         float settings_speedAndPlot[3];             //!< Settings for the test. mm/min, mm/min & percentage (These are changing values)
         float oldLoadErrorValue;                    //!< Is used to get the difference value for the load error after a test is finished; to know how much to increase/decrease the load. Is set on Star Test[1], Load File[2] and update load error[3].
 
@@ -643,7 +642,6 @@ namespace TabControl {
         bool request_graph_autofit;                 //!< This will be true when the graph needs an update; e.g. when opening a tab/loading a file.
         size_t tabId;                               //!< Hold the uniq id for the tab.
         bool unsavedThingsInTab;                    //!< Will become true when the tab has been saved atleast one time after opening it
-        bool updatedGraphOnOpen;                    //!< Used for when opening the tab after it has been selected, to know if the graph has been auto. updated.
         std::string date;                           //!< Holds the date and time the test was done. (automated)
         bool tension;                               //!< Will be true if the user selected the test to be done with tension.
         bool testHasGoneAbove15N;                   //!< Is used for automatic break detection if the user has enabled it.
@@ -708,11 +706,10 @@ namespace TabControl {
             request_graph_autofit = true;
             tabId = -1;
             unsavedThingsInTab = false;
-            updatedGraphOnOpen = false;
             date = "NaN";
             tension = true;
             testHasGoneAbove15N = false;
-            unitsConvertionIndex = -1;
+            unitsConvertionIndex = 0;
             calcLinRegressionConst = 0.95f;
 
             current_temp_preSaveLocation = "";
@@ -734,14 +731,21 @@ namespace TabControl {
             @brief   Get only the data points.
             @retval         - 
         **/
-        std::vector<ImPlotPoint> GetImportantDataPointsOnly();
+        std::vector<std::pair<ImPlotPoint, int>> GetCrucialDataPoints();
 
         /**
-            @brief   Get only the crucial data points.
-            @param  tabData - 
-            @retval         - 
+           @brief   Check if point is a crucial point exsits for an ID. 0 = Prop. limit, 1 = Yield, 2 = UTS, 3 = Fracture, 4 = Other, 5 = E-lower, 6 = E-upper.
+           @param  pointID -
+           @retval         -
         **/
-        std::vector<ImPlotPoint> GetCrucialDataPointsOnly(TabTestDataClass* tabData);
+        bool CheckIfCrucialPointExsists(int pointID);
+
+        ///**
+        //    @brief   Get only the crucial data points.
+        //    @param  tabData - 
+        //    @retval         - 
+        //**/
+        //std::vector<ImPlotPoint> GetCrucialDataPointsOnly(TabTestDataClass* tabData);
 
         /**
             @brief  Get the current Ultimate Tensile Strength Point
@@ -764,14 +768,14 @@ namespace TabControl {
             @param  tabData               -
             @param  propotionalLimitPoint -
         **/
-        void AssignPoint_PropotionalLimit(TabTestDataClass* tabData, ImPlotPoint propotionalLimitPoint);
+        //void AssignPoint_PropotionalLimit(TabTestDataClass* tabData, ImPlotPoint propotionalLimitPoint);
 
         /**
             @brief  For detecting/assuming the lower yield point.
             @param  tabData       -
             @param  yieldingPoint -
         **/
-        void AssignPoint_YieldPoint(TabTestDataClass* tabData, ImPlotPoint yieldingPoint);
+        //void AssignPoint_YieldPoint(TabTestDataClass* tabData, ImPlotPoint yieldingPoint);
 
         /**
             @brief  Find and assign the Ultimate Tensile Strength point (maximum load). Should be run right after a test is finished.
@@ -824,7 +828,7 @@ namespace TabControl {
     inline extern std::vector<TabTestDataClass*> allTabTestData = {}; //!< Containts all tests added. Maximum 20 tests.
     inline extern TabTestDataClass* FindTabTestData(int tabId);
 
-    inline extern void RefreshUpdateImportantDataPoints(TabTestDataClass* tabData, bool markTabUnsaved = true);
+    //inline extern void RefreshUpdateImportantDataPoints(TabTestDataClass* tabData, bool markTabUnsaved = true);
     inline extern void CrucialPointsUndoPoint(TabTestDataClass* tabData);
 
     //inline extern void AutoAdjustNormalExtensionLoadVariabels(TabTestDataClass* tabData, bool doNotMarkAsUnsaved = false);
@@ -834,13 +838,12 @@ namespace TabControl {
     inline extern void PreventUserLimitsLR10K(TabTestDataClass* tabData);
 
 
-    inline extern bool DetectIfABreakHasOccured(TabTestDataClass* tabData, ImPlotPoint UTSPoint, int enable_automaticBreakDetection = 0, float breakThreshold = 0.3f);
+    //inline extern bool DetectIfABreakHasOccured(TabTestDataClass* tabData, ImPlotPoint UTSPoint, int enable_automaticBreakDetection = 0, float breakThreshold = 0.3f);
 
     inline extern bool CheckIfDistanceTravelControlActivated();
     inline extern void CheckIfDistanceTraveledToLimit(TabTestDataClass* tabData, float LR10KExtension);
 
-    inline extern void CleanUpImportantPoints(TabTestDataClass* tabData);
-    inline extern bool CheckIfImportantPoint(TabTestDataClass* tabData, int dataPointIndex);
+    //inline extern void CleanUpImportantPoints(TabTestDataClass* tabData);
 
     //! \note Main calculator function
     void CalculateDataFromTest(TabTestDataClass* tabData);
@@ -974,11 +977,11 @@ struct AppCalculator
     **/
     void CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound = true, bool markAsSaved = true, bool saveAppSettings = true);
 
-    /**
-        @brief Calculate stresses. (nominal/engineering and true)
-        @param tabData -
-    **/
-    void CalculateStresses(TabControl::TabTestDataClass* tabData);
+    ///**
+    //    @brief Calculate stresses. (nominal/engineering and true)
+    //    @param tabData -
+    //**/
+    //void CalculateStresses(TabControl::TabTestDataClass* tabData);
 
     /**
         @brief Draws the full report window.
@@ -1009,7 +1012,7 @@ struct AppMainExcel
         @param  epsilon_e     -
         @retval               -
     **/
-    std::pair<std::vector<double>, std::vector<double>> InsertLineCells(CWorkbook* book, CWorksheet* sheet, RollingBuffer* plotData, std::vector<ImPlotPoint> impDataPoints, bool stressData = false, const double A_0 = 0, const double L_0 = 0, std::vector<double> sigma_e = {}, std::vector<double> epsilon_e = {});
+    std::pair<std::vector<double>, std::vector<double>> InsertLineCells(CWorkbook* book, CWorksheet* sheet, RollingBuffer* plotData, std::vector<std::pair<ImPlotPoint, int>> crucialDataPoints, bool stressData = false, const double A_0 = 0, const double L_0 = 0, std::vector<double> sigma_e = {}, std::vector<double> epsilon_e = {});
 
     /**
         @brief Add unedited line chart.

@@ -395,7 +395,6 @@ int main(int, char**)
     bool showCalculatorToggler      = g_WindowStates.show_calculator;
     bool showConsoleToggler         = g_WindowStates.show_console;
     bool showSettingsToggler        = g_WindowStates.show_settings;
-    bool showQuickReportToggler     = g_WindowStates.show_quick_report;
     bool showExtensiometerToggler   = g_WindowStates.show_extensiometer;
 
     // Used for bootloader and splash screen
@@ -592,7 +591,6 @@ int main(int, char**)
                     DockingApps::mainWidgets.DocumentationWindowDraw(&g_WindowStates.show_docs);
 
                 // Save some view states... Check
-                DockingApps::main.SaveApplicationSettingsManualCheck(&g_WindowStates.show_quick_report,     &showQuickReportToggler);
                 DockingApps::main.SaveApplicationSettingsManualCheck(&g_WindowStates.show_console,          &showConsoleToggler);
                 DockingApps::main.SaveApplicationSettingsManualCheck(&g_WindowStates.show_calculator,       &showCalculatorToggler);
                 DockingApps::main.SaveApplicationSettingsManualCheck(&g_WindowStates.show_settings,         &showSettingsToggler);
