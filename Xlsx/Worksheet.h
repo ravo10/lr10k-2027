@@ -75,6 +75,9 @@ class CWorksheet : public CSheet
         PathManager      &      m_pathManager;      ///< reference to XML PathManager
         CDrawing        &       m_Drawing;          ///< Reference to drawing object
 
+        // Customized
+        bool m_isHidden; ///< To hide a sheet from default view (custom)
+
     public:
         // *INDENT-OFF*   For AStyle tool
 
@@ -181,6 +184,10 @@ class CWorksheet : public CSheet
         {
             return m_isOk;
         }
+
+        // Customized
+        inline void SetHidden(bool hidden) { m_isHidden = hidden; }
+        inline bool IsHidden() const { return m_isHidden; }
 
     protected:
         CWorksheet( size_t index, CDrawing & drawing, PathManager & pathmanager );

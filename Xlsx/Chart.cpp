@@ -194,6 +194,13 @@ bool CChart::Save()
     AddAreaFill( xmlw, m_diagramm.chartAreaFill );
     xmlw.End( "c:chartSpace" );
 
+    // Customized
+    m_xAxisMajorUnit = 0.0; // 0.0 means "Auto"
+    m_yAxisMajorUnit = 0.0;
+    m_titleFontSize = 1800; // 18pt default
+    m_axisTitleFontSize = 1200; // 12pt default
+    m_legendFontSize = 1200; // 12pt default
+
     // /xl/charts/chartX.xml -]
     return true;
 }

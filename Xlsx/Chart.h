@@ -281,6 +281,14 @@ class CChart
             }
         };
 
+        // Customized
+        inline void SetXAxisMajorUnit(double unit) { m_xAxisMajorUnit = unit; }
+        inline void SetYAxisMajorUnit(double unit) { m_yAxisMajorUnit = unit; }
+
+        inline void SetTitleFontSize(int size) { m_titleFontSize = size * 100; } // Excel measures font size in 1/100ths of a point
+        inline void SetAxisTitleFontSize(int size) { m_axisTitleFontSize = size * 100; }
+        inline void SetLegendFontSize(int size) { m_legendFontSize = size * 100; }
+
     private:
         /// @brief  Structure that describes axis properties
         /// @note	gridLines and sourceLinked properties will have no effect at using with additional axes because of Microsoft Open XML format restrictions
@@ -326,6 +334,13 @@ class CChart
                 formatCode = "General";
             }
         };
+
+        // Customized
+        double m_xAxisMajorUnit;
+        double m_yAxisMajorUnit;
+        int m_titleFontSize;
+        int m_axisTitleFontSize;
+        int m_legendFontSize;
 
         /// @brief  Structure to setup a gradient fill of chart
         struct GradientFill

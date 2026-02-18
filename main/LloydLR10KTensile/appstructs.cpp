@@ -602,52 +602,118 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
     //window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
     //window_flags |= ImGuiWindowFlags_NoMove;
 
+    //auto saveLogic = [tabData]() {
+    //    // Save data from the current test GUI to a text file (if a test is not started or test has started and is finished)
+    //    // A little bit of the same logic as in "SaveAsLR10KTestBrowserLogic"
+    //    if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
+    //    {
+    //        // Get current selection (path + filename). Filname will be folder name.
+    //        std::stringstream filenameStream(tabData->current_temp_preSaveLocation);
+    //        std::string segment;
+    //        std::vector<std::string> seglist;
+
+    //        // Split
+    //        while (std::getline(filenameStream, segment, '\\'))
+    //        {
+    //            seglist.push_back(segment);
+    //        }
+
+    //        // Folder name
+    //        std::filesystem::path filepath = tabData->current_temp_preSaveLocation;
+    //        std::string filename = seglist[seglist.size() - 1]; // tabID + dateTime
+
+    //        // TabID
+    //        filename.append(std::to_string(tabData->tabId).c_str());
+    //        // DateTime
+    //        filename.append("__");
+    //        // Get the current time point
+    //        auto now = std::chrono::system_clock::now();
+
+    //        // Convert the time point to a time_t object
+    //        std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+
+    //        // Convert the time_t to a struct tm in UTC
+    //        struct tm* timeinfo = std::gmtime(&currentTime);
+
+    //        // Create a buffer to format the time
+    //        char buffer[20]; // Adjust the size as needed
+
+    //        // Format the time as "YYYYMMDDHHMMSS"
+    //        std::strftime(buffer, sizeof(buffer), "%Y%m%d__%H%M%S", timeinfo);
+
+    //        // Print the formatted time
+    //        filename.append(buffer);
+
+    //        // Append it to path
+    //        filepath.append(filename);
+
+    //        // Make a independent copy for saving to a file
+    //        TabControl::TabTestDataClass tabDataForSave = *tabData;
+    //        tabData->ConvertUnitsToNewUnit(&tabDataForSave, 0, false, false, false);
+
+    //        // Create JSON data and save it
+    //        json jsonData = DockingApps::mainFileSystem.CreateJSONDataFromCurrentTab(&tabDataForSave);
+    //        bool save1 = DockingApps::mainFileSystem.SaveJSONDataToFile(tabData, jsonData, filepath.string().c_str());
+
+    //        // Create Excel Book and save it
+    //        // A little bit of the same logic as in "SaveXlsxBrowserLogic"
+    //        bool save2 = DockingApps::mainExcel.SavePlotDataAsAnXlsxFile(*tabData, filepath.string().c_str()); // Returns its own console log on success/non success
+
+    //        if (save1 && save2)
+    //            DockingApps::console.AddLog("Successfully saved plot data & excel book from current tab!");
+    //        else
+    //            DockingApps::console.AddLog("[error] Could not save plot data & excel book from current tab...");
+    //    }
+
+    //    };
+
     auto saveLogic = [tabData]() {
-        // Save data from the current test GUI to a text file (if a test is not started or test has started and is finished)
-        // A little bit of the same logic as in "SaveAsLR10KTestBrowserLogic"
+        // --- NEW: Guard Clause to cancel saving ---
+        // If no storage location is set, log a warning and exit immediately.
+        if (tabData->current_temp_preSaveLocation.empty())
+        {
+            DockingApps::console.AddLog("[warning] Save cancelled: No storage location has been set.");
+            return; // This completely stops the saveLogic right here!
+        }
+
+        // Save data from the current test GUI to a text file
         if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
         {
-            // Get current selection (path + filename). Filname will be folder name.
-            std::stringstream filenameStream(tabData->current_temp_preSaveLocation);
-            std::string segment;
-            std::vector<std::string> seglist;
+            // 1. Use std::filesystem directly (No need for stringstream or seglist!)
+            std::filesystem::path filepath(tabData->current_temp_preSaveLocation);
 
-            // Split
-            while (std::getline(filenameStream, segment, '\\'))
-            {
-                seglist.push_back(segment);
+            // filepath.filename() automatically grabs the deepest folder/file name
+            std::string filename = filepath.filename().string();
+
+            // Safe-guard in case the path was completely empty
+            if (filename.empty()) {
+                filename = "Unnamed_Test";
             }
 
-            // Folder name
-            std::filesystem::path filepath = tabData->current_temp_preSaveLocation;
-            std::string filename = seglist[seglist.size() - 1]; // tabID + dateTime
+            // 2. Cleanly build the filename string using += instead of .append(.c_str())
+            filename += "_" + std::to_string(tabData->tabId) + "__";
 
-            // TabID
-            filename.append(std::to_string(tabData->tabId).c_str());
-            // DateTime
-            filename.append("__");
-            // Get the current time point
+            // 3. Time formatting
             auto now = std::chrono::system_clock::now();
-
-            // Convert the time point to a time_t object
             std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
 
-            // Convert the time_t to a struct tm in UTC
-            struct tm* timeinfo = std::gmtime(&currentTime);
+            // (Optional but safer: use thread-safe time functions if on Windows)
+            struct tm timeinfo;
+#if defined(_WIN32) || defined(_WIN64)
+            gmtime_s(&timeinfo, &currentTime);
+#else
+            gmtime_r(&currentTime, &timeinfo);
+#endif
 
-            // Create a buffer to format the time
-            char buffer[20]; // Adjust the size as needed
+            char buffer[20];
+            std::strftime(buffer, sizeof(buffer), "%Y%m%d__%H%M%S", &timeinfo);
+            filename += buffer;
 
-            // Format the time as "YYYYMMDDHHMMSS"
-            std::strftime(buffer, sizeof(buffer), "%Y%m%d__%H%M%S", timeinfo);
+            // 4. Use the filesystem /= operator to safely join the path and filename
+            // This automatically adds the correct slashes (\ or /) for you
+            filepath /= filename;
 
-            // Print the formatted time
-            filename.append(buffer);
-
-            // Append it to path
-            filepath.append(filename);
-
-            // Make a independent copy for saving to a file
+            // Make an independent copy for saving to a file
             TabControl::TabTestDataClass tabDataForSave = *tabData;
             tabData->ConvertUnitsToNewUnit(&tabDataForSave, 0, false, false, false);
 
@@ -656,15 +722,14 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
             bool save1 = DockingApps::mainFileSystem.SaveJSONDataToFile(tabData, jsonData, filepath.string().c_str());
 
             // Create Excel Book and save it
-            // A little bit of the same logic as in "SaveXlsxBrowserLogic"
-            bool save2 = DockingApps::mainExcel.SavePlotDataAsAnXlsxFile(*tabData, filepath.string().c_str()); // Returns its own console log on success/non success
+            bool save2 = DockingApps::mainExcel.SavePlotDataAsAnXlsxFile(*tabData, filepath.string().c_str());
 
+            // Log results
             if (save1 && save2)
                 DockingApps::console.AddLog("Successfully saved plot data & excel book from current tab!");
             else
                 DockingApps::console.AddLog("[error] Could not save plot data & excel book from current tab...");
         }
-
         };
 
     bool disableSaveToExcel = true;

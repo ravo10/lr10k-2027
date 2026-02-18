@@ -1426,691 +1426,457 @@ double linearRegressionR2(const std::vector<DataPoint>& data) {
 // -----------------------------------------------------------------------------
 // ------------------------------- Excel related -------------------------------
 // -----------------------------------------------------------------------------
+void create_style_gallery(TabControl::TabTestDataClass tabData) {
+    lxw_workbook* workbook = workbook_new("chart_style_gallery.xlsx");
+    lxw_worksheet* worksheet = workbook_add_worksheet(workbook, "Styles");
+    lxw_worksheet* data_ws = workbook_add_worksheet(workbook, "Data");
 
-std::pair<std::vector<double>, std::vector<double>> AppMainExcel::InsertLineCells(CWorkbook* book, CWorksheet* sheet, RollingBuffer* plotData, std::vector<std::pair<ImPlotPoint, int>> crucialDataPoints, bool stressData, const double A_0, const double L_0, std::vector<double> sigma_e, std::vector<double> epsilon_e)
-{
-    Style style;
-    style.horizAlign = ALIGN_H_CENTER;
-    style.numFormat.numberStyle = NUMSTYLE_NUMERIC;
-    style.numFormat.numberOfDigitsAfterPoint = 3; // !!Important!!
-    const size_t smallTitleCenterdStyleIndex = book->AddStyle(style);
-
-    style.numFormat.numberOfDigitsAfterPoint = 1;
-    const size_t smallTitle2CenterdStyleIndex = book->AddStyle(style);
-
-    // Save the sigma_e and epsilon_e values (can be used later if needed like i.e. for true stress)
-    bool addNominalStressStrainValues = (sigma_e.size() == 0 && epsilon_e.size() == 0) ? true : false;
-
-    // -------------------------------------------------------------------------
-    // ------------------------------- Plot data -------------------------------
-    // -------------------------------------------------------------------------
-
-    int amountOfPointsAdded = 0;
-
-    // Keep control over how many points are added for each crucial point, so it doesn't repeat
-    bool crucialPointIndexControlHaveAddedPoint[4]{ false, false, false, false };
-
-    // *****
-    // "Remove" the plot data was not included because of offset extension set
-    // *****
-    RollingBuffer filteredPlotData = RollingBuffer();
-    for (int i = 0; i < plotData->Data.size(); i++)
-    {
-        if (plotData->Data[i].x >= defaultValuesGUI::offsetZeroPointExtensionAxis)
-            filteredPlotData.AddPoint(plotData->Data[i].x, plotData->Data[i].y);
+    // 1. Write some dummy data for the style charts to use
+    for (int i = 0; i < 5; i++) {
+        worksheet_write_number(data_ws, i, 0, (i + 1) * 10, NULL);
     }
 
-    for (int i = 0; i < filteredPlotData.Data.size(); i++)
-    {
-        ImVec2 dataPlot = filteredPlotData.Data[i];
+    // 2. Loop through all 48 styles
+    int chart_count = 1;
+    for (int row = 0; row < 96; row += 16) {      // Jump rows for grid
+        for (int col = 0; col < 64; col += 8) {  // Jump columns for grid
+            if (chart_count > 48) break;
 
-        // If offset zero point from extension axis is set, then don't add
-        // the points lower than this to the Excel sheet. This is only valid for normal stress test
-        if (defaultValuesGUI::offsetZeroPointExtensionAxis != 0 && Extra::tools.SetPrecisionFloat(dataPlot.x, 3) < Extra::tools.SetPrecisionFloat(defaultValuesGUI::offsetZeroPointExtensionAxis, 3))
-            continue;
+            // Create a small chart
+            lxw_chart* chart = workbook_add_chart(workbook, LXW_CHART_LINE);
 
-        if (stressData && addNominalStressStrainValues)
-        {
-            // Redefine for Nominal/Engineering Stress
-            dataPlot.x = LR10KAppGlobals::CalcEpsilon_e(dataPlot.x, L_0);
-            dataPlot.y = LR10KAppGlobals::CalcSigma_e(dataPlot.y, A_0);
+            // Add data from our dummy sheet
+            chart_add_series(chart, NULL, "=Data!$A$1:$A$5");
 
-            // Finished converted to stress-strain points
-            epsilon_e.push_back(dataPlot.x);
-            sigma_e.push_back(dataPlot.y);
+            // Set the style and a title so you know which is which
+            char title[20];
+            sprintf(title, "Style %d", chart_count);
+            chart_title_set_name(chart, title);
+            chart_legend_set_position(chart, LXW_CHART_LEGEND_NONE);
+
+            // Apply the style!
+            chart_set_style(chart, chart_count);
+
+            // Insert into the gallery sheet
+            worksheet_insert_chart(worksheet, row, col, chart);
+
+            chart_count++;
         }
-        else if (stressData)
+    }
+
+    workbook_close(workbook);
+}
+
+void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, lxw_format* bold, AppMainExcel::ExcelDataVariationWorksheetData dataVariation)
+{
+    // Create your custom labels
+    static lxw_chart_font labels_font_green     = { .color = LXW_COLOR_GREEN };
+    static lxw_chart_font labels_font_purple    = { .color = LXW_COLOR_PURPLE };
+    static lxw_chart_font labels_font_blue      = { .color = LXW_COLOR_BLUE };
+    static lxw_chart_font labels_font_orange    = { .color = LXW_COLOR_ORANGE };
+    static lxw_chart_font labels_font_red       = { .color = LXW_COLOR_RED };
+    static lxw_chart_font labels_font_default   = { .color = LXW_COLOR_BLACK };
+
+    static lxw_chart_data_label label_prop_limit    = { .value = (char*)TabControl::plot_items_short[0], .font = &labels_font_purple };
+    static lxw_chart_data_label label_yield_str     = { .value = (char*)TabControl::plot_items_short[1], .font = &labels_font_orange };
+    static lxw_chart_data_label label_uts           = { .value = (char*)TabControl::plot_items_short[2], .font = &labels_font_blue };
+    static lxw_chart_data_label label_frac          = { .value = (char*)TabControl::plot_items_short[3], .font = &labels_font_red };
+    static lxw_chart_data_label label_other         = { .value = (char*)TabControl::plot_items_short[4], .font = &labels_font_default };
+    static lxw_chart_data_label label_e_lower       = { .value = (char*)TabControl::plot_items_short[5], .font = &labels_font_green };
+    static lxw_chart_data_label label_e_higher      = { .value = (char*)TabControl::plot_items_short[6], .font = &labels_font_green };
+
+    // Create the array of label pointer options (All possible labels for all crucial points, in the order of the IDs)
+    static lxw_chart_data_label* data_labels_options[] = {
+        &label_prop_limit,  &label_yield_str,
+        &label_uts,         &label_frac,
+        &label_other,       &label_e_lower,
+        &label_e_higher
+    };
+
+    // Crucial points
+    worksheet_write_string(worksheet, CELL("A1"), "P ID", bold);
+    worksheet_write_string(worksheet, CELL("B1"), "P X (mm)", bold);
+    worksheet_write_string(worksheet, CELL("C1"), "P Y (N)", bold);
+
+    // Load-extension data
+    worksheet_write_string(worksheet, CELL("D1"), "X (mm)", bold);
+    worksheet_write_string(worksheet, CELL("E1"), "Y (N)", bold);
+
+    // Main plot points (graph)
+    RollingBuffer tensileData = tabData.LR10KTensileData;
+
+    int colStartData = 3;
+    int rowStartPoint = 0;
+    int colStartPoint = 0;
+
+    // Safe denominators for math
+    double A_0 = tabData.area > 0 ? tabData.area : 1.0;
+    double L_0 = tabData.length > 0 ? tabData.length : 1.0;
+
+    for (size_t row = 0; row < tensileData.Data.size(); row++) {
+        tensileData.Data[row].x -= (float)defaultValuesGUI::offsetZeroPointExtensionAxis;
+
+        ImVec2 dataPlotPointRaw = tensileData.Data[row];
+        ImVec2 dataPlotPointStress = tensileData.Data[row];
+
+        // Convert to STRESS
+        if (dataVariation != AppMainExcel::VAR_RAW)
         {
-            // Redefined for True Stress
-            dataPlot.x = LR10KAppGlobals::CalcEpsilon_t(epsilon_e[i]);
-            dataPlot.y = LR10KAppGlobals::CalcSigma_t(epsilon_e[i], sigma_e[i]);
+            // Nominal stress
+            dataPlotPointStress.x = LR10KAppGlobals::CalcEpsilon_e(dataPlotPointStress.x, L_0);
+            dataPlotPointStress.y = LR10KAppGlobals::CalcSigma_e(dataPlotPointStress.y, A_0);
+        }
+        if (dataVariation == AppMainExcel::VAR_TRUE_STRESS)
+        {
+            // True stress
+            dataPlotPointStress.x = LR10KAppGlobals::CalcEpsilon_t(dataPlotPointStress.x);
+            dataPlotPointStress.y = LR10KAppGlobals::CalcSigma_t(dataPlotPointStress.x, dataPlotPointStress.y);
         }
 
-        // Used for checking if a graph without crucial points needs to be added
-        bool haveAlreadyAddedData = false;
+        // -----------------------------------------------
 
-        // Check each time if there is a match
-        if ((!stressData || addNominalStressStrainValues) && amountOfPointsAdded < crucialDataPoints.size())
+        // Plot point
+        if (dataVariation == AppMainExcel::VAR_RAW)
         {
-            for (int j = 0; j < crucialDataPoints.size(); j++)
-            {
-                ImPlotPoint dataPoint = std::get<0>(crucialDataPoints[j]);
-                int id = std::get<1>(crucialDataPoints[j]);
+            // Plot point (RAW)
+            worksheet_write_number(worksheet, row + 1, colStartData, dataPlotPointRaw.x, NULL);
+            worksheet_write_number(worksheet, row + 1, colStartData + 1, dataPlotPointRaw.y, NULL);
+        }
+        else
+        {
+            // Plot point (STRESS)
+            worksheet_write_number(worksheet, row + 1, colStartData, dataPlotPointStress.x*100, NULL);
+            worksheet_write_number(worksheet, row + 1, colStartData + 1, dataPlotPointStress.y, NULL);
+        }
 
-                if (stressData)
+        // -----------------------------------------------
+
+        // Only crucial points for RAW and Engineering stress...
+        if (dataVariation == AppMainExcel::VAR_RAW || dataVariation == AppMainExcel::VAR_ENG_STRESS)
+        {
+            // Crucial points (UTS, E-module etc.)
+            for (const auto& point_tuple : tabData.plot_dataPoints) {
+                // Get point
+                ImPlotPoint dataRaw = std::get<0>(point_tuple);
+                ImPlotPoint dataStress = std::get<0>(point_tuple);
+
+                int id = std::get<1>(point_tuple);
+
+                if (dataVariation == AppMainExcel::VAR_ENG_STRESS)
                 {
-                    // Redefine data point for Nominal Stress
-                    dataPoint.x = LR10KAppGlobals::CalcEpsilon_e(dataPoint.x, L_0);
-                    dataPoint.y = LR10KAppGlobals::CalcSigma_e(dataPoint.y, A_0);
+                    // Nominal stress
+                    dataStress.x = LR10KAppGlobals::CalcEpsilon_e(dataStress.x, L_0);
+                    dataStress.y = LR10KAppGlobals::CalcSigma_e(dataStress.y, A_0);
                 }
 
-                // -------------------------------------------------------------
-                //  Find matches to draw the crucial point into the Excel sheet 
-                // -------------------------------------------------------------
-
-                // Since the point is snapped onto the graph, we only need to check the X-axis. And also need to round of since nominal stress also uses this function
-                bool pointCheckForMatchForX = Extra::tools.SetPrecisionFloat(dataPlot.x, 6) == Extra::tools.SetPrecisionFloat(dataPoint.x, 6);
-
-                if (pointCheckForMatchForX && !crucialPointIndexControlHaveAddedPoint[j])
+                // A matching point the crucial point is "snapped" to
+                if (dataRaw.x == dataPlotPointRaw.x)
                 {
-                    crucialPointIndexControlHaveAddedPoint[j] = true;
+                    // Write into worksheet
+                    worksheet_write_string(worksheet, rowStartPoint + 1, colStartPoint, TabControl::plot_items[id], NULL);
 
-                    // ---------------------------------------------------------
-                    // ---------- Add data with crucial point(s) data ----------
-                    // ---------------------------------------------------------
-
-                    // When the axis is extended above last load point, we only want to extend and not draw a graph line
-                    if (dataPlot.y == 0)
+                    if (dataVariation == AppMainExcel::VAR_ENG_STRESS)
                     {
-                        sheet->BeginRow()
-                            .AddCell(dataPlot.x, smallTitleCenterdStyleIndex)
-                            .AddCell("")
-                            .AddCell("")
-                            .AddCell(dataPoint.x, smallTitleCenterdStyleIndex)
-                            .AddCell(dataPoint.y, smallTitle2CenterdStyleIndex)
-                            .EndRow();
+                        // ENG. STRESS
+                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 1, dataStress.x*100, NULL);
+                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 2, dataStress.y, NULL);
                     }
                     else
                     {
-                        sheet->BeginRow()
-                            .AddCell(dataPlot.x, smallTitleCenterdStyleIndex)
-                            .AddCell(dataPlot.y, smallTitle2CenterdStyleIndex)
-                            .AddCell("")
-                            .AddCell(dataPoint.x, smallTitleCenterdStyleIndex)
-                            .AddCell(dataPoint.y, smallTitle2CenterdStyleIndex)
-                            .EndRow();
+                        // RAW
+                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 1, dataRaw.x, NULL);
+                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 2, dataRaw.y, NULL);
                     }
 
-                    amountOfPointsAdded++; haveAlreadyAddedData = true;
+                    // Add label to crucial point
+                    activeLabels->push_back(data_labels_options[id]);
+
+                    rowStartPoint++;
                 }
             }
         }
 
-        // ---------------------------------------------------------------------
-        // --------------- Add data without crucial point(s) data --------------
-        // ---------------------------------------------------------------------
-
-        if (!haveAlreadyAddedData || !addNominalStressStrainValues)
-        {
-            // If user has filterd something out, then the offset position will be taken into account here visually for extension in millimeter (not stress - already done in calc.-function)
-            if (!stressData && defaultValuesGUI::offsetZeroPointExtensionAxis > 0)
-                dataPlot.x -= defaultValuesGUI::offsetZeroPointExtensionAxis;
-
-            if (dataPlot.y == 0)
-            {
-                sheet->BeginRow()
-                    .AddCell(dataPlot.x, smallTitleCenterdStyleIndex)
-                    .AddCell("")
-                    .AddCell("")
-                    .AddCell("")
-                    .AddCell("")
-                    .EndRow();
-            }
-            else
-            {
-                sheet->BeginRow()
-                    .AddCell(dataPlot.x, smallTitleCenterdStyleIndex)
-                    .AddCell(dataPlot.y, smallTitle2CenterdStyleIndex)
-                    .AddCell("")
-                    .AddCell("")
-                    .AddCell("")
-                    .EndRow();
-            }
-        }
+        // -----------------------------------------------
     }
-
-    // Save changes...
-    plotData = &filteredPlotData;
-
-    return std::make_pair(epsilon_e, sigma_e);
+    activeLabels->push_back(NULL); // Add NULL terminator for the C-style array
 }
 
-void AppMainExcel::AddLR10KLineChart(CWorkbook& book, CWorksheet& sheet, XLSXColorLib& cl_lib, XLSXColorLib& gs10_lib, int plotAxisAmountOfPoints, int pointAxisAmountOfPoints, const std::string date)
+void AppMainExcel::CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_workbook* workbook, const char* sheet_name, lxw_worksheet* worksheet, const std::string date, AppMainExcel::ExcelDataVariationWorksheetData dataVariation)
 {
-    // Adding chart to the workbook the reference to a newly created object is returned
-    CChartsheet& chart_sheet = book.AddChartSheet("Plot Graph", CHART_LINEAR);
+    // ----------------------------------------------------
+    // --------------- Chart styles and setup
+    // ----------------------------------------------------
+    lxw_chart_font font_12 = { .size = 12, .bold = LXW_TRUE };
+    lxw_chart_line line_none = { .none = 1 };
+    lxw_chart_line line = { .width = 2 };
 
-    std::string diagramName = "DIRECT INPUT LOAD-EXTENSION\n\n";
-    diagramName.append("LLOYD LR 10K Tensile Machine Test\n");
-    diagramName.append(date.c_str());
+    // Fill and Line for the Points
+    uint8_t marker_size = 9;
+    lxw_chart_fill marker_fill = { .color = LXW_COLOR_ORANGE };
+    lxw_chart_line marker_line = { .color = LXW_COLOR_GRAY };
 
-    chart_sheet.Chart().SetDiagrammName(diagramName.c_str());
-    chart_sheet.Chart().SetLegendPos(CChart::POS_TOP);
+    // Label
+    lxw_chart_line label_border = { .color = LXW_COLOR_SILVER, .width = 1.0 };
+    lxw_chart_fill label_fill = { .color = LXW_COLOR_WHITE };
 
-    std::string str = "Extension (";
-    str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-    str.append(")");
-    chart_sheet.Chart().SetXAxisName(str.c_str());
-    str = "Load (";
-    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
-    str.append(")");
-    chart_sheet.Chart().SetYAxisName(str.c_str());
+    // For current chart, we only want to show the labels that are active (the ones that have a point on the graph). So we create an array of pointers to only those labels.
+    std::vector<lxw_chart_data_label*> activeLabels;
 
-    chart_sheet.Chart().SetXAxisToCat(false);
-    chart_sheet.Chart().SetYAxisToCat(true);
+    /* Add a bold format to use to highlight the header cells. */
+    lxw_format* bold = workbook_add_format(workbook);
+    format_set_bold(bold);
 
-    /*chart_sheet.Chart().SetXAxisGrid(CChart::GRID_MAJOR_N_MINOR);
-    chart_sheet.Chart().SetYAxisGrid(CChart::GRID_MAJOR_N_MINOR);
-    chart_sheet.Chart().SetYAxisCross(CChart::CROSS_MIN);
-    chart_sheet.Chart().SetXAxisCross(CChart::CROSS_MIN);*/
+    /* Write some data for the chart. */
+    write_worksheet_data(tabData, &activeLabels, worksheet, bold, dataVariation);
 
-    // -------------------------------------------------------------------------
-    // ------------------------------- PLOT GRAPH ------------------------------
-    // -------------------------------------------------------------------------
+    // Create smooth scatter plot with lines
+    lxw_chart* chart = workbook_add_chart(workbook, LXW_CHART_SCATTER_SMOOTH);
 
-    // Create series object, that contains most chart settings
-    CChart::Series series_plotGraph;
+    // ----------------------------------------------------
+    // --------------- Plot data
+    // ----------------------------------------------------
 
-    // Leave category sequence (X axis) not specified (optional) - MS Excel will generate the default sequence automatically
-    series_plotGraph.catSheet = &sheet;
-    series_plotGraph.catAxisFrom = CellCoord(5, 0);
-    series_plotGraph.catAxisTo = CellCoord(plotAxisAmountOfPoints, 0);
+    /* Add the first series to the chart (plot data). */
+    lxw_chart_series* series = chart_add_series(chart, NULL, NULL);
+    chart_series_set_categories(series, sheet_name, CELL("D2"), (uint32_t)tabData.LR10KTensileData.Data.size() + 1, 3); // Column D (X-values) CELL("D2") = 1,3
+    chart_series_set_values(series, sheet_name, CELL("E2"), (uint32_t)tabData.LR10KTensileData.Data.size() + 1, 4); // Column E (Y-values) CELL("E2") = 1,4
 
-    // Specify range for values` sequence (Y axis)
-    series_plotGraph.valSheet = &sheet; // Don`t forget to set the pointer to the data sheet
-    series_plotGraph.valAxisFrom = CellCoord(5, 1);
-    series_plotGraph.valAxisTo = CellCoord(plotAxisAmountOfPoints, 1);
+    /* Set the name for the series instead of the default "Series 1". */
+    chart_series_set_name(series, "Tensile stress");
 
-    series_plotGraph.JoinType = CChart::Series::joinSmooth;
-    series_plotGraph.DashType = CChart::Series::dashSolid;
-    series_plotGraph.LineColor = "D22B2B"; //gs10_lib.GetColor("Black");
+    chart_series_set_line(series, &line);
 
-    series_plotGraph.Marker.Type = CChart::Series::symNone;
-    series_plotGraph.Marker.LineWidth = 1;
-    series_plotGraph.title = "Plot Data";
+    // ----------------------------------------------------
+    // --------------- Crucial Points
+    // ----------------------------------------------------
 
-    // -------------------------------------------------------------------------
-    // ------------------------------ PLOT POINTS ------------------------------
-    // -------------------------------------------------------------------------
-
-    // Create series object, that contains most chart settings
-    CChart::Series series_plotPoint;
-
-    // Leave category sequence (X axis) not specified (optional) - MS Excel will generate the default sequence automatically
-    series_plotPoint.catSheet = &sheet;
-    series_plotPoint.catAxisFrom = CellCoord(5, 3);
-    series_plotPoint.catAxisTo = CellCoord(pointAxisAmountOfPoints, 3);
-
-    // Specify range for values` sequence (Y axis)
-    series_plotPoint.valSheet = &sheet; // Don`t forget to set the pointer to the data sheet
-    series_plotPoint.valAxisFrom = CellCoord(5, 4);
-    series_plotPoint.valAxisTo = CellCoord(pointAxisAmountOfPoints, 4);
-
-    series_plotPoint.JoinType = CChart::Series::joinNone;
-
-    series_plotPoint.Marker.Type = CChart::Series::symCircle;
-    series_plotPoint.Marker.Size = 5;
-    series_plotPoint.Marker.FillColor = "0494d2"; //cl_lib.GetColor("Gold");
-    series_plotPoint.Marker.LineColor = "04a6eb"; //cl_lib.GetColor("Gold"); //cl_lib.GetColor("Plum");
-    series_plotPoint.Marker.LineWidth = 1.;
-    series_plotPoint.title = "Crucial Point(s)";
-
-    series_plotPoint.dataLabels.showVal = true; // Doesn't appear to do anything
-
-    // Add series into the chart (you can add as many series as you wish into the same chart)
-    chart_sheet.Chart().AddSeries(series_plotGraph);
-    chart_sheet.Chart().AddSeries(series_plotPoint);
-}
-
-void AppMainExcel::AddStressLineChart(CWorkbook& book, CWorksheet& sheet, XLSXColorLib& cl_lib, XLSXColorLib& gs10_lib, int plotAxisAmountOfPoints, int pointAxisAmountOfPoints, const std::string date, bool itIsNominalStress)
-{
-    // Adding chart to the workbook the reference to a newly created object is returned
-    CChartsheet& chart_sheet = book.AddChartSheet(itIsNominalStress ? "Stress Graph 1" : "Stress Graph 2", CHART_LINEAR);
-
-    std::string diagramName = itIsNominalStress ? "NOMINAL (ENGINEERING)" : "TRUE";
-    diagramName.append(" STRESS\n\n");
-    diagramName.append("LLOYD LR 10K Tensile Machine Test\n");
-    diagramName.append(date.c_str());
-
-    chart_sheet.Chart().SetDiagrammName(diagramName.c_str());
-    chart_sheet.Chart().SetLegendPos(CChart::POS_TOP);
-
-    std::string str = itIsNominalStress ? "Nominal Stress (σ_nom/ε_e) [" : "True Stress (σ_t) [";
-    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-    str.append("]");
-    chart_sheet.Chart().SetXAxisName(itIsNominalStress ? "Nominal Strain (ε_nom/ε_e)" : "True Strain (ε_t)");
-    chart_sheet.Chart().SetYAxisName(str.c_str());
-
-    chart_sheet.Chart().SetXAxisToCat(false);
-    chart_sheet.Chart().SetYAxisToCat(true);
-
-    // -------------------------------------------------------------------------
-    // --------------------------- PLOT STRESS GRAPH ---------------------------
-    // -------------------------------------------------------------------------
-
-    // Create series object, that contains most chart settings
-    CChart::Series series_plotGraph;
-
-    // Leave category sequence (X axis) not specified (optional) - MS Excel will generate the default sequence automatically
-    series_plotGraph.catSheet = &sheet;
-    series_plotGraph.catAxisFrom = CellCoord(5, 0);
-    series_plotGraph.catAxisTo = CellCoord(plotAxisAmountOfPoints, 0);
-
-    // Specify range for values` sequence (Y axis)
-    series_plotGraph.valSheet = &sheet; // Don`t forget to set the pointer to the data sheet
-    series_plotGraph.valAxisFrom = CellCoord(5, 1);
-    series_plotGraph.valAxisTo = CellCoord(plotAxisAmountOfPoints, 1);
-
-    series_plotGraph.JoinType = CChart::Series::joinSmooth;
-    series_plotGraph.DashType = CChart::Series::dashSolid;
-    series_plotGraph.LineColor = "D22B2B"; // gs10_lib.GetColor("Black");
-
-    series_plotGraph.Marker.Type = CChart::Series::symNone;
-    series_plotGraph.Marker.LineWidth = 1.;
-    series_plotGraph.title = itIsNominalStress ? "Nominal Stress" : "True Stress";
-
-    // Add series into the chart (you can add as many series as you wish into the same chart)
-    chart_sheet.Chart().AddSeries(series_plotGraph);
-
-    if (itIsNominalStress)
+    if (dataVariation == AppMainExcel::VAR_RAW || dataVariation == AppMainExcel::VAR_ENG_STRESS)
     {
-        // ---------------------------------------------------------------------
-        // ---------------------------- PLOT POINTS ----------------------------
-        // ---------------------------------------------------------------------
+        /* Add the second series to the chart (crucial points). */
+        lxw_chart_series* series2 = chart_add_series(chart, NULL, NULL);
+        chart_series_set_categories(series2, sheet_name, CELL("B2"), (uint32_t)tabData.LR10KTensileData.Data.size() + 1, 1); // Column B (X-values) CELL("B2") = 1,1
+        chart_series_set_values(series2, sheet_name, CELL("C2"), (uint32_t)tabData.LR10KTensileData.Data.size() + 1, 2); // Column C (Y-values) CELL("C2") = 1,2
 
-        // Create series object, that contains most chart settings
-        CChart::Series series_plotPoint;
+        /* Set the name for the series instead of the default "Series 2". */
+        chart_series_set_name(series2, "Crucial point");
 
-        // Leave category sequence (X axis) not specified (optional) - MS Excel will generate the default sequence automatically
-        series_plotPoint.catSheet = &sheet;
-        series_plotPoint.catAxisFrom = CellCoord(5, 3);
-        series_plotPoint.catAxisTo = CellCoord(pointAxisAmountOfPoints, 3);
+        // Force series2 to show ONLY markers and NO line
+        chart_series_set_marker_type(series2, LXW_CHART_MARKER_CIRCLE);
+        chart_series_set_marker_size(series2, marker_size);
+        chart_series_set_marker_fill(series2, &marker_fill);
+        chart_series_set_marker_line(series2, &marker_line);
+        chart_series_set_line(series2, &line_none); // This removes the connecting line
 
-        // Specify range for values` sequence (Y axis)
-        series_plotPoint.valSheet = &sheet; // Don`t forget to set the pointer to the data sheet
-        series_plotPoint.valAxisFrom = CellCoord(5, 4);
-        series_plotPoint.valAxisTo = CellCoord(pointAxisAmountOfPoints, 4);
+        // 1. Enable labels for the Crucial Points series (Turns them "ON")
+        chart_series_set_labels(series2);
+        // Rotation 270 is often better for vertical text (reads bottom-to-top)
+        lxw_chart_font global_font = { .bold = LXW_TRUE, .rotation = -30 };
+        chart_series_set_labels_font(series2, &global_font);
 
-        series_plotPoint.JoinType = CChart::Series::joinNone;
+        // 2. Set the formatting for the label "bubble"
+        chart_series_set_labels_line(series2, &label_border);
+        chart_series_set_labels_fill(series2, &label_fill);
 
-        series_plotPoint.Marker.Type = CChart::Series::symCircle;
-        series_plotPoint.Marker.Size = 5;
-        series_plotPoint.Marker.FillColor = "0494d2"; //cl_lib.GetColor("Gold");
-        series_plotPoint.Marker.LineColor = "04a6eb"; //cl_lib.GetColor("Gold"); //cl_lib.GetColor("Plum");
-        series_plotPoint.Marker.LineWidth = 1.;
-        series_plotPoint.title = "Nominal Stress Point(s)";
+        // 3. Position the labels
+        chart_series_set_labels_position(series2, LXW_CHART_LABEL_POSITION_ABOVE);
 
-        series_plotPoint.dataLabels.showVal = true; // Doesn't appear to do anything
-
-        chart_sheet.Chart().AddSeries(series_plotPoint);
+        // 4. Apply the custom labels! (This overwrites the numbers with your text)
+        // For current chart, we only want to show the labels that are active (the ones that have a point on the graph). So we create an array of pointers to only those labels.
+        chart_series_set_labels_custom(series2, activeLabels.data());
     }
+
+    // ----------------------------------------------------
+    // --------------- Chart
+    // ----------------------------------------------------
+
+    // Create a format for the header date
+    lxw_format* date_fmt = workbook_add_format(workbook);
+    format_set_align(date_fmt, LXW_ALIGN_RIGHT);
+    format_set_bold(date_fmt);
+    format_set_font_color(date_fmt, LXW_COLOR_GRAY);
+
+    // Write it in cell Q1 or R1 (visually above the right side of the chart)
+    char alt_date[100];
+    sprintf(alt_date, "Test Date: %s", date.c_str());
+    worksheet_write_string(worksheet, CELL("U1"), alt_date, date_fmt); // U1
+
+    std::string diagramName = "DIRECT INPUT LOAD-EXTENSION (LLOYD LR 10K)\n" + date;
+    if (dataVariation == AppMainExcel::VAR_ENG_STRESS)
+        diagramName = "ENGINEERING STRESS - STRAIN (Material Test Results)\n" + date;
+    else if (dataVariation == AppMainExcel::VAR_TRUE_STRESS)
+        diagramName = "TRUE STRESS - STRAIN (Material Test Results)\n" + date;
+    chart_title_set_name(chart, diagramName.c_str());
+    chart_title_set_name_font(chart, &font_12);
+
+    // ----------------------------------------------------
+
+    /* Add a chart title and some axis labels. */
+    chart_title_set_name(chart, diagramName.c_str());
+    if (dataVariation == AppMainExcel::VAR_RAW)
+    {
+        chart_axis_set_name(chart->x_axis, ("Extension (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(0)) + ")").c_str());
+        chart_axis_set_name(chart->y_axis, ("Load (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(1)) + ")").c_str());
+    }
+    else
+    {
+        chart_axis_set_name(chart->x_axis, "Strain (Epsilon %)");
+        chart_axis_set_name(chart->y_axis, ("Stress (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(6)) + ")").c_str());
+    }
+
+    /* Set an Excel chart style. */
+    chart_set_style(chart, 17);
+
+    // 1. Define the spacing for the minor grid
+    if (dataVariation == AppMainExcel::VAR_RAW)
+    {
+        chart_axis_set_minor_unit(chart->y_axis, 250);
+        chart_axis_set_minor_unit(chart->x_axis, 0.1);
+    }
+    else
+    {
+        chart_axis_set_minor_unit(chart->y_axis, 5);
+        chart_axis_set_minor_unit(chart->x_axis, 0.1);
+    }
+    // 3. Make the minor lines very faint so they don't distract
+    lxw_chart_line minor_line_style = {
+        .color = LXW_COLOR_SILVER,  // Light gray
+        .width = 0.5,               // Thinner than major lines
+        .dash_type = LXW_CHART_LINE_DASH_DOT // Optional: make them dashed
+    };
+    // This function "turns on" the minor gridlines using the style above
+    chart_axis_minor_gridlines_set_line(chart->y_axis, &minor_line_style);
+    chart_axis_minor_gridlines_set_line(chart->x_axis, &minor_line_style);
+
+    // Configure the Insert Options
+    lxw_chart_options options = {
+        .x_offset = 0,
+        .y_offset = 0,
+        .x_scale = 2, // Trial and error: 2.15 usually hits Column U perfectly
+        .y_scale = 1.6   // Make it tall enough for your 3-line title
+    };
+
+    worksheet_insert_chart_opt(worksheet, CELL("G2"), chart, &options);
 }
 
 bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData, const char* filename)
 {
-    // Get the filename the user wants to save it as
     std::string name = filename;
-    std::string extension = ".xlsx";
+    if (name.find(".xlsx") == std::string::npos) name.append(".xlsx");
 
-    // Figure out if file extension ending is needed
-    std::size_t extensionFound = name.find(extension);
-    if (extensionFound == std::string::npos) name.append(extension.c_str()); // Extension not found, so add
-
-    // ------------------------------------------
-    // Init color libs.
-    XLSXColorLib cl_lib, gs10_lib;
-    make_excell_like_named_colors(cl_lib);
-    make_grayscale10(gs10_lib);
-
-    // Main object - workbook
-    CWorkbook book("LR 10K");
-
-    Style style;
-    style.font.attributes = FONT_BOLD;
-    const size_t smallTitleStyleIndex = book.AddStyle(style);
-
-    style.horizAlign = ALIGN_H_CENTER;
-    const size_t smallTitleCenterdStyleIndex = book.AddStyle(style);
-
-    style.horizAlign = ALIGN_H_CENTER;
-    style.font.attributes = FONT_BOLD;
-    style.wrapText = false;
-    const size_t CenterStyleIndex = book.AddStyle(style);
-
-    Style stPanel;
-    stPanel.font.attributes = FONT_BOLD;
-    stPanel.horizAlign = ALIGN_H_LEFT;
-    stPanel.border.top.color = "FF000000";
-    stPanel.border.bottom.color = "FF000000";
-    stPanel.fill.patternType = PATTERN_SOLID;
-    stPanel.fill.fgColor = "FFFFFFCC";
-    stPanel.numFormat.numberStyle = NUMSTYLE_NUMERIC;
-    stPanel.numFormat.numberOfDigitsAfterPoint = 3; // !!Important!!
-    const size_t alignLeftStyleIndex = book.AddStyle(stPanel);
-
-    stPanel.fill.fgColor = "FFCCCCFF";
-    const size_t alignLeft2StyleIndex = book.AddStyle(stPanel);
-
-    stPanel.fill.fgColor = "FFE6FFCC";
-    const size_t alignLeft3StyleIndex = book.AddStyle(stPanel);
-
-    stPanel.fill.fgColor = "FFFFFFCC";
-    stPanel.numFormat.numberStyle = NUMSTYLE_PERCENTAGE;
-    stPanel.numFormat.numberOfDigitsAfterPoint = 2;
-    const size_t alignLeftStylePercentageIndex = book.AddStyle(stPanel);
-
-    stPanel.fill.fgColor = "FFCCCCFF";
-    const size_t alignLeftStylePercentage2Index = book.AddStyle(stPanel);
-
-    Style stDateTime;
-    stDateTime.font.attributes = FONT_BOLD;
-    stDateTime.numFormat.numberStyle = NUMSTYLE_DATETIME;
-    const size_t dateTimeStyleIndex = book.AddStyle(stDateTime);
-
-    Style stText;
-    stText.font.attributes = FONT_ITALIC;
-    const size_t text1StyleIndex = book.AddStyle(stText);
-
-    stText.font.attributes = FONT_UNDERLINED;
-    const size_t text2StyleIndex = book.AddStyle(stText);
-
-    // -------------------------------------------------------------------------
-    // --------------- Data sheet to store data to be referenced ---------------
-    // -------------------------------------------------------------------------
-
-    std::vector<ColumnWidth> Col1Width;
-    Col1Width.push_back(ColumnWidth(0, 2, 20));
-
-    bool dimensionsAdded = tabData.thickness > 0 && tabData.width > 0 && tabData.length > 0; if (dimensionsAdded)
-    {
-        // Add nominal and true stresses found for ultimate tensile strength and yielding in its own book
-        std::vector<ColumnWidth> ColWidth2;
-        ColWidth2.push_back(ColumnWidth(0, 3, 30));
-        CWorksheet& sheetStresses = book.AddSheet("Full Report", ColWidth2);
-
-        // Material properties
-        sheetStresses.BeginRow().AddCell("MATERIAL TESTING REPORT", CenterStyleIndex).EndRow();
-        sheetStresses.MergeCells(CellCoord(1, 0), CellCoord(1, 2));
-        sheetStresses.BeginRow().AddCell(tabData.date, dateTimeStyleIndex).EndRow();
-        // ---------------------------------------------------------------------
-        // ------------------------------ Details ------------------------------
-        // ---------------------------------------------------------------------
-        // Styling
-        Style stDetailsText;
-
-        stDetailsText.fill.fgColor          = "FFECECEC";
-        stDetailsText.border.bottom.style   = BORDER_THICK;
-        stDetailsText.border.top.style      = BORDER_THICK;
-        stDetailsText.border.left.style     = BORDER_THICK;
-        stDetailsText.border.right.style    = BORDER_THICK;
-        stDetailsText.border.bottom.color   = "FFFF8B00";
-        stDetailsText.border.top.color      = "FFFF8B00";
-        stDetailsText.border.left.color     = "FFFF8B00";
-        stDetailsText.border.right.color    = "FFFF8B00";
-
-        stDetailsText.horizAlign    = EAlignHoriz::ALIGN_H_LEFT;
-        stDetailsText.vertAlign     = EAlignVert::ALIGN_V_TOP;
-        stDetailsText.wrapText      = true;
-
-        Style stDetailsBorder;
-        stDetailsBorder.fill.fgColor        = "FFECECEC";
-        stDetailsBorder.border.top.style    = BORDER_THICK;
-        stDetailsBorder.border.top.color    = "FFFF8B00";
-        stDetailsBorder.border.bottom.style = BORDER_THICK;
-        stDetailsBorder.border.bottom.color = "FFFF8B00";
-        stDetailsBorder.border.left.style   = BORDER_THICK;
-        stDetailsBorder.border.left.color   = "FFFF8B00";
-        stDetailsBorder.border.right.style  = BORDER_THICK;
-        stDetailsBorder.border.right.color  = "FFFF8B00";
-
-        const size_t DetailsStyleIndex          = book.AddStyle(stDetailsText);
-        const size_t DetailsBorderStyleIndex    = book.AddStyle(stDetailsBorder);
-
-        // Merge cells to one big cell (B3)
-        sheetStresses.MergeCells(CellCoord(3, 1), CellCoord(7, 3));
-
-        // Add cell
-        sheetStresses.BeginRow().AddCell("Details:", text1StyleIndex).AddCell(tabData.description.c_str(), DetailsStyleIndex).AddCell("", DetailsBorderStyleIndex).AddCell("", DetailsBorderStyleIndex).EndRow();
-        sheetStresses.BeginRow().AddCell("").AddCell("", DetailsBorderStyleIndex).AddCell("", DetailsBorderStyleIndex).AddCell("", DetailsBorderStyleIndex).EndRow();
-        sheetStresses.BeginRow().AddCell("").AddCell("", DetailsBorderStyleIndex).AddCell("", DetailsBorderStyleIndex).AddCell("", DetailsBorderStyleIndex).EndRow();
-        sheetStresses.BeginRow().AddCell("").AddCell("", DetailsBorderStyleIndex).AddCell("", DetailsBorderStyleIndex).AddCell("", DetailsBorderStyleIndex).EndRow();
-        sheetStresses.BeginRow().AddCell("").AddCell("", DetailsBorderStyleIndex).AddCell("", DetailsBorderStyleIndex).AddCell("", DetailsBorderStyleIndex).EndRow();
-
-        // ---------------------------------------------------------------------
-        // ---------------------------------------------------------------------
-
-        sheetStresses.BeginRow().AddCell("Material Properties:", smallTitleStyleIndex).EndRow();
-        sheetStresses.BeginRow().AddCell("").EndRow();
-        
-        sheetStresses.BeginRow().AddCell("Start Thickness").AddCell(tabData.thickness, alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(0)).EndRow();
-        sheetStresses.BeginRow().AddCell("Start Width").AddCell(tabData.width, alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(0)).EndRow();
-        sheetStresses.BeginRow().AddCell("Start Length").AddCell(tabData.length, alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(0)).EndRow();
-
-        sheetStresses.BeginRow().AddCell("").EndRow();
-
-        if (tabData.tension || (!tabData.tension && 0 == tabData.compressionOptionPicked))
-        {
-            // Stresses calculated
-            sheetStresses.BeginRow().AddCell("Proportional limit:", smallTitleStyleIndex).AddCell("").EndRow();
-            sheetStresses.BeginRow().AddCell("").EndRow();
-            sheetStresses.BeginRow().AddCell("Nominal Stress, σ_nom/σ_e (S_y)").AddCell(tabData.calcPoint_NominalStressStrain_PropLimit[1], alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-            sheetStresses.BeginRow().AddCell("Nominal Strain, ε_n").AddCell(tabData.calcPoint_NominalStressStrain_PropLimit[0], alignLeftStylePercentageIndex).EndRow();
-            sheetStresses.BeginRow().AddCell("Young's modulus, E", text2StyleIndex).AddCell(tabData.calcYoungsModulus, alignLeft3StyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-            sheetStresses.BeginRow().AddCell("True Stress, σ_t", text1StyleIndex).AddCell(tabData.calcPoint_TrueStressStrain_PropLimit[1], alignLeft2StyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-            sheetStresses.BeginRow().AddCell("True Strain, ε_t", text1StyleIndex).AddCell(tabData.calcPoint_TrueStressStrain_PropLimit[0], alignLeftStylePercentage2Index).AddCell("").EndRow();
-
-            sheetStresses.BeginRow().AddCell("").EndRow();
-
-            sheetStresses.BeginRow().AddCell("Yielding (lower):", smallTitleStyleIndex).AddCell("").EndRow();
-            sheetStresses.BeginRow().AddCell("").EndRow();
-            sheetStresses.BeginRow().AddCell("Nominal Stress, σ_nom/σ_e (S_y)").AddCell(tabData.calcPoint_NominalStressStrain_yield[1], alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-            sheetStresses.BeginRow().AddCell("Nominal Strain, ε_n").AddCell(tabData.calcPoint_NominalStressStrain_yield[0], alignLeftStylePercentageIndex).EndRow();
-            sheetStresses.BeginRow().AddCell("True Stress, σ_t", text1StyleIndex).AddCell(tabData.calcPoint_TrueStressStrain_yield[1], alignLeft2StyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-            sheetStresses.BeginRow().AddCell("True Strain, ε_t", text1StyleIndex).AddCell(tabData.calcPoint_TrueStressStrain_yield[0], alignLeftStylePercentage2Index).AddCell("").EndRow();
-
-            sheetStresses.BeginRow().AddCell("").EndRow();
-
-            sheetStresses.BeginRow().AddCell("Ultimate Tensile Strength:", smallTitleStyleIndex).EndRow();
-            sheetStresses.BeginRow().AddCell("").EndRow();
-            sheetStresses.BeginRow().AddCell("Nominal Stress, σ_nom/σ_e (S_ut)").AddCell(tabData.calcPoint_NominalStressStrainUTS[1], alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-            sheetStresses.BeginRow().AddCell("Nominal Strain, ε_n").AddCell(tabData.calcPoint_NominalStressStrainUTS[0], alignLeftStylePercentageIndex).EndRow();
-            sheetStresses.BeginRow().AddCell("True Stress, σ_t", text1StyleIndex).AddCell(tabData.calcPoint_TrueStressStrainUTS[1], alignLeft2StyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-            sheetStresses.BeginRow().AddCell("True Strain, ε_t", text1StyleIndex).AddCell(tabData.calcPoint_TrueStressStrainUTS[0], alignLeftStylePercentage2Index).EndRow();
-
-            sheetStresses.BeginRow().AddCell("").EndRow();
-
-            sheetStresses.BeginRow().AddCell("Fracture:", smallTitleStyleIndex).AddCell("").EndRow();
-            sheetStresses.BeginRow().AddCell("").EndRow();
-            sheetStresses.BeginRow().AddCell("Nominal Stress, σ_nom/σ_e (S_y)").AddCell(tabData.calcPoint_NominalStressStrain_fracture[1], alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-            sheetStresses.BeginRow().AddCell("Nominal Strain, ε_n").AddCell(tabData.calcPoint_NominalStressStrain_fracture[0], alignLeftStylePercentageIndex).EndRow();
-            sheetStresses.BeginRow().AddCell("True Stress, σ_t", text1StyleIndex).AddCell(tabData.calcPoint_TrueStressStrain_fracture[1], alignLeft2StyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-            sheetStresses.BeginRow().AddCell("True Strain, ε_t", text1StyleIndex).AddCell(tabData.calcPoint_TrueStressStrain_fracture[0], alignLeftStylePercentage2Index).AddCell("").EndRow();
-        }
-        else if (!tabData.tension && 1 == tabData.compressionOptionPicked)
-        {
-            // Stresses calculated
-            sheetStresses.BeginRow().AddCell("Ultimate Tensile Strength:", smallTitleStyleIndex).EndRow();
-            sheetStresses.BeginRow().AddCell("Bending Stress, σ_bend (S_bend)").AddCell(tabData.calcData_Compression[3], alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-            sheetStresses.BeginRow().AddCell("Young's modulus, E", text2StyleIndex).AddCell(tabData.calcYoungsModulus, alignLeft3StyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(6)).EndRow();
-
-            sheetStresses.BeginRow().AddCell("").EndRow();
-
-            // Bending moment
-            sheetStresses.BeginRow().AddCell("Maximum bending moment:", smallTitleStyleIndex).AddCell("").EndRow();
-            std::string str = LR10KAppGlobals::GetUnitOption<const char*>(1); str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-            sheetStresses.BeginRow().AddCell("Moment Bend Stress:").AddCell(tabData.calcData_Compression[2], alignLeftStyleIndex).AddCell(str.c_str()).EndRow();
-
-            sheetStresses.BeginRow().AddCell("").EndRow();
-
-            // Load and travel
-            sheetStresses.BeginRow().AddCell("Maximum load & travel:", smallTitleStyleIndex).AddCell("").EndRow();
-            sheetStresses.BeginRow().AddCell("Load:").AddCell(tabData.calcData_Compression[0], alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(1)).EndRow();
-            sheetStresses.BeginRow().AddCell("Travel:").AddCell(tabData.calcData_Compression[1], alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(0)).EndRow();
-        }
+    // 1. Create Workbook
+    lxw_workbook* workbook = workbook_new(name.c_str());
+    if (!workbook) {
+        DockingApps::console.AddLog("[error] Failed to create workbook. Check permissions.");
+        return false;
     }
 
-    CWorksheet& sheetSettings = book.AddSheet("Setup", Col1Width);
+    // 2. Create Global Formats
+    lxw_format* fmt_bold = workbook_add_format(workbook);
+    format_set_bold(fmt_bold);
 
-    sheetSettings.BeginRow().AddCell("LR 10K Tensile Machine Settings", CenterStyleIndex).EndRow();
-    sheetSettings.MergeCells(CellCoord(1, 0), CellCoord(1, 2));
-    sheetSettings.BeginRow().AddCell(tabData.date, dateTimeStyleIndex).EndRow();
-    sheetSettings.BeginRow().AddCell("Details:", text1StyleIndex).AddCell("...", smallTitleStyleIndex).EndRow();
-    sheetSettings.BeginRow().AddCell("").EndRow();
+    lxw_format* fmt_center_bold = workbook_add_format(workbook);
+    format_set_bold(fmt_center_bold);
+    format_set_align(fmt_center_bold, LXW_ALIGN_CENTER);
 
-    sheetSettings.BeginRow().AddCell("Crosshead Speed").AddCell(tabData.settings_speedAndPlot[0], alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(2)).EndRow();
-    sheetSettings.BeginRow().AddCell("(Jog speed)").AddCell(tabData.settings_speedAndPlot[1], alignLeftStyleIndex).AddCell(LR10KAppGlobals::GetUnitOption<const char*>(2)).EndRow(); // THIS IS IRRELEVANT FOR THE TEST, AND CAN CHANGE AFTER TEST IS FINISHED
-    sheetSettings.BeginRow().AddCell("Load error (graph)").AddCell(tabData.settings_speedAndPlot[2], alignLeftStyleIndex).AddCell("%").EndRow();
+    // ---------------------------------------------------------
+    // A. FULL REPORT SHEET
+    // ---------------------------------------------------------
+    bool dimensionsAdded = (tabData.thickness > 0 && tabData.width > 0 && tabData.length > 0);
 
-    // -------------------------------------------------------------------------
-    // --------------- Data sheet to store data to be referenced ---------------
-    // -------------------------------------------------------------------------
+    if (dimensionsAdded) {
+        lxw_worksheet* ws_report = workbook_add_worksheet(workbook, "Full Report");
+        worksheet_set_column(ws_report, 0, 3, 30, NULL);
 
-    std::vector<ColumnWidth> ColWidth3;
-    ColWidth3.push_back(ColumnWidth(0, 4, 15));
-    CWorksheet& sheet = book.AddSheet("LR 10K", ColWidth3);
+        worksheet_write_string(ws_report, 0, 0, "MATERIAL TESTING REPORT", fmt_center_bold);
+        worksheet_merge_range(ws_report, 0, 0, 0, 2, "MATERIAL TESTING REPORT", fmt_center_bold);
+        worksheet_write_string(ws_report, 1, 0, tabData.date.c_str(), NULL);
 
-    sheet.BeginRow().AddCell("Raw Data from LR 10K Tensile Machine", CenterStyleIndex).EndRow();
-    sheet.MergeCells(CellCoord(1, 0), CellCoord(1, 4));
-    sheet.BeginRow().AddCell(tabData.date, dateTimeStyleIndex).EndRow();
-    sheet.BeginRow().AddCell("").EndRow();
+        // Properties
+        worksheet_write_string(ws_report, 3, 0, "Start Thickness (mm)", NULL);
+        worksheet_write_number(ws_report, 3, 1, tabData.thickness, NULL);
 
-    // Make a header
-    sheet.BeginRow().AddCell("Plot X", smallTitleCenterdStyleIndex).AddCell("Plot Y", smallTitleCenterdStyleIndex).AddCell("").AddCell("Points X", smallTitleCenterdStyleIndex).AddCell("Points Y", smallTitleCenterdStyleIndex).EndRow();
-    sheet.BeginRow().AddCell("").EndRow();
+        worksheet_write_string(ws_report, 4, 0, "Start Width (mm)", NULL);
+        worksheet_write_number(ws_report, 4, 1, tabData.width, NULL);
 
-    //// Find all important points, and put only the valid ones in (not = 0)
-    //// Remove points that are zero
-    //std::vector<ImPlotPoint> impDataPoints;
-    //for (size_t i = 0; i < tabData.plot_importantDataPoints.size(); i++)
-    //{
-    //    ImPlotPoint dataPoint = tabData.plot_importantDataPoints[i].first;
+        worksheet_write_string(ws_report, 5, 0, "Gauge Length (mm)", NULL);
+        worksheet_write_number(ws_report, 5, 1, tabData.length, NULL);
 
-    //    if (dataPoint.x > 0.0f && dataPoint.y > 0.0f)
-    //        impDataPoints.push_back(dataPoint);
-    //}
+        // (Add other calculations like E-Modulus here if needed)
+    }
 
-    // Add more points to the end to expand the graph as it is adjusted/shown in the LR 10K app graph
-    // TODO:: Might have to be adjusted for the LR 10K machine stepper - Taking into account the speed set by user | Edit: Seems fine
+    // ---------------------------------------------------------
+    // B. SETUP SHEET
+    // ---------------------------------------------------------
+    lxw_worksheet* ws_setup = workbook_add_worksheet(workbook, "Setup");
+    worksheet_set_column(ws_setup, 0, 2, 20, NULL);
+    worksheet_write_string(ws_setup, 0, 0, "LR 10K Settings", fmt_center_bold);
+    // (Write your setup values here as before)
+
+
+    // ---------------------------------------------------------
+    // C. GRAPH 1: LOAD - EXTENSION (The "Raw" Graph)
+    // ---------------------------------------------------------
+    // For this one, we stick to the existing pattern:
+    // Create a sheet -> Write the data -> Add the chart.
+
+    // Prep Data (Zero Offset)
     RollingBuffer tensileData = tabData.LR10KTensileData;
-
-    // Take into account that the extension should be changed in Excel sheet for millimeter. It does it automatically for stress calc. (it is in the calc-functions)
-    for (size_t i = 0; i < tensileData.Data.size(); i++)
-    {
-        tensileData.Data[i].x -= defaultValuesGUI::offsetZeroPointExtensionAxis;
+    for (size_t i = 0; i < tensileData.Data.size(); i++) {
+        tensileData.Data[i].x -= (float)defaultValuesGUI::offsetZeroPointExtensionAxis;
     }
 
-    ImVec2 lastPoint = tensileData.Data[tensileData.Data.size() - 1];
-    float incrementer = 0.01f;
-    while (lastPoint.x + incrementer < LR10KAppGlobals::testing_plot_only_extensionAxis.load())
-    {
-        tensileData.AddPoint(lastPoint.x + incrementer, 0);
-        incrementer += 0.01f;
+    // Calculate Limits (Safe Defaults)
+    float maxX = 0.0f; float maxY = 0.0f;
+    for (const auto& point : tensileData.Data) {
+        if (point.x > maxX) maxX = point.x;
+        if (point.y > maxY) maxY = point.y;
     }
+    if (maxX <= 0) maxX = 1.0f;
+    if (maxY <= 0) maxY = 1.0f;
 
-    AppMainExcel::InsertLineCells(&book, &sheet, &tensileData, tabData.GetCrucialDataPoints(), false, smallTitleCenterdStyleIndex);
+    // Worksheet names
+    const char* sheetNameGraphNmm   = "Graph N-mm";
+    const char* sheetNameEngStress  = "Graph Eng. Stress";  
+    const char* sheetNameTrueStress = "Graph True Stress";
 
-    // Produce a line chart
-    AddLR10KLineChart(
-        book, sheet,
-        cl_lib, gs10_lib,
-        tensileData.Data.Size + 1,
-        tensileData.Data.Size + 1,
-        tabData.date
-    );
+    // Add the worksheets
+    lxw_worksheet* worksheetGraphNmm    = workbook_add_worksheet(workbook, sheetNameGraphNmm);
+    lxw_worksheet* worksheetEngStress   = workbook_add_worksheet(workbook, sheetNameEngStress);
+    lxw_worksheet* worksheetTrueStress  = workbook_add_worksheet(workbook, sheetNameTrueStress);
 
-    // ------------------------------------------
-    // CALCULATE NEW GRAPHS
-    // ------------------------------------------
+    // Call the Load-Extension Chart
+    CreateGraphChart(tabData, workbook, sheetNameGraphNmm, worksheetGraphNmm, tabData.date, AppMainExcel::VAR_RAW);
 
-    const double T_0 = LR10KAppGlobals::calc_thickness;    // Start Thickness
-    const double W_0 = LR10KAppGlobals::calc_width;        // Start Width
-    const double L_0 = LR10KAppGlobals::calc_length;       // Start Length
-    const double A_0 = tabData.area;                       // Start Area
 
+    // ---------------------------------------------------------
+    // D. GRAPH 2: STRESS - STRAIN (The "New" Graphs)
+    // ---------------------------------------------------------
     if (dimensionsAdded)
     {
-        // ---------------------------------------------------------------------
-        // --------------------- NOMINAL STRESS and STRAIN ---------------------
-        // ---------------------------------------------------------------------
+        // We do NOT create worksheets here. 
+        // The 'AddStressLineChart' function now creates its own sheet ("Stress-Strain Plot") 
+        // and calculates its own data internally.
 
-        // ------------------------------------------
-        // Data sheet to store data to be referenced
-        CWorksheet& sheetNom = book.AddSheet("Engineering Stress", ColWidth3);
+        // 1. Engineering Stress (Nominal)
+        // Pass NULL for the worksheet because the function creates a new one.
+        CreateGraphChart(tabData, workbook, sheetNameEngStress, worksheetEngStress, tabData.date, AppMainExcel::VAR_ENG_STRESS);
 
-        sheetNom.BeginRow().AddCell("Raw Data from Engineering Stress", CenterStyleIndex).EndRow();
-        sheetNom.MergeCells(CellCoord(1, 0), CellCoord(1, 4));
-        sheetNom.BeginRow().AddCell(tabData.date, dateTimeStyleIndex).EndRow();
-        sheetNom.BeginRow().AddCell("").EndRow();
-
-        // Make a header
-        sheetNom.BeginRow().AddCell("Plot X", smallTitleCenterdStyleIndex).AddCell("Plot Y", smallTitleCenterdStyleIndex).AddCell("").AddCell("Points X", smallTitleCenterdStyleIndex).AddCell("Points Y", smallTitleCenterdStyleIndex).EndRow();
-        sheetNom.BeginRow().AddCell("").EndRow();
-
-        // Convertion of important points to nominal stress
-        // happens in "InsertLineCells"
-
-        std::pair nomStressStrain = AppMainExcel::InsertLineCells(&book, &sheetNom, &tensileData, tabData.GetCrucialDataPoints(), true, A_0, L_0);
-        std::vector<double> epsilon_e = nomStressStrain.first, sigma_e = nomStressStrain.second;
-
-        // Produce a line chart
-        AddStressLineChart(
-            book, sheetNom,
-            cl_lib, gs10_lib,
-            tensileData.Data.Size + 1,
-            tensileData.Data.Size + 1,
-            tabData.date, true
-        );
-
-        // ---------------------------------------------------------------------
-        // ----------------------- TRUE STRESS and STRAIN ----------------------
-        // ---------------------------------------------------------------------
-
-        // ------------------------------------------
-        // Data sheet to store data to be referenced
-        CWorksheet& sheetTrue = book.AddSheet("True Stress", ColWidth3);
-
-        sheetTrue.BeginRow().AddCell("Raw Data from True Stress", CenterStyleIndex).EndRow();
-        sheetTrue.MergeCells(CellCoord(1, 0), CellCoord(1, 2));
-        sheetTrue.BeginRow().AddCell(tabData.date, dateTimeStyleIndex).EndRow();
-        sheetTrue.BeginRow().AddCell("").EndRow();
-
-        // Make a header
-        sheetTrue.BeginRow().AddCell("Plot X", smallTitleCenterdStyleIndex).AddCell("Plot Y", smallTitleCenterdStyleIndex).AddCell("").AddCell("Points X", smallTitleCenterdStyleIndex).AddCell("Points Y", smallTitleCenterdStyleIndex).EndRow();
-        sheetTrue.BeginRow().AddCell("").EndRow();
-
-        AppMainExcel::InsertLineCells(&book, &sheetTrue, &tensileData, tabData.GetCrucialDataPoints(), true, A_0, L_0, sigma_e, epsilon_e);
-
-        // Produce a line chart
-        AddStressLineChart(
-            book, sheetTrue,
-            cl_lib, gs10_lib,
-            tensileData.Data.Size + 1,
-            tensileData.Data.Size + 1,
-            tabData.date, false
-        );
+        // 2. True Stress (Optional)
+        // Only call this if you want a SECOND sheet for True Stress
+        CreateGraphChart(tabData, workbook, sheetNameTrueStress, worksheetTrueStress, tabData.date, AppMainExcel::VAR_TRUE_STRESS);
     }
 
-    // At the end save created workbook wherever you need
-    if (book.Save(name.c_str()))
-    {
-        DockingApps::console.AddLog("An Excel Book has been saved successfully!");
-        PlaySoundEffect("saveFileSuccess");
+    // ---------------------------------------------------------
+    // E. CLOSE & SAVE
+    // ---------------------------------------------------------
+    lxw_error err = workbook_close(workbook);
 
+    if (err == LXW_NO_ERROR) {
+        DockingApps::console.AddLog("Successfully saved Excel report: %s", name.c_str());
         return true;
     }
-    else
-    {
-        DockingApps::console.AddLog("[error] Excel Book saving failed...\nTry closing any open Excel document with the same name.");
+    else {
+        DockingApps::console.AddLog("[error] Save failed (Error %d). Is the file open in Excel?", err);
         return false;
     }
 }
@@ -3697,20 +3463,26 @@ bool AppMainTabSystem::ThisTabIsNotRunningATest()
 
 std::vector<std::pair<ImPlotPoint, int>> TabControl::TabTestDataClass::GetCrucialDataPoints()
 {
-    std::vector<std::pair<ImPlotPoint, int>> importantDataPoints;
+    std::vector<std::pair<ImPlotPoint, int>> crucialDataPoints;
 
     for (auto pt_tuple : plot_dataPoints)
     {
         ImPlotPoint pt = std::get<0>(pt_tuple);
         int id = std::get<1>(pt_tuple);
 
-        bool hasTheIdAlready = CheckIfCrucialPointExsists(id);
+        bool hasTheIdAlready = std::any_of(
+            crucialDataPoints.begin(),
+            crucialDataPoints.end(),
+            [id](const auto& dataTuple) {
+                return std::get<1>(dataTuple) == id; // std::get<1> gets the 'int' from the tuple
+            }
+        );
 
         // Take the first ID found
-        if (!hasTheIdAlready) importantDataPoints.push_back({ pt , id });
+        if (!hasTheIdAlready) crucialDataPoints.push_back({ pt , id });
     }
 
-    return importantDataPoints;
+    return crucialDataPoints;
 }
 
 bool TabControl::TabTestDataClass::CheckIfCrucialPointExsists(int pointID)

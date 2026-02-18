@@ -35,7 +35,7 @@ if (appDataFolderPath.first)
 }*/
 // And insert: #include "..\init.h" in "imgui.h".
 // 
-static const char* LR10KAppVersion = "1.0.7 [06.02.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
+static const char* LR10KAppVersion = "1.0.8 [18.02.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
 
 
 // ###############################################--------------------------------------------------------------------------------------------------------------
@@ -375,8 +375,8 @@ namespace LR10KAppGlobals {
     //! \details Index 8 is e.g. inches and index 9 is e.g. the lbf convertion scalar. and index 10 is e.g. the lbf/in^2 scalar
     static const std::vector<std::vector<std::variant<const char*, double>>> unitsConvertion
     {
-        { "mm", "N", "mm/min", "N/mm^2", "millimeter", "newton", "MPa [N/mm^2]", "MPa", 1.0f, 1.0f, 1.2f },
-        { "in", "lbf", "in/min", "lbf/in^2", "inches", "foot-pound", "psi [lbf/in^2]", "psi", 0.0393700787, 0.2248089431, (0.2248089431 / sqrt(0.0393700787)) * 100, ""}
+        { "mm", "N", "mm/min", "N/mm^2", "millimeter", "newton", "MPa [N/mm^2]", "MPa", 1.0f, 1.0f, 1.2f, "GPa"},
+        { "in", "lbf", "in/min", "lbf/in^2", "inches", "foot-pound", "psi [lbf/in^2]", "psi", 0.0393700787, 0.2248089431, (0.2248089431 / sqrt(0.0393700787)) * 100, "psi"}
     };
     //! \details The index of the unit vector.
     inline extern int unitsConvertionIndex = 0;
@@ -590,6 +590,7 @@ namespace TabControl {
     inline extern ImVector<int> activeTestTabsId{ };   //!< Holds the index ID of all of the current tabs open.
     inline extern int aTestIsStartedOnTabIndexId = -1; //!< Hold the current tab that has an active test running on. -1 if there is no tests running.
     static const char* plot_items[7]{ "Proportional Limit", "Yielding Strength", "Ultimate Tensile Strength", "Fracture", "Other", "E-Lower Bound", "E-Upper Bound" }; //!< All of the available crucial/important points options.
+    static const char* plot_items_short[7]{ "Prop. Limit", "Yield Str.", "UTS", "Fracture", "Other", "E-Lower", "E-Upper" }; //!< All of the available crucial/important points options (short-handed).
     static const char* compression_options[2]{ "Normal", "3-point" }; //!< 3-point test will have it's own "logic" for calculating stresses
 
     inline extern float LR10KRawLoad = 0.0f;                        //!< This holds the last known load. This is the actual load. (N). THIS NEEDS TO BE CONVERTED TO BE READABLE.
@@ -999,45 +1000,30 @@ struct AppCalculator
 **/
 struct AppMainExcel
 {
+    enum ExcelDataVariationWorksheetData {
+        VAR_RAW,
+        VAR_ENG_STRESS,
+        VAR_TRUE_STRESS
+    };
     /**
-        @brief  Add graph cells + important point cells so a graph can be created later.
-        @param  book          -
-        @param  sheet         -
-        @param  plotData      -
-        @param  impDataPoints -
-        @param  stressData    -
-        @param  A_0           -
-        @param  L_0           -
-        @param  sigma_e       -
-        @param  epsilon_e     -
-        @retval               -
+        @brief Write table data for plots (either raw, eng. stress or true stress).
+        @param tabData        -
+        @param activeLabels   -
+        @param worksheet      -
+        @param bold           -
+        @param dataVariation  -
     **/
-    std::pair<std::vector<double>, std::vector<double>> InsertLineCells(CWorkbook* book, CWorksheet* sheet, RollingBuffer* plotData, std::vector<std::pair<ImPlotPoint, int>> crucialDataPoints, bool stressData = false, const double A_0 = 0, const double L_0 = 0, std::vector<double> sigma_e = {}, std::vector<double> epsilon_e = {});
-
-    /**
-        @brief Add unedited line chart.
-        @param book                    -
-        @param sheet                   -
-        @param cl_lib                  -
-        @param gs10_lib                -
-        @param plotAxisAmountOfPoints  -
-        @param pointAxisAmountOfPoints -
-        @param date                    -
-    **/
-    void AddLR10KLineChart(CWorkbook& book, CWorksheet& sheet, XLSXColorLib& cl_lib, XLSXColorLib& gs10_lib, int plotAxisAmountOfPoints, int pointAxisAmountOfPoints, const std::string date);
-
+    void write_worksheet_data(TabControl::TabTestDataClass tabData, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, lxw_format* bold, AppMainExcel::ExcelDataVariationWorksheetData dataVariation);
     /**
         @brief Add stress line chart.
-        @param book                    -
-        @param sheet                   -
-        @param cl_lib                  -
-        @param gs10_lib                -
-        @param plotAxisAmountOfPoints  -
-        @param pointAxisAmountOfPoints -
-        @param date                    -
-        @param itIsNominalStress       -
+        @param tabData          -
+        @param workbook         -
+        @param sheet_name       -
+        @param worksheet        -
+        @param date             -
+        @param dataVariation    -
     **/
-    void AddStressLineChart(CWorkbook& book, CWorksheet& sheet, XLSXColorLib& cl_lib, XLSXColorLib& gs10_lib, int plotAxisAmountOfPoints, int pointAxisAmountOfPoints, const std::string date, bool itIsNominalStress);
+    void CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_workbook* workbook, const char* sheet_name, lxw_worksheet* worksheet, const std::string date, ExcelDataVariationWorksheetData dataVariation);
 
     /**
         @brief  Save plot data and crucial points to a .xlsx file. Returns true on success.

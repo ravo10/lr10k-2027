@@ -1684,10 +1684,29 @@ bool CWorkbook::SaveWorkbook()
                 sprintf( szId, "rId%u", unsigned( i ) );
                 bool Found = false;
                 for( std::vector<CWorksheet *>::const_iterator it = m_worksheets.begin(); it != m_worksheets.end(); it++ )
-                    if( i == ( * it )->GetIndex() )
+                    /*if (i == (*it)->GetIndex())
                     {
                         Found = true;
-                        xmlw.TagL( "sheet" ).Attr( "name", ( * it )->GetTitle() ).Attr( "sheetId", i ).Attr( "r:id", szId ).EndL();
+                        xmlw.TagL("sheet").Attr("name", (*it)->GetTitle()).Attr("sheetId", i).Attr("r:id", szId).EndL();
+                        break;
+                    }*/
+                    // Customized
+                    if (i == (*it)->GetIndex())
+                    {
+                        Found = true;
+
+                        // Start the tag and add standard attributes
+                        xmlw.TagL("sheet").Attr("name", (*it)->GetTitle()).Attr("sheetId", i).Attr("r:id", szId);
+
+                        // ---> Add the hidden state if requested <---
+                        if ((*it)->IsHidden())
+                        {
+                            xmlw.Attr("state", "hidden");
+                        }
+
+                        // Close the tag
+                        xmlw.EndL();
+
                         break;
                     }
                 if( Found ) continue;

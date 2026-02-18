@@ -320,7 +320,7 @@ int main(int, char**)
         char* iniFilePathChar = CopyString(iniFilePath.c_str(), static_cast<int>(iniFilePath.size()));
         io.IniFilename = iniFilePathChar;
 
-        std::cout << "ImGuiIO::ImGuiIO: Using custom ImGui ini path: " << iniFilePathChar << std::endl;
+        DockingApps::console.AddLog("ImGuiIO: Using custom ImGui ini path:\n%s", iniFilePathChar);
     }
     else
     {

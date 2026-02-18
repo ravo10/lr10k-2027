@@ -140,6 +140,8 @@ void CWorksheet::Init( uint32_t frozenWidth, uint32_t frozenHeight, const std::v
     m_mergedCells.clear();
     m_row_index = 0;
     m_page_orientation = PAGE_PORTRAIT;
+    // Customized
+    m_isHidden = false;
 
     std::stringstream FileName;
     FileName << "/xl/worksheets/sheet" << m_index << ".xml";

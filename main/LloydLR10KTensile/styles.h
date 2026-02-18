@@ -54,6 +54,9 @@
 #include <Xlsx/Workbook.h>
 #include <XLSXColors/XLSXColorLib.h>
 
+// libxlsxwriter
+#include <xlsxwriter.h>
+
 // JSON for Modern C++
 #include "nlohmann/json.hpp"
 
