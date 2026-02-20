@@ -272,6 +272,10 @@ void AppMainFileSystem::FileBrowsersInitialization()
     fileBrowserOpenLR10KTest.SetTitle("Pick a LR 10K Control Software file to LOAD from (.LR10K) (JSON format)");
     fileBrowserOpenLR10KTest.SetWindowSize(1000, 500);
     fileBrowserOpenLR10KTest.SetTypeFilters({ ".lr10k" });
+
+    // Default folder to save .avi file in
+    fileBrowserSaveVideoRecordingExt.SetTitle("Pick a Pre-Save location to save video recorded material tests in, if activated.");
+    fileBrowserSaveVideoRecordingExt.SetWindowSize(1000, 500);
 }
 
 json AppMainFileSystem::CreateJSONDataFromCurrentTab(TabControl::TabTestDataClass* tabData)
@@ -514,6 +518,67 @@ bool AppMainFileSystem::SaveJSONDataToFile(TabControl::TabTestDataClass* tabData
     return false;
 }
 
+std::filesystem::path AppMainFileSystem::CreateFilepathForTabWNoFileExtension(TabControl::TabTestDataClass* tabData, std::string folderpath)
+{
+    // Use std::filesystem directly
+    std::filesystem::path filepath(tabData->current_temp_preSaveLocation);
+    if (!folderpath.empty()) filepath.assign(folderpath);
+
+    // Safely extract the deepest folder name, ignoring trailing slashes
+    std::string baseName;
+    if (filepath.has_filename()) {
+        // Path does NOT end in a slash (e.g., "C:/Tests/Batch1")
+        baseName = filepath.filename().string();
+    }
+    else {
+        // Path DOES end in a slash (e.g., "C:/Tests/Batch1/")
+        // Step back to the parent path to grab the actual folder name
+        baseName = filepath.parent_path().filename().string();
+    }
+
+    // Safe-guard in case the path was completely empty or was a root drive (like "C:/")
+    if (baseName.empty() || baseName == "/" || baseName == "\\") {
+        baseName = "Unnamed_Test";
+    }
+
+    // Build the actual filename
+    std::string filename = baseName + "_Tab" + std::to_string(tabData->tabId) + "__";
+
+    // Time formatting
+    auto now = std::chrono::system_clock::now();
+    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+
+    // (Optional but safer: use thread-safe time functions if on Windows)
+    struct tm timeinfo;
+#if defined(_WIN32) || defined(_WIN64)
+    // Use localtime_s for Windows system time (includes DST and Timezone offset)
+    localtime_s(&timeinfo, &currentTime);
+#else
+    // Use localtime_r for POSIX/Linux
+    localtime_r(&currentTime, &timeinfo);
+#endif
+
+    char buffer[20];
+    std::strftime(buffer, sizeof(buffer), "%b-%d-%G", &timeinfo);
+    filename += buffer;
+    filename += "(Time_";
+    std::strftime(buffer, sizeof(buffer), "%H", &timeinfo);
+    filename += buffer;
+    filename += ".";
+    std::strftime(buffer, sizeof(buffer), "%M", &timeinfo);
+    filename += buffer;
+    filename += ".";
+    std::strftime(buffer, sizeof(buffer), "%S", &timeinfo);
+    filename += buffer;
+    filename += ")";
+
+    // 4. Use the filesystem /= operator to safely join the path and filename
+    // This automatically adds the correct slashes (\ or /) for you
+    filepath /= filename;
+
+    return filepath;
+}
+
 TabControl::TabTestDataClass* AppMainFileSystem::LoadJSONDataFromFileForANewTab(const char* filename)
 {
     // Read from JSON file
@@ -567,60 +632,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
         // Save data from the current test GUI to a text file
         if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
         {
-            // Use std::filesystem directly
-            std::filesystem::path filepath(tabData->current_temp_preSaveLocation);
-
-            // Safely extract the deepest folder name, ignoring trailing slashes
-            std::string baseName;
-            if (filepath.has_filename()) {
-                // Path does NOT end in a slash (e.g., "C:/Tests/Batch1")
-                baseName = filepath.filename().string();
-            }
-            else {
-                // Path DOES end in a slash (e.g., "C:/Tests/Batch1/")
-                // Step back to the parent path to grab the actual folder name
-                baseName = filepath.parent_path().filename().string();
-            }
-
-            // Safe-guard in case the path was completely empty or was a root drive (like "C:/")
-            if (baseName.empty() || baseName == "/" || baseName == "\\") {
-                baseName = "Unnamed_Test";
-            }
-
-            // Build the actual filename
-            std::string filename = baseName + "_Tab" + std::to_string(tabData->tabId) + "__";
-
-            // Time formatting
-            auto now = std::chrono::system_clock::now();
-            std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-
-            // (Optional but safer: use thread-safe time functions if on Windows)
-            struct tm timeinfo;
-#if defined(_WIN32) || defined(_WIN64)
-            // Use localtime_s for Windows system time (includes DST and Timezone offset)
-            localtime_s(&timeinfo, &currentTime);
-#else
-            // Use localtime_r for POSIX/Linux
-            localtime_r(&currentTime, &timeinfo);
-#endif
-
-            char buffer[20];
-            std::strftime(buffer, sizeof(buffer), "%b-%d-%G", &timeinfo);
-            filename += buffer;
-            filename += "(Time_";
-            std::strftime(buffer, sizeof(buffer), "%H", &timeinfo);
-            filename += buffer;
-            filename += ".";
-            std::strftime(buffer, sizeof(buffer), "%M", &timeinfo);
-            filename += buffer;
-            filename += ".";
-            std::strftime(buffer, sizeof(buffer), "%S", &timeinfo);
-            filename += buffer;
-            filename += ")";
-
-            // 4. Use the filesystem /= operator to safely join the path and filename
-            // This automatically adds the correct slashes (\ or /) for you
-            filepath /= filename;
+            std::filesystem::path filepath = DockingApps::mainFileSystem.CreateFilepathForTabWNoFileExtension(tabData);
 
             // Make an independent copy for saving to a file
             TabControl::TabTestDataClass tabDataForSave = *tabData;
@@ -1348,9 +1360,57 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
         // If we reach here, the camera is working!
         g_Extensiometer.is_connected = true;
 
+
+        // --- 1. HANDLE RECORDING STATES, TELEMETRY & RAW WRITER ---
+        if (!g_Extensiometer.is_recording)
+        {
+            if (g_Extensiometer.video_writer_raw.isOpened()) g_Extensiometer.video_writer_raw.release();
+            if (g_Extensiometer.video_writer_overlay.isOpened()) g_Extensiometer.video_writer_overlay.release();
+        }
+        else
+        {
+            // Open RAW file if needed
+            if (!g_Extensiometer.video_writer_raw.isOpened() && !g_Extensiometer.video_save_path_raw.empty())
+            {
+                int fourcc = cv::VideoWriter::fourcc('X', 'V', 'I', 'D');
+                double fps = cap.get(cv::CAP_PROP_FPS);
+                if (fps < 1 || fps > 120) fps = 30.0;
+
+                g_Extensiometer.video_writer_raw.open(g_Extensiometer.video_save_path_raw, fourcc, fps, frame.size(), true);
+
+                // Reset telemetry counters on start
+                g_Extensiometer.recording_frame_count = 0;
+                g_Extensiometer.recording_start_time = ImGui::GetTime();
+            }
+
+            // Generate Telemetry String
+            double elapsed = ImGui::GetTime() - g_Extensiometer.recording_start_time;
+            char telemetry[128];
+            // Added a blinking "REC" indicator (blinks every ~0.5s)
+            const char* rec_blink = (int(elapsed * 2) % 2 == 0) ? "REC" : "   ";
+            sprintf(telemetry, "[%s] T+%.2fs | Frame: %05d | Strain: %.2f%%",
+                rec_blink, elapsed, g_Extensiometer.recording_frame_count, g_Extensiometer.results.strain_percentage);
+
+            // Draw Telemetry on RAW frame (Smaller text)
+            int y_pos = frame.rows - 10;
+            // Smaller box: Height 20px, Width ~360px
+            cv::rectangle(frame, cv::Point(5, y_pos - 15), cv::Point(360, y_pos + 5), cv::Scalar(0, 0, 0), -1);
+            // Smaller font: 0.45 scale
+            cv::putText(frame, telemetry, cv::Point(10, y_pos),
+                cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+
+            // Write to RAW video
+            if (g_Extensiometer.video_writer_raw.isOpened()) {
+                g_Extensiometer.video_writer_raw.write(frame);
+            }
+
+            g_Extensiometer.recording_frame_count++;
+        }
+
         // =========================================================
-        // 1. PREPARE DISPLAY FRAME (Must happen first)
+        // 2. PREPARE DISPLAY FRAME 
         // =========================================================
+        // Because we draw the text on 'frame' ABOVE, it automatically gets copied here!
         frame.copyTo(frame_display);
 
         // =========================================================
@@ -1495,6 +1555,24 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
             }
         }
 
+        // ------ VIDEO RECORD WITH MARKERS & OVERLAYS ------
+        if (g_Extensiometer.is_recording)
+        {
+            if (!g_Extensiometer.video_writer_overlay.isOpened() && !g_Extensiometer.video_save_path.empty())
+            {
+                int fourcc = cv::VideoWriter::fourcc('X', 'V', 'I', 'D');
+                double fps = cap.get(cv::CAP_PROP_FPS);
+                if (fps < 1 || fps > 120) fps = 30.0;
+
+                g_Extensiometer.video_writer_overlay.open(g_Extensiometer.video_save_path, fourcc, fps, frame_display.size(), true);
+            }
+
+            if (g_Extensiometer.video_writer_overlay.isOpened())
+            {
+                g_Extensiometer.video_writer_overlay.write(frame_display);
+            }
+        }
+
         // =========================================================
         // 5. UPLOAD TO GUI
         // =========================================================
@@ -1633,6 +1711,8 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             ImGui::PopStyleColor(3);
             ImGui::EndDisabled();
 
+            ImGui::Text("Notice: It is possible to record a test without having markers tracked!");
+
             ImGui::Separator();
 
             if (prev_active != g_Extensiometer.is_active) DockingApps::mainFileSystem.SaveApplicationSettings();
@@ -1698,13 +1778,22 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu("Record")) {
-                    ImGui::MenuItem("Activate recording", NULL, &g_Extensiometer.record_test);
-                    ImGui::MenuItem("Filepath for storage", NULL);
+                    bool filepathsAreNotEmpty = !g_Extensiometer.video_save_path.empty() && !g_Extensiometer.video_save_path_raw.empty();
+                    if (ImGui::MenuItem("Activate Recording", NULL, &g_Extensiometer.record_test, filepathsAreNotEmpty))
+                    {
+                        PlaySoundEffect("buttonClick1");
+                    }
+                    if (ImGui::MenuItem("Set Storage Folder for Recording"))
+                    {
+                        fileBrowserSaveVideoRecordingExt.Open();
+                        PlaySoundEffect("buttonClick0");
+                    }
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu("View")) {
-                    ImGui::MenuItem("CV Mask Settings", NULL, &g_Extensiometer.show_cvsettings);
-                    ImGui::MenuItem("CV Mask", NULL, &g_Extensiometer.show_cvmask);
+                    ImGui::SeparatorText("CV Mask");
+                    ImGui::MenuItem("Binary", NULL, &g_Extensiometer.show_cvmask);
+                    ImGui::MenuItem("Settings", NULL, &g_Extensiometer.show_cvsettings);
                     ImGui::EndMenu();
                 }
                 ImGui::EndMenuBar();

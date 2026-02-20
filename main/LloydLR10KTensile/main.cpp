@@ -562,6 +562,7 @@ int main(int argc, char** argv)
         fileBrowserPreSaveLR10KTest.Display();
         fileBrowserSaveXlsx.Display();
         fileBrowserOpenLR10KTest.Display();
+        fileBrowserSaveVideoRecordingExt.Display();
 
         // Load the logic after the Display()
         if (tabData != nullptr)
@@ -570,6 +571,7 @@ int main(int argc, char** argv)
             DockingApps::mainFileSystem.PreSaveLR10KTestBrowserLogic(tabData);
             DockingApps::mainFileSystem.SaveXlsxBrowserLogic(tabData);
             DockingApps::mainFileSystem.OpenLR10KTestFileBrowserLogic();
+            DockingApps::mainFileSystem.PreSaveVideoRecordingExtBrowserLogic(tabData);
         }
 
         if (!loadingApplication1 && !loadingApplication2)

@@ -260,8 +260,6 @@ namespace mainGUIGlobals {
 struct AppExtensiometer
 {
     float restrictive_area = 0.0f;
-    bool record_test = false;
-    std::string record_test_filepath = "";
     bool show_cvmask = true;
     bool show_cvsettings = true;
     bool is_active = true; //!< Controls the camera ON/OFF state
@@ -269,6 +267,15 @@ struct AppExtensiometer
     int camera_index = 0;      //!< Current selected camera
     bool request_cam_switch = false; //!< Flag to tell the thread to restart
     bool is_connected = false; //!< If a camera is connected
+
+    bool record_test = false;
+    bool is_recording = false;
+    std::string video_save_path_raw = "";
+    std::string video_save_path = "";
+    cv::VideoWriter video_writer_raw;
+    cv::VideoWriter video_writer_overlay;
+    int recording_frame_count = 0;
+    double recording_start_time = 0.0; // Use ImGui::GetTime() or similar
 
     //! \note Internal state for logic (Initial Length logic)
     bool reset_requested = false;
@@ -330,6 +337,7 @@ inline extern ImGui::FileBrowser fileBrowserSaveAsLR10KTest = ImGui::FileBrowser
 inline extern ImGui::FileBrowser fileBrowserPreSaveLR10KTest = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_SelectDirectory); //!< File browser window settings for when pre-saving an opening a LR10K file.
 inline extern ImGui::FileBrowser fileBrowserSaveXlsx = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename); //!< File browser window settings for when saving an LR10K file.
 inline extern ImGui::FileBrowser fileBrowserOpenLR10KTest = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir); //!< File browser window settings for when saving an excel file.
+inline extern ImGui::FileBrowser fileBrowserSaveVideoRecordingExt = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_SelectDirectory); //!< File browser window settings for when setting save position for video recording.
 
 // -----------------------------------------------------------------------------
 
@@ -1052,6 +1060,11 @@ struct AppMainFileSystem
     **/
     void OpenLR10KTestFileBrowserLogic();
 
+    /**
+        @brief Used for when wanting to define save location for video recording when using an extensiometer.
+    **/
+    void PreSaveVideoRecordingExtBrowserLogic(TabControl::TabTestDataClass* tabData);
+
     // -------------------------------------------------------------------------
     // 
     // -------------------------------------------------------------------------
@@ -1162,6 +1175,13 @@ struct AppMainFileSystem
         @retval             -
     **/
     bool SaveJSONDataToFile(TabControl::TabTestDataClass* tabData, json tabDataJson, const char* filename);
+
+    /**
+        @brief  Save a JSON file with custom name. Returns true on success.
+        @param tabData      -
+        @retval             -
+    **/
+    std::filesystem::path CreateFilepathForTabWNoFileExtension(TabControl::TabTestDataClass* tabData, std::string folderpath = "");
 
     /**
         @brief  Load data from JSON file to current tab data. Returns a non-empty object on success.

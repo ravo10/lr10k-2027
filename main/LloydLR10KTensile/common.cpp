@@ -1844,6 +1844,31 @@ void AppMainFileSystem::OpenLR10KTestFileBrowserLogic()
     }
 }
 
+void AppMainFileSystem::PreSaveVideoRecordingExtBrowserLogic(TabControl::TabTestDataClass* tabData)
+{
+    if (tabData == nullptr) return;
+
+    if (fileBrowserSaveVideoRecordingExt.HasSelected())
+    {
+        // Get current selection (path + filename)
+        const std::string folderlocation = fileBrowserSaveVideoRecordingExt.GetSelected().string();
+        fileBrowserSaveVideoRecordingExt.ClearSelected();
+
+        std::filesystem::path filepath = DockingApps::mainFileSystem.CreateFilepathForTabWNoFileExtension(tabData, folderlocation);
+
+        std::string rawVideoPath = filepath.string() + "_RAW.mp4"; // This is the full path incl. generated filename for the raw video
+        std::string videoPath = filepath.string() + "_OVERLAY.mp4"; // This is the full path incl. generated filename for the raw video
+
+        g_Extensiometer.video_save_path_raw = rawVideoPath.c_str(); // This is the full path incl. generated filename .avi
+        g_Extensiometer.video_save_path = videoPath.c_str(); // This is the full path incl. generated filename .avi
+
+        DockingApps::mainFileSystem.SaveApplicationSettings(); // Want to save the last folder location used
+
+        DockingApps::console.AddLog("Successfully saved last saved folder position for video recording!");
+        PlaySoundEffect("buttonClick1");
+    }
+}
+
 // -----------------------------------------------------------------------------
 // ------------------------ File Configuration Settings ------------------------
 // -----------------------------------------------------------------------------
@@ -1937,10 +1962,6 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["maximumLoadAllowedInsideLR10K"] = LR10KAppGlobals::maximumLoadAllowedInsideLR10K;
         settings["maximumExtensionAllowedInsideLR10K"] = LR10KAppGlobals::maximumExtensionAllowedInsideLR10K;
 
-        //DockingApps::mutexControl.BreakDetection();
-        //settings["breakThreshold"] = LR10KAppGlobals::breakThreshold.load();
-        //settings["enable_breakThreshold"] = LR10KAppGlobals::enable_breakThreshold.load();
-
         settings["extensiometerRange"]  = LR10KAppGlobals::extensiometerRange;
         settings["enable_extensiomter"] = LR10KAppGlobals::enable_extensiomter;
 
@@ -1951,6 +1972,7 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["fileBrowsing_LastLR10KSaveLocation"]      = fileBrowserPreSaveLR10KTest.GetSelected();
         settings["fileBrowsing_LastXlxsSaveLocation"]       = fileBrowserSaveXlsx.GetSelected();
         settings["fileBrowsing_LastLR10KOpenLoadLocation"]  = fileBrowserOpenLR10KTest.GetSelected();
+        settings["fileBrowsing_LastSaveVideoRecordingExtLocation"]  = fileBrowserSaveVideoRecordingExt.GetSelected();
 
         settings["showHotkeyTips"]                          = LR10KAppGlobals::showHotkeyTips;
     }
@@ -2037,6 +2059,7 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["fileBrowsing_LastLR10KSaveLocation"]      = path;
         settings["fileBrowsing_LastXlxsSaveLocation"]       = path;
         settings["fileBrowsing_LastLR10KOpenLoadLocation"]  = path;
+        settings["fileBrowsing_LastSaveVideoRecordingExtLocation"]  = path;
 
         settings["showHotkeyTips"]                          = false;
     }
@@ -2087,6 +2110,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     std::string_view fileBrowsing_LastLR10KSaveLocation         = "fileBrowsing_LastLR10KSaveLocation";
     std::string_view fileBrowsing_LastXlxsSaveLocation          = "fileBrowsing_LastXlxsSaveLocation";
     std::string_view fileBrowsing_LastLR10KOpenLoadLocation     = "fileBrowsing_LastLR10KOpenLoadLocation";
+    std::string_view fileBrowsing_LastSaveVideoRecordingExtLocation = "fileBrowsing_LastSaveVideoRecordingExtLocation";
     std::string_view showHotkeyTips                             = "showHotkeyTips";
 
     // Check every key
@@ -2132,6 +2156,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     if (!settings.contains(std::string{ fileBrowsing_LastLR10KSaveLocation      })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ fileBrowsing_LastXlxsSaveLocation       })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ fileBrowsing_LastLR10KOpenLoadLocation  })) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ fileBrowsing_LastSaveVideoRecordingExtLocation })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ showHotkeyTips                          })) thereIsAnUnvalidKey = true;
 
     // Delete old settings file and initialize a new one
@@ -2217,9 +2242,6 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
         LR10KAppGlobals::maximumLoadAllowedInsideLR10K      = settings["maximumLoadAllowedInsideLR10K"];
         LR10KAppGlobals::maximumExtensionAllowedInsideLR10K = settings["maximumExtensionAllowedInsideLR10K"];
 
-        /*LR10KAppGlobals::breakThreshold                     = settings["breakThreshold"];
-        LR10KAppGlobals::enable_breakThreshold              = settings["enable_breakThreshold"];*/
-
         LR10KAppGlobals::extensiometerRange                 = settings["extensiometerRange"];
         LR10KAppGlobals::enable_extensiomter                = settings["enable_extensiomter"];
 
@@ -2230,6 +2252,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
         fileBrowserPreSaveLR10KTest.SetPwd(settings["fileBrowsing_LastLR10KSaveLocation"]);
         fileBrowserSaveXlsx.SetPwd(settings["fileBrowsing_LastXlxsSaveLocation"]);
         fileBrowserOpenLR10KTest.SetPwd(settings["fileBrowsing_LastLR10KOpenLoadLocation"]);
+        fileBrowserSaveVideoRecordingExt.SetPwd(settings["fileBrowsing_LastSaveVideoRecordingExtLocation"]);
 
         LR10KAppGlobals::showHotkeyTips = settings["showHotkeyTips"];
 
@@ -2341,6 +2364,7 @@ bool AppMainFileSystem::SaveApplicationFolderSettingsOnly()
         tabDataJson["fileBrowsing_LastLR10KSaveLocation"]      = fileBrowserPreSaveLR10KTest.GetSelected();
         tabDataJson["fileBrowsing_LastXlxsSaveLocation"]       = fileBrowserSaveXlsx.GetSelected();
         tabDataJson["fileBrowsing_LastLR10KOpenLoadLocation"]  = fileBrowserOpenLR10KTest.GetSelected();
+        tabDataJson["fileBrowsing_LastSaveVideoRecordingExtLocation"]  = fileBrowserSaveVideoRecordingExt.GetSelected();
 
         // Save
         return SaveApplicationSettingsToFile(tabDataJson);
@@ -4224,6 +4248,12 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
         {
             tabData->current_temp_preSaveLocation_StarTestNow = false;
 
+            if (g_Extensiometer.record_test)
+            {
+                // Start recording
+                g_Extensiometer.is_recording = true;
+            }
+
             // A real test will never start when demo mode is activated
             if (mainGUIGlobals::useDemoMode && LR10KAppGlobals::setZeroPointOnStarTest)
                 SetZeroPoint(tabData);
@@ -4312,6 +4342,7 @@ bool LR10KControlSystem::EndTest(TabControl::TabTestDataClass* tabData)
         tabData->LR10KTensileData.TimeData = { };
         tabData->LR10KTensileData.StartTimeTest = TimePoint();
 
+        g_Extensiometer.is_recording = false;
         //LR10KAppGlobals::zeroPointIsSet = false;
 
         tabData->test_finished = true;
