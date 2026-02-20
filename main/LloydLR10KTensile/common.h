@@ -107,12 +107,6 @@ struct RollingBuffer {
         else {
             SamplingRate = 0.0; // Prevent divide-by-zero on the very first tick
         }
-
-        // Format to 4 decimal places for precision
-        std::cout << "Sim Info: " << dataPoints << " points over "
-            << std::fixed << std::setprecision(4) << totalTime << " seconds ( "
-            << "Curr time: " << CurrentTime.time_since_epoch() << " and start time: " << StartTimeTest.time_since_epoch() << " )"
-            << SamplingRate << " Hz" << std::endl;
     }
 };
 
