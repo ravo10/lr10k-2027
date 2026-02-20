@@ -1699,7 +1699,10 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Keep camera running even if this window is closed.");
             ImGui::SameLine(0.0f, 40.0f);
 
-            ImGui::BeginDisabled(tabData->test_unfinished_test_started || tabData->current_temp_preSaveLocation == "" || tabData->test_finished);
+            ImGui::BeginDisabled(tabData->test_finished
+                || tabData->test_unfinished_test_started
+                || tabData->test_running_test
+                || (!LR10KAppGlobals::zeroPointIsSet && !mainGUIGlobals::useDemoMode));
             ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.23f, 0.72f, 0.57f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.23f, 0.8f, 0.7f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.23f, 0.9f, 0.8f));
@@ -1707,6 +1710,23 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             if (ImGui::Button("Start Test"))
             {
                 DockingApps::console.ExecCommand(tabData, "start");
+            }
+            ImGui::PopStyleColor(3);
+            ImGui::EndDisabled();
+
+            ImGui::SameLine();
+
+            ImGui::BeginDisabled(!LR10KAppGlobals::configurationDone || tabData->test_finished);
+            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.11f, 0.06f, 0.8f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.11f, 0.07f, 0.9f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.11f, 0.08f, 1.0f));
+
+            if (ImGui::Button("Set zero point"))
+            {
+                if (LR10KControlSystem::SetZeroPoint(tabData))
+                {
+                    PlaySoundEffect("buttonClick0");
+                }
             }
             ImGui::PopStyleColor(3);
             ImGui::EndDisabled();
@@ -1786,6 +1806,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                     if (ImGui::MenuItem("Set Storage Folder for Recording"))
                     {
                         fileBrowserSaveVideoRecordingExt.Open();
+                        g_Extensiometer.record_test = true; // Activate recording
                         PlaySoundEffect("buttonClick0");
                     }
                     ImGui::EndMenu();
@@ -2585,8 +2606,10 @@ void customPlotCrosshair(TabControl::TabTestDataClass* tabData, StressStrainCont
 }
 
 // Realtime data for current test
-void realtimeDataPlot(TabControl::TabTestDataClass* tabData)
+void realtimeDataPlot(TabControl::TabTestDataClass* tabData, bool hideLR10KSettingsView)
 {
+    if (hideLR10KSettingsView) return;
+
     ImGuiStyle& style = ImGui::GetStyle();
     ImDrawList* draw_list = ImPlot::GetPlotDrawList();
 
@@ -2617,14 +2640,9 @@ void realtimeDataPlot(TabControl::TabTestDataClass* tabData)
             unit_speed,
             testSettings[2],
             LR10KAppGlobals::tensionTesting ? "Tension Testing" : "Compression Testing",
-            1 / tabData->LR10KTensileData.SamplingRate
+            tabData->LR10KTensileData.SamplingRate
         );
     }
-    //else if (LR10KAppGlobals::unitsConvertionIndex == 1)
-    //{
-    //    // Add Imperial/Alternative unit formatting here later
-    //    snprintf(label_buf, sizeof(label_buf), "Imperial Units Pending...");
-    //}
     else
     {
         // Safety fallback just in case the index is uninitialized (-1)
@@ -2642,7 +2660,7 @@ void realtimeDataPlot(TabControl::TabTestDataClass* tabData)
     // 4. Anchor to Upper-Right of the plot
     // We start at the far right edge of the plot (plot_max.x) and subtract the box width and a small margin (15px)
     // We start at the top edge of the plot (plot_min.y) and add a small margin (15px)
-    ImVec2 box_top_left = ImVec2(plot_max.x - box_width - 15.0f, plot_min.y + 15.0f);
+    ImVec2 box_top_left = ImVec2(plot_max.x - box_width - 15.0f, plot_min.y + 15.0f); // Changed to bottom right: plot_max.y - box_height - 15.0f
     ImVec2 box_bottom_right = ImVec2(box_top_left.x + box_width, box_top_left.y + box_height);
 
     // 5. Draw Tooltip Box
@@ -2815,6 +2833,8 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     float LR10KExtension    = 0.0f;
     float LR10KLoad         = 0.0f;
 
+    static bool hideLR10KSettingsView = false;
+
     // Virtual input
     if (mainGUIGlobals::useDemoMode)
     {
@@ -2963,6 +2983,8 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         "- Left Click + Drag Marker: Slide a point along the graph line\n"
         "- Ctrl + Z: Undo a point\n"
     );
+    ImGui::SameLine(0.0f, 20.0f);
+    ImGui::Checkbox("Hide Settings View", &hideLR10KSettingsView);
     ImGui::Spacing();
 
     ImGui::PushFont(Extra::fonts.jetbrainsFont);
@@ -2986,7 +3008,8 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         tabData->request_graph_autofit = false; // Reset it so the user can still zoom/pan afterwards
     }
 
-    ImPlot::PushStyleVar(ImPlotStyleVar_FitPadding, ImVec2(0.15f, 0.20f));
+    // Padding for test plot graph
+    ImPlot::PushStyleVar(ImPlotStyleVar_FitPadding, ImVec2(0.25f, 0.20f));
 
     // 3. Draw the line
     if (ImPlot::BeginPlot("##Testing Graph", ImVec2(-1, -1), ImPlotFlags_NoMouseText)) {
@@ -3216,7 +3239,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         cuttedOutAreaMarkedDeltaL(tabData);
 
         // Real time data
-        realtimeDataPlot(tabData);
+        realtimeDataPlot(tabData, hideLR10KSettingsView);
 
         // Custom figure/blue line in plot
         if (ImPlot::IsPlotHovered())
@@ -3236,6 +3259,29 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         TabControl::CrucialPointsUndoPoint(tabData);
 
     ImGui::End();
+}
+
+double SafeParseDouble(const std::string& str, double fallback_value)
+{
+    // 1. Check if the string is completely empty first
+    if (str.empty()) {
+        return fallback_value;
+    }
+
+    try {
+        // 2. Try to convert
+        // std::stod is smart enough to ignore trailing whitespace, 
+        // but it will throw if the start of the string is garbage.
+        return std::stod(str);
+    }
+    catch (const std::invalid_argument&) {
+        // The string didn't contain a valid number (e.g., "ERROR" or "-")
+        return fallback_value;
+    }
+    catch (const std::out_of_range&) {
+        // The number was astronomically huge
+        return fallback_value;
+    }
 }
 
 void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
@@ -3297,8 +3343,18 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
         ImGui::PushFont(Extra::fonts.jetbrainsFont);
         // 1. Get the raw numeric values. 
         // (Replace these with your actual raw variables if you have them, e.g., TabControl::LR10KLoad)
-        double currentLoad = std::stod(TabControl::LR10KLoadNice);
-        double currentExt = std::stod(TabControl::LR10KExtensionNice);
+        // Static variables remember their value between loop iterations
+        static double last_valid_load = 0.0;
+        static double last_valid_ext = 0.0;
+
+        // Safely parse the incoming strings. 
+        // If they fail, they just return the 'last_valid' value instead of crashing.
+        double currentLoad = SafeParseDouble(TabControl::LR10KLoadNice, last_valid_load);
+        double currentExt = SafeParseDouble(TabControl::LR10KExtensionNice, last_valid_ext);
+
+        // Update our memory for the next loop
+        last_valid_load = currentLoad;
+        last_valid_ext = currentExt;
 
         // 2. Safe denominators
         double A_0 = tabData->area > 0 ? tabData->area : 1.0;

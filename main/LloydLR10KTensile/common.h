@@ -60,7 +60,7 @@ struct RollingBuffer {
     ImVector<ImVec2> Data;      //!< The data that will contain the plot points x and y.
     ImVector<double> TimeData;  //!< The data that will contain the plots current time points.
     TimePoint StartTimeTest;    //!< This holds the last known start time for an ongoing test (updates for every start test). Only used during a test - not saved.
-    double SamplingRate;        //!< This holds the sampling rate calculated at an ended test.
+    double SamplingRate;        //!< This holds the sampling rate calculated at an ended test. (in Hz)
 
     /**
         @brief RollingBuffer object constructor
@@ -98,7 +98,13 @@ struct RollingBuffer {
         // Store the sampling rate
         double totalTime = TimeData.back(); // Assuming last value is the total time
         size_t dataPoints = TimeData.size();
-        SamplingRate = (double)dataPoints / totalTime;
+
+        if (totalTime > 0.0) {
+            SamplingRate = (double)dataPoints / totalTime; // This is in Hz!
+        }
+        else {
+            SamplingRate = 0.0; // Prevent divide-by-zero on the very first tick
+        }
     }
 };
 
@@ -468,7 +474,7 @@ namespace LR10KAppGlobals {
     //! \details The break threshold for a live testing. Will stop the test if the break point is e.g. 30 % lower than the UTS point.
     inline extern float breakThreshold = 0.2f;  //!< \note percentage. This setting is not sent to the LR 10K, but calculated inside the software.
     //! \brief Enable or disable break threshold automatic detection.
-    inline extern int enable_breakThreshold = 1;
+    inline extern int enable_breakThreshold = 0;
 
     //! \brief The range of which the extensiometer can travle.
     inline extern float extensiometerRange = 1000.0f;

@@ -1657,7 +1657,7 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
     // Some old saves won't have this data, and is set to 0 after loading it in (before 2026)
     label = "Sampling Rate (Hz)";
     worksheet_write_string(ws_setup, CELL("A7"), label.c_str(), NULL);
-    worksheet_write_number(ws_setup, CELL("B7"), 1 / tabData.LR10KTensileData.SamplingRate, fmt_decimal0);
+    worksheet_write_number(ws_setup, CELL("B7"), tabData.LR10KTensileData.SamplingRate, fmt_decimal0);
     worksheet_write_string(ws_setup, CELL("C7"), "Hz", fmt_bold_left);
 
     // ---------------------------------------------------------
