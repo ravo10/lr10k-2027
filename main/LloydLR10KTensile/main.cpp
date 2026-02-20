@@ -439,8 +439,8 @@ int main(int argc, char** argv)
     bool showExtensiometerToggler   = g_WindowStates.show_extensiometer;
 
     // Used for bootloader and splash screen
-    bool loadingApplication1 = true;
-    bool loadingApplication2 = true;
+    bool loadingApplication1 = false;
+    bool loadingApplication2 = false;
     float loadingTime1 = 2.8f;
     float loadingTime2 = 1.8f;
 

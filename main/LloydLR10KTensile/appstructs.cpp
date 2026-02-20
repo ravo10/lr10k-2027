@@ -1322,13 +1322,31 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
     // 2. Processing Loop
     while (!g_CV_stopFlag)
     {
+        // HANDLE HARDWARE SWITCH REQUEST
+        if (g_Extensiometer.request_cam_switch)
+        {
+            cap.release();
+            std::this_thread::sleep_for(std::chrono::milliseconds(200)); // Brief pause for hardware
+
+            cap.open(g_Extensiometer.camera_index);
+            g_Extensiometer.request_cam_switch = false;
+            g_Extensiometer.initialized = false; // Reset the gauge length for the new view
+        }
+
         if (!cap.isOpened()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            g_Extensiometer.is_connected = false; // Update status
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
             continue;
         }
 
         cap >> frame;
-        if (frame.empty()) continue;
+        if (frame.empty()) {
+            g_Extensiometer.is_connected = false; // Camera is open but failing to send data
+            continue;
+        }
+
+        // If we reach here, the camera is working!
+        g_Extensiometer.is_connected = true;
 
         // =========================================================
         // 1. PREPARE DISPLAY FRAME (Must happen first)
@@ -1629,26 +1647,70 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             // Default to 4:3 if camera isn't ready yet
             if (aspect == 0.0f) aspect = 4.0f / 3.0f;
 
-            if (g_Extensiometer.is_active && g_pResourceCamera)
+            // Menu Bar
+            if (ImGui::BeginMenuBar())
             {
-                // Menu Bar
-                if (ImGui::BeginMenuBar())
+                if (ImGui::BeginMenu("Hardware"))
                 {
-                    if (ImGui::BeginMenu("Record")) {
-                        ImGui::MenuItem("Activate recording", NULL, &g_Extensiometer.record_test);
-                        ImGui::MenuItem("Filepath for storage", NULL);
-                        ImGui::EndMenu();
+                    // 1. Connection Status Summary
+                    if (g_Extensiometer.is_connected) {
+                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "STATUS: Connected"); // Green
                     }
-                    if (ImGui::BeginMenu("View")) {
-                        ImGui::MenuItem("CV Mask Settings", NULL, &g_Extensiometer.show_cvsettings);
-                        ImGui::MenuItem("CV Mask", NULL, &g_Extensiometer.show_cvmask);
-                        ImGui::EndMenu();
+                    else {
+                        ImGui::TextColored(ImVec4(1, 0, 0, 1), "STATUS: Disconnected"); // Red
                     }
-                    ImGui::EndMenuBar();
+
+                    ImGui::Separator();
+
+                    // 2. Camera Selection
+                    for (int i = 0; i < 4; i++)
+                    {
+                        char label[32];
+                        sprintf(label, "Camera %d", i);
+
+                        bool is_selected = (g_Extensiometer.camera_index == i);
+                        if (ImGui::MenuItem(label, NULL, is_selected))
+                        {
+                            if (g_Extensiometer.camera_index != i) {
+                                g_Extensiometer.camera_index = i;
+                                g_Extensiometer.request_cam_switch = true;
+                            }
+                        }
+
+                        // Add a small indicator for the active camera
+                        if (is_selected && g_Extensiometer.is_active) {
+                            const char* cameraText = "Camera 0";
+                            ImVec2 textSize = ImGui::CalcTextSize(cameraText);
+
+                            ImGui::SameLine(textSize.x + 20.0f);
+                            ImGui::TextDisabled("(Active)");
+                        }
+                    }
+
+                    ImGui::Separator();
+
+                    // 3. Reconnect Button
+                    if (ImGui::MenuItem("Reconnect Current Camera"))
+                    {
+                        g_Extensiometer.request_cam_switch = true;
+                    }
+
+                    ImGui::EndMenu();
                 }
+                if (ImGui::BeginMenu("Record")) {
+                    ImGui::MenuItem("Activate recording", NULL, &g_Extensiometer.record_test);
+                    ImGui::MenuItem("Filepath for storage", NULL);
+                    ImGui::EndMenu();
+                }
+                if (ImGui::BeginMenu("View")) {
+                    ImGui::MenuItem("CV Mask Settings", NULL, &g_Extensiometer.show_cvsettings);
+                    ImGui::MenuItem("CV Mask", NULL, &g_Extensiometer.show_cvmask);
+                    ImGui::EndMenu();
+                }
+                ImGui::EndMenuBar();
 
                 // Left Panel: MASK View
-                if (g_Extensiometer.show_cvmask)
+                if (g_Extensiometer.is_active && g_pResourceCamera && g_Extensiometer.show_cvmask)
                 {
                     if (ImGui::BeginChild("ExtMaskChild", ImVec2(400, 0), true, ImGuiWindowFlags_MenuBar))
                     {
@@ -1683,66 +1745,69 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                     ImGui::SameLine();
                 }
 
-                // Center Panel: CAMERA View
-                float rightPanelWidth = g_Extensiometer.show_cvsettings ? 350.0f : 0.0f;
-                float centerWidth = ImGui::GetContentRegionAvail().x - rightPanelWidth - ImGui::GetStyle().ItemSpacing.x;
-
-                if (ImGui::BeginChild("ExtCameraChild", ImVec2(centerWidth, 0), true, ImGuiWindowFlags_MenuBar))
+                if (g_Extensiometer.is_active)
                 {
-                    if (ImGui::BeginMenuBar()) { ImGui::Text(live_camera_feed_text.c_str()); ImGui::EndMenuBar(); }
+                    // Center Panel: CAMERA View
+                    float rightPanelWidth = g_Extensiometer.show_cvsettings ? 350.0f : 0.0f;
+                    float centerWidth = ImGui::GetContentRegionAvail().x - rightPanelWidth - ImGui::GetStyle().ItemSpacing.x;
 
-                    ImGui::PushFont(Extra::fonts.jetbrainsFont);
+                    if (ImGui::BeginChild("ExtCameraChild", ImVec2(centerWidth, 0), true, ImGuiWindowFlags_MenuBar))
+                    {
+                        if (ImGui::BeginMenuBar()) { ImGui::Text(live_camera_feed_text.c_str()); ImGui::EndMenuBar(); }
 
-                    if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
-                        ImVec2 cursorStart = ImGui::GetCursorPos();
+                        ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
-                        // Draw Overlay Text
-                        ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 10));
-                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "Extension: %.3f mm", g_Extensiometer.results.travel_mm);
+                        if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
+                            ImVec2 cursorStart = ImGui::GetCursorPos();
 
-                        ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 30));
-                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage);
+                            // Draw Overlay Text
+                            ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 10));
+                            ImGui::TextColored(ImVec4(0, 1, 0, 1), "Extension: %.3f mm", g_Extensiometer.results.travel_mm);
 
-                        // Go to zero point from extensiometers perspective
-                        //ImGui::SameLine();
-                        //ImGui::Button("Go to zero point (from ext. perspective)");
+                            ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 30));
+                            ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage);
 
-                        ImGui::Text("Start length (ε_n, σ_t, ε_t):");
-                        ImGui::InputFloat("##Start length 2", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
-                        ImGui::Text("More material properties in the calculator view.");
+                            // Go to zero point from extensiometers perspective
+                            //ImGui::SameLine();
+                            //ImGui::Button("Go to zero point (from ext. perspective)");
 
-                        // 1. Get available space in the window
-                        ImVec2 availSize = ImGui::GetContentRegionAvail();
+                            ImGui::Text("Start length (ε_n, σ_t, ε_t):");
+                            ImGui::InputFloat("##Start length 2", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+                            ImGui::Text("More material properties in the calculator view.");
 
-                        // 2. Calculate the best size that fits within 'availSize' while keeping 'aspect'
-                        float w = availSize.x;
-                        float h = w / aspect;
+                            // 1. Get available space in the window
+                            ImVec2 availSize = ImGui::GetContentRegionAvail();
 
-                        // If the calculated height is too tall for the space, constrain by height instead
-                        if (h > availSize.y)
-                        {
-                            h = availSize.y;
-                            w = h * aspect;
+                            // 2. Calculate the best size that fits within 'availSize' while keeping 'aspect'
+                            float w = availSize.x;
+                            float h = w / aspect;
+
+                            // If the calculated height is too tall for the space, constrain by height instead
+                            if (h > availSize.y)
+                            {
+                                h = availSize.y;
+                                w = h * aspect;
+                            }
+
+                            // 3. Draw the image with the corrected size
+                            ImGui::Image((ImTextureID)g_hGpuDescCamera.ptr, ImVec2(w, h));
+
+                            //ImVec2 size = ImGui::GetContentRegionAvail();
+                            //ImVec2 cursorStart = ImGui::GetCursorPos();
+
+                            //// Draw Image
+                            //ImGui::Image((ImTextureID)g_hGpuDescCamera.ptr, size);
                         }
-
-                        // 3. Draw the image with the corrected size
-                        ImGui::Image((ImTextureID)g_hGpuDescCamera.ptr, ImVec2(w, h));
-
-                        //ImVec2 size = ImGui::GetContentRegionAvail();
-                        //ImVec2 cursorStart = ImGui::GetCursorPos();
-
-                        //// Draw Image
-                        //ImGui::Image((ImTextureID)g_hGpuDescCamera.ptr, size);
+                        else {
+                            ImGui::Text("Waiting for camera feed...");
+                        }
                     }
-                    else {
-                        ImGui::Text("Waiting for camera feed...");
-                    }
+                    ImGui::PopFont();
+                    ImGui::EndChild();
                 }
-                ImGui::PopFont();
-                ImGui::EndChild();
 
                 // Right Panel: SETTINGS
-                if (g_Extensiometer.show_cvsettings)
+                if (g_Extensiometer.is_active && g_Extensiometer.show_cvsettings)
                 {
                     ImGui::SameLine();
                     if (ImGui::BeginChild("ExtSettingsChild", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar))

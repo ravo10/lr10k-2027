@@ -266,6 +266,10 @@ struct AppExtensiometer
     bool show_cvsettings = true;
     bool is_active = true; //!< Controls the camera ON/OFF state
 
+    int camera_index = 0;      //!< Current selected camera
+    bool request_cam_switch = false; //!< Flag to tell the thread to restart
+    bool is_connected = false; //!< If a camera is connected
+
     //! \note Internal state for logic (Initial Length logic)
     bool reset_requested = false;
     double initial_dist_px = 0.0;
@@ -694,7 +698,6 @@ namespace TabControl {
             tension = true;
             testHasGoneAbove15N = false;
             unitsConvertionIndex = 0;
-            calcLinRegressionConst = 0.95f;
 
             current_temp_preSaveLocation = "";
             current_temp_preSaveLocation_StarTestNow = false;
