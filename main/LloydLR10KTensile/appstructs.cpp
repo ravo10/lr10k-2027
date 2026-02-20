@@ -221,24 +221,6 @@ struct Extra_Widgets {
 
         return imgButton;
     }
-
-    ///**
-    //    @brief  Used for returning a no null value for the quick report.
-    //    @param  value -
-    //    @param  round -
-    //    @param  unit  -
-    //    @retval       -
-    //**/
-    //std::string notNullValueChecker(float value, const char* round, const char* unit) {
-    //    char roundedValueChar[10];
-    //    std::string str;
-
-    //    sprintf_s(roundedValueChar, round, value);
-
-    //    if (value == 0) str.append("Needs to be assigned manually."); else { str.append(roundedValueChar); str.append(" "); str.append(unit); };
-
-    //    return str;
-    //};
 };
 
 /**
@@ -319,6 +301,9 @@ json AppMainFileSystem::CreateJSONDataFromCurrentTab(TabControl::TabTestDataClas
 
         tabDataJson["LR10KTensileData"].push_back(points);
     }
+
+    // Sampling Rate (for plot)
+    tabDataJson["LR10KTensileData_SamplingRate"] = tabData->LR10KTensileData.SamplingRate;
     
     // Crucial points
     for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
@@ -336,27 +321,6 @@ json AppMainFileSystem::CreateJSONDataFromCurrentTab(TabControl::TabTestDataClas
         
         tabDataJson["plot_dataPoints"].push_back({ points, propIndex });
     }
-
-    // Clean up
-    // // NOT NEEDED, BUT HAVE IT FOR SAFTEY...
-    //TabControl::CleanUpImportantPoints(tabData);
-
-    //// Important points like yielding, UTS etc.
-    //for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-    //{
-    //    std::ostringstream ss3_x;
-    //    std::ostringstream ss3_y;
-
-    //    ImPlotPoint data = tabData->plot_importantDataPoints[i].first;
-    //    int dataIndex = tabData->plot_importantDataPoints[i].second;
-
-    //    // Important data point
-    //    ss3_x << std::fixed << std::setprecision(3) << data.x;
-    //    ss3_y << std::fixed << std::setprecision(3) << data.y;
-    //    std::string points[2] = { ss3_x.str(), ss3_y.str() };
-
-    //    tabDataJson["plot_importantDataPoints"].push_back({ points, dataIndex });
-    //}
 
     // Other information about the test
     tabDataJson["thickness"]    = tabData->thickness;
@@ -411,6 +375,13 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
         if (pointX >= 0.0f && pointY >= 0.0f)
             tabData->LR10KTensileData.AddPoint(pointX, pointY);
     }
+
+    // Sampling Rate (for plot)
+	std::string_view samplingRate = "LR10KTensileData_SamplingRate";
+	if (tabDataJson.contains(std::string{ samplingRate }))
+		tabData->LR10KTensileData.SamplingRate = tabDataJson["LR10KTensileData_SamplingRate"];
+	else
+		tabData->LR10KTensileData.SamplingRate = 0.0;
     
     // Crucial points
     for (int i = 0; i < tabDataJson["plot_dataPoints"].size(); i++)
@@ -428,26 +399,6 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
         // The other boolean will be calculated automatically on insert
         tabData->plot_dataPoints.push_back({ point, dataPointIndex });
     }
-    
-    // Important points
-    //tabData->plot_importantDataPoints.clear();
-    //for (int i = 0; i < tabDataJson["plot_importantDataPoints"].size(); i++)
-    //{
-    //    json::array_t data = tabDataJson["plot_importantDataPoints"][i];
-
-    //    // Important data point
-    //    ImPlotPoint point;
-    //    point.x = std::stof((std::string)data[0][0]);
-    //    point.y = std::stof((std::string)data[0][1]);
-
-    //    // Important data point index
-    //    int dataPointIndex = data[1];
-
-    //    tabData->plot_importantDataPoints.push_back({ point, dataPointIndex });
-    //}
-
-    // Clean up
-    //TabControl::CleanUpImportantPoints(tabData);
 
     // Other information about the test
     tabData->test_unfinished_test_started = tabDataJson["test_unfinished_test_started"];
@@ -513,7 +464,9 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
     LR10KAppGlobals::testing_speedAndPlotGUI[1] = (LR10KAppGlobals::testing_speedAndPlotActual[1] / LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[1]) * 100;
 
     tabData->fileFinishedLoading = true;
-    tabData->needs_recalculation = true;
+
+    tabData->NeedsRecalculation.markAsUnsaved = false;
+    tabData->NeedsRecalculation.recalculate = true;
 
     return tabData;
 }
@@ -602,71 +555,6 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
     //window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
     //window_flags |= ImGuiWindowFlags_NoMove;
 
-    //auto saveLogic = [tabData]() {
-    //    // Save data from the current test GUI to a text file (if a test is not started or test has started and is finished)
-    //    // A little bit of the same logic as in "SaveAsLR10KTestBrowserLogic"
-    //    if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
-    //    {
-    //        // Get current selection (path + filename). Filname will be folder name.
-    //        std::stringstream filenameStream(tabData->current_temp_preSaveLocation);
-    //        std::string segment;
-    //        std::vector<std::string> seglist;
-
-    //        // Split
-    //        while (std::getline(filenameStream, segment, '\\'))
-    //        {
-    //            seglist.push_back(segment);
-    //        }
-
-    //        // Folder name
-    //        std::filesystem::path filepath = tabData->current_temp_preSaveLocation;
-    //        std::string filename = seglist[seglist.size() - 1]; // tabID + dateTime
-
-    //        // TabID
-    //        filename.append(std::to_string(tabData->tabId).c_str());
-    //        // DateTime
-    //        filename.append("__");
-    //        // Get the current time point
-    //        auto now = std::chrono::system_clock::now();
-
-    //        // Convert the time point to a time_t object
-    //        std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-
-    //        // Convert the time_t to a struct tm in UTC
-    //        struct tm* timeinfo = std::gmtime(&currentTime);
-
-    //        // Create a buffer to format the time
-    //        char buffer[20]; // Adjust the size as needed
-
-    //        // Format the time as "YYYYMMDDHHMMSS"
-    //        std::strftime(buffer, sizeof(buffer), "%Y%m%d__%H%M%S", timeinfo);
-
-    //        // Print the formatted time
-    //        filename.append(buffer);
-
-    //        // Append it to path
-    //        filepath.append(filename);
-
-    //        // Make a independent copy for saving to a file
-    //        TabControl::TabTestDataClass tabDataForSave = *tabData;
-    //        tabData->ConvertUnitsToNewUnit(&tabDataForSave, 0, false, false, false);
-
-    //        // Create JSON data and save it
-    //        json jsonData = DockingApps::mainFileSystem.CreateJSONDataFromCurrentTab(&tabDataForSave);
-    //        bool save1 = DockingApps::mainFileSystem.SaveJSONDataToFile(tabData, jsonData, filepath.string().c_str());
-
-    //        // Create Excel Book and save it
-    //        // A little bit of the same logic as in "SaveXlsxBrowserLogic"
-    //        bool save2 = DockingApps::mainExcel.SavePlotDataAsAnXlsxFile(*tabData, filepath.string().c_str()); // Returns its own console log on success/non success
-
-    //        if (save1 && save2)
-    //            DockingApps::console.AddLog("Successfully saved plot data & excel book from current tab!");
-    //        else
-    //            DockingApps::console.AddLog("[error] Could not save plot data & excel book from current tab...");
-    //    }
-
-    //    };
-
     auto saveLogic = [tabData]() {
         // --- NEW: Guard Clause to cancel saving ---
         // If no storage location is set, log a warning and exit immediately.
@@ -679,35 +567,56 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
         // Save data from the current test GUI to a text file
         if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
         {
-            // 1. Use std::filesystem directly (No need for stringstream or seglist!)
+            // Use std::filesystem directly
             std::filesystem::path filepath(tabData->current_temp_preSaveLocation);
 
-            // filepath.filename() automatically grabs the deepest folder/file name
-            std::string filename = filepath.filename().string();
-
-            // Safe-guard in case the path was completely empty
-            if (filename.empty()) {
-                filename = "Unnamed_Test";
+            // Safely extract the deepest folder name, ignoring trailing slashes
+            std::string baseName;
+            if (filepath.has_filename()) {
+                // Path does NOT end in a slash (e.g., "C:/Tests/Batch1")
+                baseName = filepath.filename().string();
+            }
+            else {
+                // Path DOES end in a slash (e.g., "C:/Tests/Batch1/")
+                // Step back to the parent path to grab the actual folder name
+                baseName = filepath.parent_path().filename().string();
             }
 
-            // 2. Cleanly build the filename string using += instead of .append(.c_str())
-            filename += "_" + std::to_string(tabData->tabId) + "__";
+            // Safe-guard in case the path was completely empty or was a root drive (like "C:/")
+            if (baseName.empty() || baseName == "/" || baseName == "\\") {
+                baseName = "Unnamed_Test";
+            }
 
-            // 3. Time formatting
+            // Build the actual filename
+            std::string filename = baseName + "_Tab" + std::to_string(tabData->tabId) + "__";
+
+            // Time formatting
             auto now = std::chrono::system_clock::now();
             std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
 
             // (Optional but safer: use thread-safe time functions if on Windows)
             struct tm timeinfo;
 #if defined(_WIN32) || defined(_WIN64)
-            gmtime_s(&timeinfo, &currentTime);
+            // Use localtime_s for Windows system time (includes DST and Timezone offset)
+            localtime_s(&timeinfo, &currentTime);
 #else
-            gmtime_r(&currentTime, &timeinfo);
+            // Use localtime_r for POSIX/Linux
+            localtime_r(&currentTime, &timeinfo);
 #endif
 
             char buffer[20];
-            std::strftime(buffer, sizeof(buffer), "%Y%m%d__%H%M%S", &timeinfo);
+            std::strftime(buffer, sizeof(buffer), "%b-%d-%G", &timeinfo);
             filename += buffer;
+            filename += "(Time_";
+            std::strftime(buffer, sizeof(buffer), "%H", &timeinfo);
+            filename += buffer;
+            filename += ".";
+            std::strftime(buffer, sizeof(buffer), "%M", &timeinfo);
+            filename += buffer;
+            filename += ".";
+            std::strftime(buffer, sizeof(buffer), "%S", &timeinfo);
+            filename += buffer;
+            filename += ")";
 
             // 4. Use the filesystem /= operator to safely join the path and filename
             // This automatically adds the correct slashes (\ or /) for you
@@ -926,18 +835,15 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
                 ImGui::EndDisabled();
 
-                // Warning if user wants to save and stresses are not calculated
-                bool warningStressesAreNotCalculated = tabData->LR10KTensileDataNominal.Data.size() <= 0;
-
                 ImGui::BeginDisabled(!tabData->unsavedThingsInTab || tabData->current_temp_preSaveLocation == "" || defaultValuesGUI::invalidStressDataNotUpdated);
-                if (ImGui::MenuItem(warningStressesAreNotCalculated ? "Save (.lr10k and .xlsx)\nafter stress calc." : "Save (.lr10k and .xlsx)", "Ctrl+S"))
+                if (ImGui::MenuItem("Save (.lr10k and .xlsx)", "Ctrl+S"))
                     saveLogic();
                 ImGui::EndDisabled();
 
                 ImGui::Separator();
 
                 ImGui::BeginDisabled(!tabData->unsavedThingsInTab || defaultValuesGUI::invalidStressDataNotUpdated);
-                if (ImGui::MenuItem(warningStressesAreNotCalculated ? "Save File As after\nafter stress calc." : "Save File As...", "Ctrl+Alt+S"))
+                if (ImGui::MenuItem("Save File As...", "Ctrl+Alt+S"))
                 {
                     // Save data from the current test GUI to a text file (if a test is not started or test has started and is finished)
                     if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
@@ -948,7 +854,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 }
 
                 // Save results as a .XLSX file
-                if (ImGui::MenuItem(warningStressesAreNotCalculated ? "Save Excel Book\nafter stress calc." : "Save Excel Book As...", "Ctrl+Alt+E", false, (!disableSaveToExcel && !defaultValuesGUI::invalidStressDataNotUpdated)))
+                if (ImGui::MenuItem("Save Excel Book As...", "Ctrl+Alt+E", false, (!disableSaveToExcel && !defaultValuesGUI::invalidStressDataNotUpdated)))
                 {
                     PlaySoundEffect("buttonClick0");
                     fileBrowserSaveXlsx.Open();
@@ -1697,7 +1603,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Keep camera running even if this window is closed.");
             ImGui::SameLine(0.0f, 40.0f);
 
-            ImGui::BeginDisabled(tabData->test_unfinished_test_started || tabData->current_temp_preSaveLocation == "");
+            ImGui::BeginDisabled(tabData->test_unfinished_test_started || tabData->current_temp_preSaveLocation == "" || tabData->test_finished);
             ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.23f, 0.72f, 0.57f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.23f, 0.8f, 0.7f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.23f, 0.9f, 0.8f));
@@ -1785,6 +1691,8 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 {
                     if (ImGui::BeginMenuBar()) { ImGui::Text(live_camera_feed_text.c_str()); ImGui::EndMenuBar(); }
 
+                    ImGui::PushFont(Extra::fonts.jetbrainsFont);
+
                     if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
                         ImVec2 cursorStart = ImGui::GetCursorPos();
 
@@ -1830,6 +1738,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         ImGui::Text("Waiting for camera feed...");
                     }
                 }
+                ImGui::PopFont();
                 ImGui::EndChild();
 
                 // Right Panel: SETTINGS
@@ -1839,6 +1748,8 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                     if (ImGui::BeginChild("ExtSettingsChild", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar))
                     {
                         if (ImGui::BeginMenuBar()) { ImGui::Text("Settings"); ImGui::EndMenuBar(); }
+
+                        ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
                         ImGui::SeparatorText("Calibration");
                         ImGui::Text("Detected L0: %.1f px", g_Extensiometer.initial_dist_px);
@@ -1991,12 +1902,15 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                         ImGui::Spacing();
                     }
+                    ImGui::PopFont();
                     ImGui::EndChild();
                 }
             }
             else
             {
                 ImGui::Text("Camera is not active. Check the box above to start the camera and see the feed here.");
+                ImGui::Spacing();
+                ImGui::Text("This Extensiometer is developed together with Gemini AI,\nusing the OpenCV library for computer vision.");
             }
 
             ImGui::EndDisabled();
@@ -2135,13 +2049,6 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
                 {
                     // Adjust for load error
                     DockingApps::calculator.AdaptTabDataForLoadError(tabData);
-
-                    // Calculate stresses
-                    /*DockingApps::calculator.CalculateStressPoints(tabData);
-                    DockingApps::calculator.CalculateStresses(tabData);*/
-
-                    // Update graph
-                    //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
                 }
             }
             ImGui::SetItemTooltip("This will update the load error.");
@@ -2154,6 +2061,8 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
 
             str = " ";
             str.append(LR10KAppGlobals::GetUnitOption<const char*>(2));
+
+            ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
             // --- Test Speed 1/Crosshead Vertical Slider ---
             ImGui::BeginDisabled(disableTestSettingsAdjustments);
@@ -2170,6 +2079,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
             ImGui::EndGroup();
 
             ImGui::Spacing();
+            ImGui::PopFont();
 
             ImGui::EndTabItem();
         }
@@ -2180,6 +2090,8 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
         {
             // The limits that gets sent to the LR 10K
             ImGui::SeparatorText("Limits inside LR 10K");
+
+            ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
             ImGui::BeginDisabled(disableTestSettingsAdjustments);
             ImGui::Text("Load limit\nfrom zero point:");
@@ -2221,6 +2133,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
             ImGui::Text("(Ext. <= 5 => 0.001)\n(< 5 Ext. < 60 => 0.01)\n(60 < Ext. < 600 => 0.1)\n(Ext. > 600 => 0.0)");
 
             ImGui::Spacing();
+            ImGui::PopFont();
 
             ImGui::EndTabItem();
         }
@@ -2229,12 +2142,12 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
         // --------------------
         if (ImGui::BeginTabItem("Break Detection"))
         {
-            //DockingApps::mutexControl.BreakDetection();
             // The break detection threshold from UTS
             ImGui::SeparatorText("Break Detection");
             float breakThreshold = LR10KAppGlobals::breakThreshold * 100;
             ImGui::BeginDisabled(disableTestSettingsAdjustments);
             ImGui::BeginDisabled(LR10KAppGlobals::enable_breakThreshold == 1);
+            ImGui::PushFont(Extra::fonts.jetbrainsFont);
             ImGui::Text("Will End Test when %.0f %% of maximum load found.", LR10KAppGlobals::breakThreshold * 100);
             if (ImGui::InputFloat("##Break detection", &breakThreshold, (1.0f), (5.0f), "%.0f"))
             {
@@ -2244,7 +2157,6 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
                     breakThreshold = 100.0f;
 
                 LR10KAppGlobals::breakThreshold = breakThreshold / 100;
-                //DockingApps::mutexControl.breakThresholdStatusChanged.notify_all();
                 DockingApps::mainFileSystem.SaveApplicationSettings();
             }
             ImGui::SameLine(); ImGui::Text("%%");
@@ -2256,11 +2168,11 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
             if (manual || automatic)
             {
                 LR10KAppGlobals::enable_breakThreshold = pointerBreakThresholdEnabled;
-                //DockingApps::mutexControl.enable_breakThresholdStatusChanged.notify_all();
                 DockingApps::mainFileSystem.SaveApplicationSettings();
             }
             ImGui::EndDisabled();
             ImGui::Spacing();
+            ImGui::PopFont();
 
             ImGui::EndTabItem();
         }
@@ -2296,6 +2208,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
         {
             // Set the distance to when the machine should End Test or Pause
             ImGui::SeparatorText("Travel an absolute distance from current position");
+            ImGui::PushFont(Extra::fonts.jetbrainsFont);
             ImGui::BeginDisabled(disableTestSettingsAdjustments);
             str = "0 ";
             str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
@@ -2303,6 +2216,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
             ImGui::Text(str.c_str());
             bool travel1 = ImGui::InputFloat("##Travel distance", &TabControl::LR10KTravelDistanceControl, (0.01f), (0.1f), "%.2f", ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
             ImGui::EndDisabled();
+            ImGui::PopFont();
 
             ImGui::BeginDisabled(disableTestSettingsAdjustments || !TabControl::CheckIfDistanceTravelControlActivated());
             ImGui::Text("After distance travelled?");
@@ -2380,11 +2294,9 @@ void AppMainWidgets::SidePanelContainer(TabControl::TabTestDataClass* tabData)
                 {
                     if (ImGui::BeginMenuBar()) { ImGui::Text("Realtime feedback for current test"); ImGui::EndMenuBar(); }
 
-                    //ImGui::SetWindowFontScale(0.7);
                     ImGui::BeginDisabled(disableWidgets1);
                         DockingApps::mainWidgets.LiveWindowDraw(tabData);
                     ImGui::EndDisabled();
-                    //ImGui::SetWindowFontScale(1);
                 }
                 ImGui::EndChild();
 
@@ -2396,24 +2308,7 @@ void AppMainWidgets::SidePanelContainer(TabControl::TabTestDataClass* tabData)
             // ============================================================
             if (ImGui::BeginTabItem("Information & Points"))
             {
-                // --- Sub-Window 1: Quick Report ---
-                //if (g_WindowStates.show_quick_report)
-                //{
-                //    if (ImGui::BeginChild("QuickRepPanel", ImVec2(0, 230), true, ImGuiWindowFlags_MenuBar))
-                //    {
-                //        if (ImGui::BeginMenuBar()) { ImGui::Text("Raw data: Critical points sum up"); ImGui::EndMenuBar(); }
-
-                //        // Common window flags
-                //        ImGuiWindowFlags viewOptions_window_flags = 0;
-                //        viewOptions_window_flags |= ImGuiWindowFlags_NoCollapse;
-                //        viewOptions_window_flags |= ImGuiWindowFlags_NoDocking;
-
-                //        DockingApps::mainWidgets.QuickReportWindowDraw(tabData, &g_WindowStates.show_quick_report, viewOptions_window_flags);
-                //    }
-                //    ImGui::EndChild();
-                //}
-
-                // --- Sub-Window 2: Description ---
+                // --- Sub-Window 1: Description ---
                 if (ImGui::BeginChild("DescPanel", ImVec2(0, 275), true, ImGuiWindowFlags_MenuBar))
                 {
                     if (ImGui::BeginMenuBar()) { ImGui::Text("Description: Important details"); ImGui::EndMenuBar(); }
@@ -2424,7 +2319,7 @@ void AppMainWidgets::SidePanelContainer(TabControl::TabTestDataClass* tabData)
                 }
                 ImGui::EndChild();
 
-                // --- Sub-Window 3: Crucial Points ---
+                // --- Sub-Window 2: Crucial Points ---
                 // Fill remaining space
                 if (ImGui::BeginChild("PointsPanel", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar))
                 {
@@ -2536,7 +2431,7 @@ void customPlotCrosshair(TabControl::TabTestDataClass* tabData, StressStrainCont
 }
 
 // Realtime data for current test
-void realtimeDataPlot()
+void realtimeDataPlot(TabControl::TabTestDataClass* tabData)
 {
     ImGuiStyle& style = ImGui::GetStyle();
     ImDrawList* draw_list = ImPlot::GetPlotDrawList();
@@ -2558,13 +2453,17 @@ void realtimeDataPlot()
     if (LR10KAppGlobals::unitsConvertionIndex == 0 || LR10KAppGlobals::unitsConvertionIndex == 1)
     {
         const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8);
+        const char* unit_speed = LR10KAppGlobals::GetUnitOption<const char*>(2);
 
         snprintf(label_buf, sizeof(label_buf),
-            "Crosshead Speed: %.2f mm/min\nJog Speed: %.2f mm/min\nLoad Error: %.2f %%\nTest Type: %s",
+            "Crosshead Speed: %.2f %s\nJog Speed: %.2f %s\nLoad Error: %.2f %%\nTest Type: %s\nSampling Rate: %.0f Hz",
             (testSettings[0] / 100.0) * LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[0] * unitConv_dist,
+            unit_speed,
             (testSettings[1] / 100.0) * LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[1] * unitConv_dist,
+            unit_speed,
             testSettings[2],
-            LR10KAppGlobals::tensionTesting ? "Tension Testing" : "Compression Testing"
+            LR10KAppGlobals::tensionTesting ? "Tension Testing" : "Compression Testing",
+            1 / tabData->LR10KTensileData.SamplingRate
         );
     }
     //else if (LR10KAppGlobals::unitsConvertionIndex == 1)
@@ -2617,39 +2516,6 @@ void realtimeDataPlot()
         label_buf
     );
 }
-
-// The custom marked area that defines the amount of cut of delta l
-//void cuttedOutAreaMarkedDeltaL()
-//{
-//    if (defaultValuesGUI::offsetZeroPointExtensionAxis > 0)
-//    {
-//        ImGuiStyle& style = ImGui::GetStyle();
-//        const ImVec4 crosshairColor = style.Colors[ImGuiCol_CheckMark];
-//
-//        // Get ImGui window DrawList
-//        ImDrawList* draw_list = ImPlot::GetPlotDrawList();
-//
-//        ImVec2 rFilledmin = ImPlot::PlotToPixels(ImPlotPoint(0.0f, ImPlot::GetPlotLimits().Y.Max));
-//        ImVec2 rFilledmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
-//
-//        ImVec2 rmin = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, ImPlot::GetPlotLimits().Y.Max));
-//        ImVec2 rmax = ImPlot::PlotToPixels(ImPlotPoint(defaultValuesGUI::offsetZeroPointExtensionAxis, 0));
-//
-//        const ImU32 colorFilledRect = IM_COL32(0, 0, 0, 166); // RGBA
-//        const ImU32 colorFilledText = IM_COL32(171, 255, 183, 220); // RGBA
-//        const ImU32 colorEndLine = ImGui::ColorConvertFloat4ToU32(crosshairColor);
-//
-//        ImPlot::PushPlotClipRect();
-//        ImPlot::GetPlotDrawList()->AddRectFilled(rFilledmin, rFilledmax, colorFilledRect);
-//        ImPlot::GetPlotDrawList()->AddLine(rmin, rmax, colorEndLine, 0.5f);
-//
-//        ImPlot::PopPlotClipRect();
-//
-//        ImPlot::PushStyleColor(ImPlotCol_InlayText, ImGui::ColorConvertU32ToFloat4(colorFilledText));
-//        ImPlot::PlotText("Filtered out", defaultValuesGUI::offsetZeroPointExtensionAxis / 2, ImPlot::GetPlotLimits().Y.Max / 2, ImVec2(-5.0f, 26.0f), ImPlotTextFlags_Vertical);
-//        ImPlot::PopStyleColor();
-//    }
-//}
 
 // 1. Update the signature to accept tabData
 void cuttedOutAreaMarkedDeltaL(TabControl::TabTestDataClass* tabData)
@@ -2879,18 +2745,12 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     // Buttons for graph
     ImGui::Spacing();
 
-    ImGui::SetItemTooltip("Recalculate strength(s) to update the stress-strain graph");
     if (ImGui::Button("Toggle Graph Type", { 180, 45 }))
     {
         LR10KAppGlobals::showStressStrain = !LR10KAppGlobals::showStressStrain;
 		tabData->request_graph_autofit = true;
 
-        // Change graph extension based on the highest value
-        //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
-
         PlaySoundEffect("buttonClick0");
-
-        tabData->MarkTabAsUnsaved();
     }
 
     ImGui::SameLine();
@@ -2950,6 +2810,8 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         "- Ctrl + Z: Undo a point\n"
     );
     ImGui::Spacing();
+
+    ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
     // Start plot graph
     std::string str;
@@ -3176,8 +3038,8 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
                         // Did it actually move to a new snap index?
                         if (raw_pt.x != active_drag_original_raw_x || raw_pt.y != active_drag_original_raw_y)
                         {
-                            tabData->needs_recalculation = true;
-                            tabData->MarkTabAsUnsaved(); // Good idea to move this here too!
+                            tabData->NeedsRecalculation.markAsUnsaved = true;
+                            tabData->NeedsRecalculation.recalculate = true;
                         }
 
                         // Clear the drag tracker
@@ -3200,7 +3062,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         cuttedOutAreaMarkedDeltaL(tabData);
 
         // Real time data
-        realtimeDataPlot();
+        realtimeDataPlot(tabData);
 
         // Custom figure/blue line in plot
         if (ImPlot::IsPlotHovered())
@@ -3213,6 +3075,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     }
 
     ImPlot::PopStyleVar();
+    ImGui::PopFont();
 
     // Remove a crucial point with hotkey
     if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
@@ -3277,6 +3140,7 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
 
     if (LR10KAppGlobals::showStressStrain)
     {
+        ImGui::PushFont(Extra::fonts.jetbrainsFont);
         // 1. Get the raw numeric values. 
         // (Replace these with your actual raw variables if you have them, e.g., TabControl::LR10KLoad)
         double currentLoad = std::stod(TabControl::LR10KLoadNice);
@@ -3298,9 +3162,11 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
         // 5. Draw Strain
         std::string strX = "Strain:    %.3f %%";
         ImGui::TextColored(textColor, strX.c_str(), current_strain*100);
+        ImGui::PopFont();
     }
     else
     {
+        ImGui::PushFont(Extra::fonts.jetbrainsFont);
         // Draw standard Load
         std::string strY = "Load:      %s ";
         strY.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
@@ -3310,164 +3176,9 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
         std::string strX = "Extension: %s ";
         strX.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
         ImGui::TextColored(textColor, strX.c_str(), TabControl::LR10KExtensionNice.c_str());
+        ImGui::PopFont();
     }
 }
-
-//void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabData)
-//{
-//    if (tabData == nullptr) return;
-//
-//    ImGui::Text("You can undo a point with Ctrl+Z.");
-//    ImGui::Spacing();
-//    // Add a automatic UTS point if no one is added yet
-//    ImGui::BeginDisabled(!tabData->test_finished);
-//    if (ImGui::Button("Find UTS"))
-//    {
-//        tabData->AssignPoint_UltimateTensileStrength(tabData);
-//    }
-//    // Quick check if UTS has already been added (to give a notice)
-//    if (!tabData->plot_importantDataPoints.empty())
-//    {
-//        for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-//        {
-//            if (tabData->plot_importantDataPoints[i].second == 2)
-//            {
-//                ImGui::SetItemTooltip("Note: A UTS point is already added");
-//                break;
-//            }
-//        }
-//    }
-//    ImGui::EndDisabled();
-//    ImGui::Separator();
-//    ImGui::Spacing();
-//    ImGui::SeparatorText("Crucial points added");
-//
-//    // Options for crucial points
-//    if (!tabData->plot_dataPoints.empty())
-//    {
-//        // All data points (using a pointer since data will be manipulated)
-//        std::vector<std::tuple<ImPlotPoint, int>>* pointData = &tabData->plot_dataPoints;
-//
-//        for (int i = 0; i < pointData->size(); i++)
-//        {
-//            // Text label
-//            std::string id = std::string("##Point ");
-//            id.append(std::to_string(i));
-//
-//            // A label
-//            ImGui::Text("{%d}", i);
-//
-//            // 1. Get the raw saved point
-//            ImPlotPoint raw_pt = std::get<ImPlotPoint>(pointData->at(i));
-//
-//            // 2. Safely grab the area and length for math
-//            double A_0 = tabData->area > 0 ? tabData->area : 1.0;
-//            double L_0 = tabData->length > 0 ? tabData->length : 1.0;
-//
-//            // 3. Draw text based on which graph is currently toggled
-//            if (LR10KAppGlobals::showStressStrain)
-//            {
-//                // Convert raw data to Stress/Strain
-//                double current_stress = LR10KAppGlobals::CalcSigma_e(raw_pt.y, A_0);
-//                double current_strain = LR10KAppGlobals::CalcEpsilon_e(raw_pt.x, L_0);
-//
-//                // Draw Stress
-//                std::string strY = "Stress: %.2f ";
-//                strY.append(LR10KAppGlobals::GetUnitOption<const char*>(3)); // Usually index 3 for Stress
-//                ImGui::Text(strY.c_str(), current_stress);
-//
-//                // Draw Strain
-//                std::string strX = "Strain: %.3f %%";
-//                ImGui::Text(strX.c_str(), current_strain);
-//            }
-//            else
-//            {
-//                // Draw standard Load
-//                std::string strY = "Load: %.0f ";
-//                strY.append(LR10KAppGlobals::GetUnitOption<const char*>(1)); // Usually index 1 for Force
-//                ImGui::Text(strY.c_str(), raw_pt.y);
-//
-//                // Draw standard Extension
-//                std::string strX = "Extension: %.2f ";
-//                strX.append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Usually index 0 for Distance
-//                ImGui::Text(strX.c_str(), raw_pt.x);
-//            }
-//
-//            // A delete button with a uniq ID
-//            ImGui::PushID(std::string("deleteButtonPoint").append(std::to_string(i)).c_str());
-//            // Get uniq ID
-//            if (ImGui::Button("Remove"))
-//            {
-//                tabData->plot_dataPoints.erase(tabData->plot_dataPoints.begin() + i);
-//
-//                PlaySoundEffect("buttonClick0");
-//                DockingApps::console.AddLog("GUI: Removed a crucial point from plot.");
-//
-//                /*TabControl::RefreshUpdateImportantDataPoints(tabData);
-//                DockingApps::calculator.CalculateStressPoints(tabData);
-//                DockingApps::calculator.CalculateStresses(tabData);*/
-//            }
-//            ImGui::PopID();
-//
-//            // Combo selection
-//            ImGui::SameLine();
-//            if (tabData->plot_dataPoints.size() > i) // Need to double check, or else it might fail
-//            {
-//                if (!tabData->plot_dataPoints.empty())
-//                {
-//                    bool comboTension = false;
-//                    bool comboCompression = false;
-//
-//                    if (tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked))
-//                    {
-//                        comboTension = ImGui::Combo(id.c_str(), &std::get<int>(pointData->at(i)), TabControl::plot_items, IM_ARRAYSIZE(TabControl::plot_items));
-//                    }
-//                    else
-//                    {
-//                        if (ImGui::BeginCombo(id.c_str(), TabControl::plot_items[std::get<int>(pointData->at(i))]))
-//                        {
-//                            for (int n = 0; n < IM_ARRAYSIZE(TabControl::plot_items); n++)
-//                            {
-//                                const bool is_selected = (std::get<int>(pointData->at(i)) == n);
-//
-//                                // Disable options for compression that is not supposed to be available to add
-//                                ImGui::BeginDisabled(n == 0 || n == 1 || n == 3);
-//                                    if (ImGui::Selectable(TabControl::plot_items[n], is_selected))
-//                                    {
-//                                        std::get<int>(pointData->at(i)) = n;
-//                                        comboCompression = true;
-//                                    }
-//                                ImGui::EndDisabled();
-//
-//                                // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-//                                if (is_selected)
-//                                    ImGui::SetItemDefaultFocus();
-//                            }
-//                            ImGui::EndCombo();
-//                        }
-//                    }
-//
-//                    if (comboTension || comboCompression)
-//                    {
-//                        //TabControl::RefreshUpdateImportantDataPoints(tabData);
-//
-//                        // Update stresses
-//                        /*DockingApps::calculator.CalculateStressPoints(tabData);
-//                        DockingApps::calculator.CalculateStresses(tabData);*/
-//
-//                        PlaySoundEffect("buttonClick0");
-//                    }
-//                }
-//            }
-//
-//            ImGui::Spacing();
-//            ImGui::Separator();
-//            ImGui::Spacing();
-//        }
-//
-//        ImGui::Spacing();
-//    }
-//}
 
 void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabData)
 {
@@ -3482,27 +3193,12 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
     if (ImGui::Button("Find UTS"))
     {
         tabData->AssignPoint_UltimateTensileStrength(tabData);
-        tabData->needs_recalculation = true;
-        tabData->MarkTabAsUnsaved();
     }
-
-    //// Quick check if UTS has already been added (to give a notice)
-    //if (!tabData->plot_importantDataPoints.empty())
-    //{
-    //    for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-    //    {
-    //        if (tabData->plot_importantDataPoints[i].second == 2)
-    //        {
-    //            ImGui::SetItemTooltip("Note: A UTS point is already added");
-    //            break;
-    //        }
-    //    }
-    //}
 
     ImGui::SameLine();
 
-    // Add the button to spawn E-module bounds
-    if (ImGui::Button("Add custom E-Module Bounds"))
+    // Add the button to spawn E-Modulus bounds
+    if (ImGui::Button("Add custom E-Modulus Bounds"))
         DockingApps::calculator.AddEmoduleBounds(tabData);
 
     ImGui::EndDisabled();
@@ -3512,6 +3208,8 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
     ImGui::Separator();
     ImGui::Spacing();
     ImGui::SeparatorText("Crucial points added");
+
+    ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
     // Options for crucial points
     if (!tabData->plot_dataPoints.empty())
@@ -3567,8 +3265,8 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
                 DockingApps::console.AddLog("GUI: Removed a crucial point from plot.");
 
                 // Trigger recalculation!
-                tabData->needs_recalculation = true;
-                tabData->MarkTabAsUnsaved();
+                tabData->NeedsRecalculation.markAsUnsaved = true;
+                tabData->NeedsRecalculation.recalculate = true;
 
                 // FIX FOR VECTOR LOOPING BUG
                 i--; // Decrement i so we don't skip the next item in the vector!
@@ -3614,8 +3312,8 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
             // If the user changed the point type, trigger a recalculation!
             if (comboTension || comboCompression)
             {
-                tabData->needs_recalculation = true;
-                tabData->MarkTabAsUnsaved();
+                tabData->NeedsRecalculation.markAsUnsaved = true;
+                tabData->NeedsRecalculation.recalculate = true;
                 PlaySoundEffect("buttonClick0");
             }
 
@@ -3628,68 +3326,9 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
 
         ImGui::Spacing();
     }
-}
 
-//void AppMainWidgets::QuickReportWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open, ImGuiWindowFlags extern_windowFlags)
-//{
-//    if (tabData == nullptr) return;
-//
-//    if (tabData->test_finished)
-//    {
-//        // Sum up critical points from plot
-//        // 1. Safe denominators for math
-//        double A_0 = tabData->area > 0 ? tabData->area : 1.0;
-//        double L_0 = tabData->length > 0 ? tabData->length : 1.0;
-//
-//        // 2. The names of your crucial points in order
-//        const char* pointNames[4] = {
-//            "Proportional limit",
-//            "Yielding (lower)",
-//            "Ultimate Tensile",
-//            "Fracture"
-//        };
-//
-//        // 3. Loop through the 4 points
-//        for (int i = 0; i < 4; i++)
-//        {
-//            // Get the raw data point
-//            ImPlotPoint raw_pt = std::get<ImPlotPoint>(tabData->plot_importantDataPoints.at(i));
-//
-//            if (LR10KAppGlobals::showStressStrain)
-//            {
-//                // --- STRESS / STRAIN VIEW ---
-//                double stress = LR10KAppGlobals::CalcSigma_e(raw_pt.y, A_0);
-//                double strain = LR10KAppGlobals::CalcEpsilon_e(raw_pt.x, L_0);
-//
-//                // Stress
-//                ImGui::Text("%s Stress: %s", pointNames[i],
-//                    Extra::widgets.notNullValueChecker(stress, "%.2f", LR10KAppGlobals::GetUnitOption<const char*>(3)).c_str());
-//
-//                // Strain (Using "%" as the unit string)
-//                ImGui::Text("%s Strain: %s", pointNames[i],
-//                    Extra::widgets.notNullValueChecker(strain*100, "%.3f", "%").c_str());
-//            }
-//            else
-//            {
-//                // --- LOAD / EXTENSION VIEW ---
-//                // Load
-//                ImGui::Text("%s Load: %s", pointNames[i],
-//                    Extra::widgets.notNullValueChecker(raw_pt.y, "%.0f", LR10KAppGlobals::GetUnitOption<const char*>(1)).c_str());
-//
-//                // Extension
-//                const char* ext_format = LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(raw_pt.x);
-//                ImGui::Text("%s Extension: %s", pointNames[i],
-//                    Extra::widgets.notNullValueChecker(raw_pt.x, ext_format, LR10KAppGlobals::GetUnitOption<const char*>(0)).c_str());
-//            }
-//
-//            // Add the separator after each point (matches your original code)
-//            ImGui::Separator();
-//        }
-//    }
-//    else {
-//        ImGui::Text("Finish a test to get a\nsummary of critical points.");
-//    }
-//}
+    ImGui::PopFont();
+}
 
 void AppMainWidgets::DescriptionWindowDraw(TabControl::TabTestDataClass* tabData)
 {
@@ -4254,10 +3893,11 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         ImGui::BulletText("ImGUI v1.92.5 (Docking repo.) with DirectX 12 | GUI");
         ImGui::BulletText("ImPlot v0.17 | Advanced plot/graph");
         ImGui::BulletText("JSON for Modern C++ v3.11.2 | Easy management of config. and save files");
-        ImGui::BulletText("SimpleXlsxWriter v0.41 | Writing Excel files");
+        ImGui::BulletText("Libxlsxwriter v1.2.4 | Writing Excel files");
         ImGui::BulletText("imgui-filebrowser (june 26, 2023) | File browser for saving and loading files");
         ImGui::BulletText("ImThemes v0.2.6 | Ready made theme styling + Custom for the GUI");
         ImGui::BulletText("Unifont by St. GIGAFONT Typefaces | Custom free font");
+        ImGui::BulletText("OpenCV 4.12.0 | Used with Extensiometer (2026) (developed together with Gemini AI)");
         ImGui::Spacing();
     }
 

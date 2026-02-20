@@ -35,24 +35,27 @@
 #include <variant>
 #include <algorithm>        // min, max
 #include <vector>
+#include <format>
+#include <future>
+#include <time.h>
 
 #undef min
 #undef max
 
 #include <corecrt_math_defines.h>
 
+// ImGUI
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
+
+#include <dxgi1_5.h>
+#include <tchar.h>
+
 // ImGUI extras
 #include "implot.h"
 #include "imfilebrowser.h"
 #include "imgui_internal.h" // Need this for "PushItemFlag" for the menu items to not close on click.
-
-// SimpleXlsxWriter
-#include <time.h>
-#include <math.h>
-#include <Xlsx/Chart.h>
-#include <Xlsx/Chartsheet.h>
-#include <Xlsx/Workbook.h>
-#include <XLSXColors/XLSXColorLib.h>
 
 // libxlsxwriter
 #include <xlsxwriter.h>
@@ -65,6 +68,19 @@
 
 // DirectX 12
 #include "imgui_ImageLoader_dx12.h"
+
+using TimePoint = std::chrono::steady_clock::time_point;
+
+// -----------------------------------------------------------------------------
+// ------------------------------- Custom Fonts --------------------------------
+// -----------------------------------------------------------------------------
+
+// --- Global Pointers (Put these in your header or class) ---
+struct CustomFonts
+{
+    ImFont* interFont = nullptr;
+    ImFont* jetbrainsFont = nullptr;
+};
 
 // -----------------------------------------------------------------------------
 // ----------------- Custom Styles (made/gotten using ImThemes) ----------------

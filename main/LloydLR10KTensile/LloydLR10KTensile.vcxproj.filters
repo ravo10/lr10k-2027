@@ -5,9 +5,6 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="SimpleXlsxWriter">
-      <UniqueIdentifier>{8430480a-ab01-4006-b973-4e043e4b91c4}</UniqueIdentifier>
-    </Filter>
     <Filter Include="JSON for Modern C++">
       <UniqueIdentifier>{63e583d7-d261-4458-81d5-033c2f13a77a}</UniqueIdentifier>
     </Filter>
@@ -22,9 +19,6 @@
     </Filter>
     <Filter Include="Effects">
       <UniqueIdentifier>{527e3b24-d45a-4a76-a1dd-7fb1b7a71be2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="SimpleXlsxWriter\source">
-      <UniqueIdentifier>{5c8ec9cf-3227-4d72-baca-70b2085d1f66}</UniqueIdentifier>
     </Filter>
     <Filter Include="ImPlot\source">
       <UniqueIdentifier>{8b6341b8-d887-4625-b2fd-f3bc193f8e10}</UniqueIdentifier>
@@ -41,6 +35,15 @@
     <Filter Include="Videos">
       <UniqueIdentifier>{e902932f-1e7d-44a1-a39c-1a2d75cf633a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="icons">
+      <UniqueIdentifier>{9e4800c8-6b2e-4f05-b13b-d348776d6cac}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="images">
+      <UniqueIdentifier>{1c09201b-540a-4e21-a4c7-5c2e2089b37b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="fonts">
+      <UniqueIdentifier>{42c00c14-f5b9-4d10-9d72-1d9779433ff0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="appstructs.cpp">
@@ -51,42 +54,6 @@
     </ClCompile>
     <ClCompile Include="LR10KBufferMessage.cpp">
       <Filter>sources</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Xlsx\Chart.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Xlsx\Chartsheet.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\XLSXColors\clsRGBColorRecord.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\scratch\clsScratchTable.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Xlsx\Drawing.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\PathManager.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Xlsx\SimpleXlsxDef.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Xlsx\Workbook.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Xlsx\Worksheet.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\XLSXColors\XLSXColorLib.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Xlsx\XlsxHeaders.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Zip\zip.cpp">
-      <Filter>SimpleXlsxWriter\source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\implot.cpp">
       <Filter>ImPlot\source</Filter>
@@ -124,9 +91,6 @@
     <ClCompile Include="RingBuffer.cpp">
       <Filter>sources</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\backends\imgui_impl_dx11.cpp">
-      <Filter>ImGUI\source</Filter>
-    </ClCompile>
     <ClCompile Include="LR10KController.cpp">
       <Filter>sources</Filter>
     </ClCompile>
@@ -156,42 +120,6 @@
     <ClInclude Include="..\..\nlohmann\json_fwd.hpp">
       <Filter>JSON for Modern C++</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Zip\zip.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\XMLWriter.hpp">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Xlsx\XlsxHeaders.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\XLSXColors\XLSXColorLib.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Xlsx\Worksheet.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Xlsx\Workbook.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Xlsx\SimpleXlsxDef.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\scratch\clsScratchTable.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\XLSXColors\clsRGBColorRecord.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\UTF8Encoder.hpp">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Xlsx\Chart.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Xlsx\Chartsheet.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\implot.h">
       <Filter>ImPlot</Filter>
     </ClInclude>
@@ -200,12 +128,6 @@
     </ClInclude>
     <ClInclude Include="..\..\imfilebrowser.h">
       <Filter>ImFileBrowser</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Xlsx\Drawing.h">
-      <Filter>SimpleXlsxWriter</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\PathManager.hpp">
-      <Filter>SimpleXlsxWriter</Filter>
     </ClInclude>
     <ClInclude Include="..\..\backends\imgui_impl_win32.h">
       <Filter>ImGUI</Filter>
@@ -221,9 +143,6 @@
     </ClInclude>
     <ClInclude Include="LR10KDecryption.h" />
     <ClInclude Include="..\..\stb_image.h" />
-    <ClInclude Include="..\..\backends\imgui_impl_dx11.h">
-      <Filter>ImGUI</Filter>
-    </ClInclude>
     <ClInclude Include="LR10KController.h" />
     <ClInclude Include="..\..\backends\imgui_ImageLoader_dx12.h">
       <Filter>ImGUI</Filter>
@@ -248,21 +167,6 @@
     <None Include="..\..\docs\Doxyfile" />
   </ItemGroup>
   <ItemGroup>
-    <Media Include="effects\endTest.wav">
-      <Filter>Effects</Filter>
-    </Media>
-    <Media Include="effects\saveFileSuccess.wav">
-      <Filter>Effects</Filter>
-    </Media>
-    <Media Include="effects\startTest.wav">
-      <Filter>Effects</Filter>
-    </Media>
-    <Media Include="effects\buttonClick0.wav">
-      <Filter>Effects</Filter>
-    </Media>
-    <Media Include="effects\buttonClick1.wav">
-      <Filter>Effects</Filter>
-    </Media>
     <Media Include="videos\LR10K_COMPLETEATEST.mp4">
       <Filter>Videos</Filter>
     </Media>
@@ -272,17 +176,64 @@
     <Media Include="videos\LR10K_SETUP.mp4">
       <Filter>Videos</Filter>
     </Media>
+    <Media Include="effects\buttonClick0.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\buttonClick1.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\endTest.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\saveFileSuccess.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\startTest.wav">
+      <Filter>Effects</Filter>
+    </Media>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="LloydLR10KTensile.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="USN-symbol_lilla.ico" />
-    <Image Include="USN-symbol_hvit.ico" />
-  </ItemGroup>
-  <ItemGroup>
     <Text Include="..\..\misc\cpp\README.txt">
       <Filter>ImGUI\misc\cpp</Filter>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="icons\USN-symbol_hvit.ico">
+      <Filter>icons</Filter>
+    </Image>
+    <Image Include="images\bootbackground_start.png">
+      <Filter>images</Filter>
+    </Image>
+    <Image Include="images\usn-background-1.jpg">
+      <Filter>images</Filter>
+    </Image>
+    <Image Include="images\usn-background-2.jpg">
+      <Filter>images</Filter>
+    </Image>
+    <Image Include="images\USN-symbol_hvit.png">
+      <Filter>images</Filter>
+    </Image>
+    <Image Include="images\USN-symbol_lilla.png">
+      <Filter>images</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="fonts\Inter_18pt-Regular.ttf">
+      <Filter>fonts</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="fonts\JetBrainsMono-Medium.ttf">
+      <Filter>fonts</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="icons\USN-symbol_lilla.ico">
+      <Filter>icons</Filter>
+    </CopyFileToFolders>
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="fonts\Inter_18pt-Medium.ttf">
+      <Filter>fonts</Filter>
+    </Font>
   </ItemGroup>
 </Project>

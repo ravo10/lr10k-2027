@@ -27,12 +27,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_0BFA4AF4B3A54E6EA48E11D6060D3721"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_0CB330ABAF3349ECAF2BAA650EE9720C"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -57,7 +51,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_3E1B371F65D642D8A0EADE7440C261F2"
+        "MsmKey" = "8:_3CB3391C970248878C90073CF497E370"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -75,14 +69,14 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_5B4D005ECC3E40FFA853039E2637AC50"
+        "MsmKey" = "8:_5BB49709800B4363AE4CA53D7A8A34F0"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_5BB49709800B4363AE4CA53D7A8A34F0"
-        "OwnerKey" = "8:_UNDEFINED"
+        "MsmKey" = "8:_5C457B3EA87D563543388F1329AB1549"
+        "OwnerKey" = "8:_452657B327F7411A8DDD49E4A79FA22C"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -105,7 +99,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_85019A72A2554CCE8D87415FF29E915C"
+        "MsmKey" = "8:_771841EA2C4741FFA27650C98E31674E"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -123,8 +117,20 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_995E37C4A1CB49C5B149BB1792A9FF78"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_996EF7AF507653D523064231194197FF"
         "OwnerKey" = "8:_452657B327F7411A8DDD49E4A79FA22C"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_B2AC9648A7E743CABF8E68A28041BF77"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -137,6 +143,12 @@
         {
         "MsmKey" = "8:_BC01ABF1F6298B63A8E6AF1E24152939"
         "OwnerKey" = "8:_452657B327F7411A8DDD49E4A79FA22C"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_D728ECF182E54782BB8FB4EDDF2162E8"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -161,6 +173,12 @@
         {
         "MsmKey" = "8:_EECFB924DF040DC1AE36F3094ACD7B1C"
         "OwnerKey" = "8:_452657B327F7411A8DDD49E4A79FA22C"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_F082A70A328C441F9E4E991F08481197"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -296,26 +314,6 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0BFA4AF4B3A54E6EA48E11D6060D3721"
-            {
-            "SourcePath" = "8:..\\LloydLR10KTensile\\GnuUnifontFull-Pm9P.ttf"
-            "TargetName" = "8:GnuUnifontFull-Pm9P.ttf"
-            "Tag" = "8:"
-            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_0CB330ABAF3349ECAF2BAA650EE9720C"
             {
             "SourcePath" = "8:..\\LloydLR10KTensile\\videos\\LR10K_COMPLETEATEST.mp4"
@@ -396,12 +394,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_3E1B371F65D642D8A0EADE7440C261F2"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_3CB3391C970248878C90073CF497E370"
             {
-            "SourcePath" = "8:..\\LloydLR10KTensile\\USN-symbol_lilla.ico"
-            "TargetName" = "8:USN-symbol_lilla.ico"
+            "SourcePath" = "8:..\\LloydLR10KTensile\\fonts\\Inter_18pt-Regular.ttf"
+            "TargetName" = "8:Inter_18pt-Regular.ttf"
             "Tag" = "8:"
-            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
+            "Folder" = "8:_68048D5305484D37A17CDCA63FE1B157"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -436,26 +434,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_5B4D005ECC3E40FFA853039E2637AC50"
-            {
-            "SourcePath" = "8:..\\LloydLR10KTensile\\usn-background-1.jpg"
-            "TargetName" = "8:usn-background-1.jpg"
-            "Tag" = "8:"
-            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_5BB49709800B4363AE4CA53D7A8A34F0"
             {
             "SourcePath" = "8:..\\LloydLR10KTensile\\effects\\error.wav"
@@ -474,6 +452,26 @@
             "Register" = "3:1"
             "Exclude" = "11:FALSE"
             "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_5C457B3EA87D563543388F1329AB1549"
+            {
+            "SourcePath" = "8:opencv_world4120d.dll"
+            "TargetName" = "8:opencv_world4120d.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_5E202134A98B1FE18DA081A9D147E25A"
@@ -536,12 +534,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_85019A72A2554CCE8D87415FF29E915C"
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_771841EA2C4741FFA27650C98E31674E"
             {
-            "SourcePath" = "8:..\\LloydLR10KTensile\\bootbackground_start.png"
-            "TargetName" = "8:bootbackground_start.png"
+            "SourcePath" = "8:..\\LloydLR10KTensile\\fonts\\JetBrainsMono-Medium.ttf"
+            "TargetName" = "8:JetBrainsMono-Medium.ttf"
             "Tag" = "8:"
-            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
+            "Folder" = "8:_68048D5305484D37A17CDCA63FE1B157"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -596,6 +594,26 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_995E37C4A1CB49C5B149BB1792A9FF78"
+            {
+            "SourcePath" = "8:..\\LloydLR10KTensile\\icons\\USN-symbol_lilla.ico"
+            "TargetName" = "8:USN-symbol_lilla.ico"
+            "Tag" = "8:"
+            "Folder" = "8:_5AD6C1107A504EB98ECC75A61D7E55CB"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_996EF7AF507653D523064231194197FF"
             {
             "SourcePath" = "8:dxgi.dll"
@@ -614,6 +632,26 @@
             "Register" = "3:1"
             "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_B2AC9648A7E743CABF8E68A28041BF77"
+            {
+            "SourcePath" = "8:..\\LloydLR10KTensile\\fonts\\Inter_18pt-Medium.ttf"
+            "TargetName" = "8:Inter_18pt-Medium.ttf"
+            "Tag" = "8:"
+            "Folder" = "8:_68048D5305484D37A17CDCA63FE1B157"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_B885491010E846DA821C400FA0B5DED9"
@@ -654,6 +692,26 @@
             "Register" = "3:1"
             "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D728ECF182E54782BB8FB4EDDF2162E8"
+            {
+            "SourcePath" = "8:..\\LloydLR10KTensile\\images\\usn-background-1.jpg"
+            "TargetName" = "8:usn-background-1.jpg"
+            "Tag" = "8:"
+            "Folder" = "8:_0303FD7CBC2340288B1EF7F2B2E09E68"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D9017032FB1648A8A68E52D63DCC78D2"
@@ -736,6 +794,26 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_F082A70A328C441F9E4E991F08481197"
+            {
+            "SourcePath" = "8:..\\LloydLR10KTensile\\images\\bootbackground_start.png"
+            "TargetName" = "8:bootbackground_start.png"
+            "Tag" = "8:"
+            "Folder" = "8:_0303FD7CBC2340288B1EF7F2B2E09E68"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_F22C6ECD5EFA43ED9ACCCEED73411809"
             {
             "SourcePath" = "8:..\\LloydLR10KTensile\\effects\\startTest.wav"
@@ -794,6 +872,39 @@
             "Property" = "8:TARGETDIR"
                 "Folders"
                 {
+                    "{9EF0B969-E518-4E46-987F-47570745A589}:_0303FD7CBC2340288B1EF7F2B2E09E68"
+                    {
+                    "Name" = "8:images"
+                    "AlwaysCreate" = "11:FALSE"
+                    "Condition" = "8:"
+                    "Transitive" = "11:FALSE"
+                    "Property" = "8:_45E6328107B4447D84382B91D72CF4D6"
+                        "Folders"
+                        {
+                        }
+                    }
+                    "{9EF0B969-E518-4E46-987F-47570745A589}:_5AD6C1107A504EB98ECC75A61D7E55CB"
+                    {
+                    "Name" = "8:icons"
+                    "AlwaysCreate" = "11:FALSE"
+                    "Condition" = "8:"
+                    "Transitive" = "11:FALSE"
+                    "Property" = "8:_C66F831F92394077AEE15E7E64092387"
+                        "Folders"
+                        {
+                        }
+                    }
+                    "{9EF0B969-E518-4E46-987F-47570745A589}:_68048D5305484D37A17CDCA63FE1B157"
+                    {
+                    "Name" = "8:fonts"
+                    "AlwaysCreate" = "11:FALSE"
+                    "Condition" = "8:"
+                    "Transitive" = "11:FALSE"
+                    "Property" = "8:_720B46EAED1F4FD6B7C86B1981FC0543"
+                        "Folders"
+                        {
+                        }
+                    }
                     "{9EF0B969-E518-4E46-987F-47570745A589}:_757CB52310CE459ABE019E9D159D6359"
                     {
                     "Name" = "8:effects"
@@ -852,7 +963,7 @@
         "Keywords" = "8:LR10K LR 10K, Control Software, Tensile, Compression, Materials Science"
         "ARPCOMMENTS" = "8:Unofficial Open Sourced LR 10K Tensile Machine (1990's) control software for completing tensile/compression tests, and calculating material properties."
         "ARPURLINFOABOUT" = "8:https://www.usn.no/om-usn/campusene/kongsberg/"
-        "ARPPRODUCTICON" = "8:_3E1B371F65D642D8A0EADE7440C261F2"
+        "ARPPRODUCTICON" = "8:"
         "ARPIconIndex" = "3:0"
         "SearchPath" = "8:"
         "UseSystemSearchPath" = "11:TRUE"
@@ -966,7 +1077,7 @@
             "Target" = "8:_452657B327F7411A8DDD49E4A79FA22C"
             "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
             "WorkingFolder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
-            "Icon" = "8:_3E1B371F65D642D8A0EADE7440C261F2"
+            "Icon" = "8:"
             "Feature" = "8:"
             }
             "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_98DAB3002AFB406399F1769E09261DAC"
@@ -980,7 +1091,7 @@
             "Target" = "8:_452657B327F7411A8DDD49E4A79FA22C"
             "Folder" = "8:_1E827131E7F849A795C8E552AB1EC66A"
             "WorkingFolder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
-            "Icon" = "8:_3E1B371F65D642D8A0EADE7440C261F2"
+            "Icon" = "8:"
             "Feature" = "8:"
             }
             "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_9A0DEABB0F8446D685C8C9D17B9EF3A9"
@@ -994,7 +1105,7 @@
             "Target" = "8:_452657B327F7411A8DDD49E4A79FA22C"
             "Folder" = "8:_62804ECB856E4CC2949674F3842A170A"
             "WorkingFolder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
-            "Icon" = "8:_3E1B371F65D642D8A0EADE7440C261F2"
+            "Icon" = "8:"
             "Feature" = "8:"
             }
         }

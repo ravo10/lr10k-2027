@@ -18,16 +18,14 @@
 // - Getting Started      https://dearimgui.com/getting-started
 // - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
 // - Introduction, links and more at the top of imgui.cpp
+
+// Force Windows to load the Shell API, even if Lean and Mean is defined later
+#include <windows.h>
+#include <shellapi.h>
+#pragma comment(lib, "Shell32.lib")
+
 #include "resource.h"
-
 #include "appstructs.h"
-
-#include "imgui.h"
-#include "imgui_impl_win32.h"
-#include "imgui_impl_dx12.h"
-
-#include <dxgi1_5.h>
-#include <tchar.h>
 
 #ifdef _DEBUG
 #define DX12_ENABLE_DEBUG_LAYER
@@ -211,6 +209,7 @@ ImVec2 GetWindowSize()
 }
 
 // ------------------------------------------------------------------------------
+namespace fs = std::filesystem;
 
 /**
     @brief  Main code.
@@ -218,7 +217,7 @@ ImVec2 GetWindowSize()
     @param   -
     @retval  -
 **/
-int main(int, char**)
+int main(int argc, char** argv)
 {
     // Custom Initialization
     std::pair<bool, std::string> appData = GetLocalAppDataFolderLR10K();
@@ -232,6 +231,29 @@ int main(int, char**)
             DockingApps::console.AddLog("*Initialization of ImGui successful! Copied new ImGui init.-file to\n AppData folder, or it already existed");
     }
     else DockingApps::console.AddLog("[error] LR 10K Initialization: Error getting \"AppData\" path for settings storage...");
+
+    // 1. argv[0] is always the path used to launch your program.
+    // We use filesystem to extract just the folder where the .exe lives.
+    fs::path exeFolder = fs::weakly_canonical(argv[0]).parent_path();
+
+    // 2. Force Windows to use this folder as the working directory
+    fs::current_path(exeFolder);
+
+    // --- Asset Loading is now Safe! ---
+    // "fonts/Inter_18pt-Regular.ttf" will now ALWAYS look inside the .exe's folder.
+
+    // 3. Now handle your .lr10k file double-click
+    if (argc > 1) {
+        std::string filePath = argv[1];
+
+        // Strip quotes if Windows added them
+        if (filePath.front() == '"') filePath.erase(0, 1);
+        if (filePath.back() == '"') filePath.pop_back();
+
+        if (filePath.find(".lr10k") != std::string::npos) {
+            LR10KAppGlobals::pendingFileToLoad = filePath;
+        }
+    }
 
     // Create application window (requires reset of application when changed)
     if (mainGUIGlobals::enableDPIAwareness)
@@ -268,6 +290,9 @@ int main(int, char**)
     ::RegisterClassExW(&wc);
     HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"LR 10K Tensile Machine Control Software | University of South-Eastern Norway, Kongsberg | Open Sourced on GitHub", dwStyle, positionX, positionY, horizontal, vertical, nullptr, nullptr, wc.hInstance, nullptr);
 
+    // Tell Windows this window is allowed to receive drag-and-drop files!
+    DragAcceptFiles(hwnd, TRUE);
+
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
     {
@@ -284,6 +309,7 @@ int main(int, char**)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImPlot::CreateContext();
+
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;        // Enable Gamepad Controls
@@ -383,9 +409,24 @@ int main(int, char**)
     fontCfg.OversampleV         = 1;
     fontCfg.RasterizerMultiply  = 1.2f;
 
-    const char* fontName = "GnuUnifontFull-Pm9P.ttf";
-    ImFont* font = io.Fonts->AddFontFromFileTTF(fontName, 22.5f, &fontCfg, io.Fonts->GetGlyphRangesGreek());
-    IM_ASSERT(font != nullptr);
+    // 2. Build the absolute path to your font
+    fs::path fontPathInterFont = exeFolder / "fonts" / "Inter_18pt-Regular.ttf";
+    fs::path fontPathJetbrainsFont = exeFolder / "fonts" / "JetBrainsMono-Medium.ttf";
+
+    // First font loaded = Default UI font (Inter)
+    Extra::fonts.interFont = io.Fonts->AddFontFromFileTTF(fontPathInterFont.string().c_str(), 18.0f);
+    IM_ASSERT(Extra::fonts.interFont != nullptr);
+
+    // Second font loaded = Available for specific use (JetBrains Mono)
+    Extra::fonts.jetbrainsFont = io.Fonts->AddFontFromFileTTF(fontPathJetbrainsFont.string().c_str(), 18.0f);
+    IM_ASSERT(Extra::fonts.jetbrainsFont != nullptr);
+
+    // IMPORTANT: After adding fonts, the backend usually rebuilds the atlas
+    // This is normally handled by your ImGui_ImplDX11_NewFrame() or similar.
+
+    //const char* fontName = "Inter_18pt-Medium.ttf"; //"Inter_18pt-Regular.ttf";
+    //ImFont* font = io.Fonts->AddFontFromFileTTF(fontName, 18.0f, &fontCfg, io.Fonts->GetGlyphRangesGreek());
+    //IM_ASSERT(font != nullptr);
 
     // Our state
     bool show_demo_window = false;
@@ -398,8 +439,8 @@ int main(int, char**)
     bool showExtensiometerToggler   = g_WindowStates.show_extensiometer;
 
     // Used for bootloader and splash screen
-    bool loadingApplication1 = false;
-    bool loadingApplication2 = false;
+    bool loadingApplication1 = true;
+    bool loadingApplication2 = true;
     float loadingTime1 = 2.8f;
     float loadingTime2 = 1.8f;
 
@@ -418,8 +459,10 @@ int main(int, char**)
     int my_image_height = 0;
     ID3D12Resource* bootloaderBackgroundTexture = NULL;
     ID3D12Resource* usnBackgroundTexture = NULL;
-    bool ret1 = LoadTextureFromFile("bootbackground_start.png", g_pd3dDevice, bootbackground_srv_cpu_handle, &bootloaderBackgroundTexture, &my_image_width, &my_image_height);
-    bool ret2 = LoadTextureFromFile("usn-background-1.jpg", g_pd3dDevice, usnbackground_srv_cpu_handle, &usnBackgroundTexture, &my_image_width, &my_image_height);
+    //fs::path ret1Path = exeFolder / "images" / "images/bootbackground_start.png";
+    //fs::path ret2Path = exeFolder / "images" / "images/usn-background-1.jpg";
+    bool ret1 = LoadTextureFromFile("images/bootbackground_start.png", g_pd3dDevice, bootbackground_srv_cpu_handle, &bootloaderBackgroundTexture, &my_image_width, &my_image_height);
+    bool ret2 = LoadTextureFromFile("images/usn-background-1.jpg", g_pd3dDevice, usnbackground_srv_cpu_handle, &usnBackgroundTexture, &my_image_width, &my_image_height);
     IM_ASSERT(ret1);
     IM_ASSERT(ret2);
 
@@ -915,6 +958,34 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     switch (msg)
     {
+    case WM_DROPFILES:
+    {
+        HDROP hDrop = (HDROP)wParam;
+
+        // Find out how many files were dropped
+        UINT fileCount = DragQueryFileW(hDrop, 0xFFFFFFFF, NULL, 0);
+        if (fileCount > 0)
+        {
+            // We only care about the first file they dropped
+            wchar_t filePathW[MAX_PATH];
+            DragQueryFileW(hDrop, 0, filePathW, MAX_PATH);
+
+            // Convert Windows Wide String (UTF-16) to Standard String (UTF-8)
+            char filePathA[MAX_PATH];
+            WideCharToMultiByte(CP_UTF8, 0, filePathW, -1, filePathA, MAX_PATH, NULL, NULL);
+            std::string filePath(filePathA);
+
+            // Check if it's our file type and load it!
+            if (filePath.find(".lr10k") != std::string::npos)
+            {
+                LR10KAppGlobals::pendingFileToLoad = filePath;
+            }
+        }
+
+        // Tell Windows we are done handling the drop
+        DragFinish(hDrop);
+        return 0;
+    }
     case WM_SIZE:
         if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
         {

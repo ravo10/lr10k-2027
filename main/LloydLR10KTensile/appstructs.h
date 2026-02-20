@@ -50,7 +50,7 @@ struct AppMainWidgets {
     /**
         @brief This is where the extensiometer window appears for tensile tests, and has
                 the custom code and logic using computer vision and OpenCV. It will use the
-                defined start length for the test sample, to set the E-module using strain data calculated.
+                defined start length for the test sample, to set the E-Modulus using strain data calculated.
         @param tabData  -
         @param p_open  -
      **/

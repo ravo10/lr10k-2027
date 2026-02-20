@@ -57,7 +57,10 @@ static const char* LR10KAppVersion = "1.0.8 [18.02.2026]"; //!< App version - E.
     @brief  Utility structure for realtime plot.
 **/
 struct RollingBuffer {
-    ImVector<ImVec2> Data;  //!< The data that will contain the plot points x and y.
+    ImVector<ImVec2> Data;      //!< The data that will contain the plot points x and y.
+    ImVector<double> TimeData;  //!< The data that will contain the plots current time points.
+    TimePoint StartTimeTest;    //!< This holds the last known start time for an ongoing test (updates for every start test). Only used during a test - not saved.
+    double SamplingRate;        //!< This holds the sampling rate calculated at an ended test.
 
     /**
         @brief RollingBuffer object constructor
@@ -65,6 +68,9 @@ struct RollingBuffer {
     RollingBuffer()
     {
         Data = { };
+        TimeData = { };
+        StartTimeTest = TimePoint();
+        SamplingRate = 0.00;
     };
 
     /**
@@ -75,6 +81,24 @@ struct RollingBuffer {
     void AddPoint(float x, float y)
     {
         Data.push_back(ImVec2(x, y));
+    }
+    /**
+        @brief Adds a new elapsed time point (in seconds) from the start time.
+        @param startTime - seconds
+        @param currentTime - seconds
+    **/
+    void AddTime(TimePoint CurrentTime)
+    {
+        // 1. Subtract the time points directly. Chrono safely calculates the exact difference.
+        std::chrono::duration<double> elapsed = CurrentTime - StartTimeTest;
+
+        // 2. Now extract that cleanly as a double (seconds)
+        TimeData.push_back(elapsed.count());
+
+        // Store the sampling rate
+        double totalTime = TimeData.back(); // Assuming last value is the total time
+        size_t dataPoints = TimeData.size();
+        SamplingRate = (double)dataPoints / totalTime;
     }
 };
 
@@ -153,8 +177,8 @@ struct Extra_Tools {
 // --------------------------------- Namespaces --------------------------------
 // -----------------------------------------------------------------------------
 
-using namespace SimpleXlsx; //!< The Excel file manager.
 using json = nlohmann::json; //!< The JSON manager.
+
 
 // -----------------------------------------------------------------------------
 
@@ -384,6 +408,8 @@ namespace LR10KAppGlobals {
     template <typename ReturnType>
     ReturnType GetUnitOption(int index, int unitIndex = unitsConvertionIndex);
 
+   inline extern std::string pendingFileToLoad = "";
+
     //! \note Used in GUI control
     inline extern int   connectedComPortNumber = -1;       //!< \details Displays the current connected COM port number/id.
     //! \note Used in GUI control
@@ -515,38 +541,12 @@ struct MutexControl {
     std::mutex currentStatusMessageMutex;
 
     // -------------------------------------------------------------------------
-
-    //! \details Mutex to protect breakThreshold.
-    std::mutex breakThresholdMutex;
-    //! \details Mutex to protect "enable_breakThreshold".
-    std::mutex enable_breakThresholdMutex;
-
-    // -------------------------------------------------------------------------
-
-    ////! \details Mutex to protect "testing_plot_only_loadAxis".
-    //std::mutex testing_plot_only_loadAxisMutex;
-    ////! \details Mutex to protect "testing_plot_only_extensionAxis".
-    //std::mutex testing_plot_only_extensionAxisMutex;
-
-    // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
 
     //! \details Synchronize access to "currentStatusMessage".
     std::condition_variable currentStatusMessageStatusChanged;
 
     // -------------------------------------------------------------------------
-
-    //! \details Synchronize access to "testing_plot_only_loadAxis".
-    //std::condition_variable breakThresholdStatusChanged;
-    //! \details Synchronize access to "testing_plot_only_extensionAxis".
-    //std::condition_variable enable_breakThresholdStatusChanged;
-
-    // -------------------------------------------------------------------------
-
-    ////! \details Synchronize access to "testing_plot_only_loadAxis".
-    //std::condition_variable testing_plot_only_loadAxisStatusChanged;
-    ////! \details Synchronize access to "testing_plot_only_extensionAxis".
-    //std::condition_variable testing_plot_only_extensionAxisStatusChanged;
 
     /**
         @brief Status message change.
@@ -561,22 +561,6 @@ struct MutexControl {
                     && strlen(LR10KAppGlobals::currentStatusMessage.load()) > 1;
             });
     }
-
-    /**
-        @brief Break detection.
-    **/
-    //void BreakDetection()
-    //{
-    //    std::unique_lock<std::mutex> lock1(breakThresholdMutex);
-    //    breakThresholdStatusChanged.wait(lock1, [] { return LR10KAppGlobals::breakThreshold.load(); });
-
-    //    // Boolean check is not necesarry...
-    //    /*if (lockNr2)
-    //    {
-    //        std::unique_lock<std::mutex> lock2(enable_breakThresholdMutex);
-    //        enable_breakThresholdStatusChanged.wait(lock2, [] { return LR10KAppGlobals::enable_breakThreshold.load(); });
-    //    }*/
-    //}
 };
 
 /**
@@ -619,13 +603,13 @@ namespace TabControl {
         @details ~
 
     **/
+    extern struct NeedsRecalculation { bool recalculate; bool markAsUnsaved; };
+
     class TabTestDataClass
     {
     public:
         RollingBuffer LR10KTensileData;         //!< This holds the realtime data from the LR10K Tensile Machine.
 
-        RollingBuffer LR10KTensileDataNominal;  //!< This is a placeholder (calculated nominal stress inserted here from "testing_LR10KTensileData").
-        RollingBuffer LR10KTensileDataTrue;     //!< This is a placeholder (calculated true stress inserted here from "testing_LR10KTensileData").
 
         float LR10OffsetZeroPointExtensionAxis; //!< Holds the offset from zero point relative to the extension axis. (remove som slack)
 
@@ -661,11 +645,11 @@ namespace TabControl {
         int areaOptionPicked;           //!< 0 - 1, where 0 is for rectangular cross section area and 1 is for circular cross section area
         int compressionOptionPicked;    //!< 0 - 1, where 0 is for Normal compression (like tension) and 1 is for a 3-point test
 
-        bool needs_recalculation; //!< Is not saved, but acts as a dirty flag for wheen calculation needs recalculation.
+        NeedsRecalculation NeedsRecalculation; //!< Is not saved, but acts as a dirty flag for wheen calculation needs recalculation, and if markedAsUnsaved needs to be triggered.
 
         double calcPoint_NominalStressStrain_PropLimit[2]{ 0, 0 };  //!< Holds the proportional limit nominal stress and strain. (point)
         double calcPoint_TrueStressStrain_PropLimit[2]{ 0, 0 };     //!< Holds the proportional limit true stress and strain. (point)
-        float  calcYoungsModulus = 0.0f;                            //!< Holds the E-module that is created from the propotional limit point.
+        float  calcYoungsModulus = 0.0f;                            //!< Holds the E-Modulus that is created from the propotional limit point.
         float  calcLinRegressionConst = 0.9f;                       //!< The value that linear regression returns. >0.9f is very certain. Used with "linearRegressionR2" function.
 
         double calcPoint_NominalStressStrain_yield[2]{ 0, 0 };      //!< Holds the yield nominal stress and strain. (point)
@@ -725,7 +709,8 @@ namespace TabControl {
             areaOptionPicked = 0;
             compressionOptionPicked = 0;
 
-            needs_recalculation = false;
+            NeedsRecalculation.recalculate = false;
+            NeedsRecalculation.markAsUnsaved = false;
         };
 
         /**
@@ -955,7 +940,7 @@ struct AppCalculator
     **/
     void SetGlobalMaterialProperties(TabControl::TabTestDataClass* tabData, int areaOption, double thickness, double width, double length, double diameter);
     /**
-        @brief Add E-module bounds.
+        @brief Add E-Modulus bounds.
         @param tabData -
     **/
     void AddEmoduleBounds(TabControl::TabTestDataClass* tabData);
@@ -967,22 +952,16 @@ struct AppCalculator
         @param markAsSaved      -
         @param saveAppSettings  -
     **/
-    void CalculateStressPoints(TabControl::TabTestDataClass* tabData, bool initDimensions = true, bool playSound = true, bool markAsSaved = true, bool saveAppSettings = true);
+    void CalculateStressPoints(TabControl::TabTestDataClass* tabData, bool playSound = false);
 
     /**
         @brief For compression only. Calculates the max bending moment and UTS that can be used to calculate the Young's Moduls.
-        @param tabData         - 
-        @param playSound       - 
-        @param markAsSaved     - 
-        @param saveAppSettings - 
+        @param tabData         -
+        @param playSound       -
+        @param markAsSaved     -
+        @param saveAppSettings -
     **/
-    void CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound = true, bool markAsSaved = true, bool saveAppSettings = true);
-
-    ///**
-    //    @brief Calculate stresses. (nominal/engineering and true)
-    //    @param tabData -
-    //**/
-    //void CalculateStresses(TabControl::TabTestDataClass* tabData);
+    void CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound = false);
 
     /**
         @brief Draws the full report window.
@@ -1008,12 +987,13 @@ struct AppMainExcel
     /**
         @brief Write table data for plots (either raw, eng. stress or true stress).
         @param tabData        -
+        @param workbook       -
         @param activeLabels   -
         @param worksheet      -
         @param bold           -
         @param dataVariation  -
     **/
-    void write_worksheet_data(TabControl::TabTestDataClass tabData, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, lxw_format* bold, AppMainExcel::ExcelDataVariationWorksheetData dataVariation);
+    void write_worksheet_data(TabControl::TabTestDataClass tabData, lxw_workbook* workbook, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, AppMainExcel::ExcelDataVariationWorksheetData dataVariation);
     /**
         @brief Add stress line chart.
         @param tabData          -
@@ -1350,6 +1330,7 @@ struct AppConsole
 **/
 namespace Extra {
     inline extern Extra_Tools           tools = Extra_Tools(); //!< This is a global variable for the extra toolsbox.
+    inline extern CustomFonts           fonts = CustomFonts(); //!< This is a global variable for the custom fonts.
 }
 
 /**

@@ -15,6 +15,7 @@
 #include "common.h"
 
 #include "LR10KController.h"
+
 inline LR10KController _LR10KController; //!< A global scope to gain access to the LR 10K Controller logic.
 
 // -----------------------------------------------------------------------------
@@ -396,7 +397,7 @@ void AppCalculator::AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabDa
 //        PlaySoundEffect("buttonClick1");
 //}
 
-void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData, bool initDimensions, bool playSound, bool markAsSaved, bool saveAppSettings)
+void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData, bool playSound)
 {
     // -------------------------------------------------------------------------
     // 1. Calculate the initial Area (A_0) safely based on user shape settings
@@ -475,15 +476,13 @@ void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData,
         }
 
         tabData->calcYoungsModulus = CalculateYoungsModulus(strainData, stressData, e_lower, e_upper);
-        DockingApps::console.AddLog("Calculated the E-module! Lower limit: %f %% and upper limit: %f %%.\nThis resulted in the E-module to be: %f GPa", e_lower*100, e_upper*100, tabData->calcYoungsModulus);
+        DockingApps::console.AddLog("Calculated the E-Modulus! Lower limit: %f %% and upper limit: %f %%.\nThis resulted in the E-Modulus to be: %f GPa", e_lower * 100, e_upper * 100, tabData->calcYoungsModulus);
     }
 
     // -------------------------------------------------------------------------
     // 5. Finalize state
     // -------------------------------------------------------------------------
-    if (saveAppSettings) DockingApps::mainFileSystem.SaveApplicationSettings();
-    if (markAsSaved)     tabData->MarkTabAsUnsaved();
-    //if (playSound)       PlaySoundEffect("buttonClick1"); // Too much sound
+    if (playSound)       PlaySoundEffect("buttonClick1");
 }
 
 //void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound, bool markAsSaved, bool saveAppSettings)
@@ -520,7 +519,7 @@ void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData,
 //        PlaySoundEffect("buttonClick1");
 //}
 
-void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound, bool markAsSaved, bool saveAppSettings)
+void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound)
 {
     // 1. Setup dimensions safely (Prevent Divide by Zero later)
     const double T_0 = LR10KAppGlobals::calc_thickness > 0 ? LR10KAppGlobals::calc_thickness : 1.0;
@@ -547,7 +546,7 @@ void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestData
     tabData->calcData_Compression[3] = (3.0 * tabData->calcData_Compression[0] * L_0) / (2.0 * W_0 * (T_0 * T_0));
 
     // -------------------------------------------------------------------------
-    // 3-Point Bending Flexural Modulus (E-module) using Linear Regression
+    // 3-Point Bending Flexural Modulus (E-Modulus) using Linear Regression
     // -------------------------------------------------------------------------
     if (tabData->LR10KTensileData.Data.Size > 10)
     {
@@ -586,50 +585,9 @@ void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestData
     // -------------------------------------------------------------------------
     // ------------------ Save any calculations to current tab -----------------
     // -------------------------------------------------------------------------
-    if (saveAppSettings) // Default
-        DockingApps::mainFileSystem.SaveApplicationSettings();
-
-    if (markAsSaved)
-        tabData->MarkTabAsUnsaved();
-
     if (playSound)
         PlaySoundEffect("buttonClick1");
 }
-
-//void AppCalculator::CalculateStresses(TabControl::TabTestDataClass* tabData)
-//{
-//    // -------------------------------------------------------------------------
-//    // Reset all previous stress point data
-//    // -------------------------------------------------------------------------
-//    tabData->LR10KTensileDataNominal    = RollingBuffer();
-//    tabData->LR10KTensileDataTrue       = RollingBuffer();
-//
-//    const double L_0 = tabData->length;        // Start Length
-//    const double A_0 = tabData->area;          // Start Area
-//
-//    // Convert to nominal/engineering stress and strain
-//    for (int i = 0; i < tabData->LR10KTensileData.Data.Size; i++)
-//    {
-//        ImVec2 tensilDataPointNom;
-//        tensilDataPointNom.x = LR10KAppGlobals::CalcEpsilon_e(tabData->LR10KTensileData.Data[i].x, L_0);
-//        tensilDataPointNom.y = LR10KAppGlobals::CalcSigma_e(tabData->LR10KTensileData.Data[i].y, A_0);
-//
-//        tabData->LR10KTensileDataNominal.AddPoint(tensilDataPointNom.x, tensilDataPointNom.y);
-//
-//        if (i == tabData->LR10KTensileData.Data.Size - 1)
-//        {
-//            // Convert to true stress and strain also
-//            for (int i = 0; i < tabData->LR10KTensileDataNominal.Data.Size; i++)
-//            {
-//                ImVec2 tensilDataPointTrue;
-//                tensilDataPointTrue.x = LR10KAppGlobals::CalcEpsilon_t(tabData->LR10KTensileDataNominal.Data[i].x);
-//                tensilDataPointTrue.y = LR10KAppGlobals::CalcSigma_t(tabData->LR10KTensileDataNominal.Data[i].x, tabData->LR10KTensileDataNominal.Data[i].y);
-//
-//                tabData->LR10KTensileDataTrue.AddPoint(tensilDataPointTrue.x, tensilDataPointTrue.y);
-//            }
-//        }
-//    }
-//}
 
 // Sets the different global material properties
 void AppCalculator::SetLocalMaterialProperties(TabControl::TabTestDataClass* tabData, int areaOption, double thickness, double width, double length, double diameter)
@@ -646,9 +604,6 @@ void AppCalculator::SetLocalMaterialProperties(TabControl::TabTestDataClass* tab
         tabData->area = thickness * width;
     else if (areaOption == 1)
         tabData->area = (M_PI * diameter) / 4;
-
-    //tabData->needs_recalculation = true;
-    tabData->MarkTabAsUnsaved();
 }
 
 // Sets the different global material properties
@@ -681,8 +636,8 @@ void AppCalculator::AddEmoduleBounds(TabControl::TabTestDataClass* tabData)
         tabData->plot_dataPoints.push_back({ ImPlotPoint(p1.x, p1.y), 5 }); // ID 5
         tabData->plot_dataPoints.push_back({ ImPlotPoint(p2.x, p2.y), 6 }); // ID 6
 
-        tabData->needs_recalculation = true;
-        tabData->MarkTabAsUnsaved();
+        tabData->NeedsRecalculation.markAsUnsaved = true;
+        tabData->NeedsRecalculation.recalculate = true;
     }
 }
 
@@ -694,7 +649,8 @@ void CreateInputDoubleElement(TabControl::TabTestDataClass* tabData, const char 
         if (*v < min_val) *v = min_val;
         if (*v > max_val) *v = max_val;
 
-        tabData->needs_recalculation = true;
+        tabData->NeedsRecalculation.markAsUnsaved = true;
+        tabData->NeedsRecalculation.recalculate = true;
     }
     ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
 }
@@ -707,7 +663,8 @@ void CreateInputFloatElement(TabControl::TabTestDataClass* tabData, const char* 
         if (*v < min_val) *v = min_val;
         if (*v > max_val) *v = max_val;
 
-        tabData->needs_recalculation = true;
+        tabData->NeedsRecalculation.markAsUnsaved = true;
+        tabData->NeedsRecalculation.recalculate = true;
     }
     ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
 }
@@ -731,6 +688,55 @@ int FindClosestRawDataIndex(const ImVector<ImVec2>& rawData, double target_x)
         }
     }
     return best_idx;
+}
+
+void DrawLegendChip(ImVec4 color, float indent = 8.0f) {
+    //ImVec4 col = ImPlot::GetColormapColor(index);
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + indent);
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    // Draw a small 12x12 rounded square
+    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + 12, p.y + 12), ImGui::ColorConvertFloat4ToU32(color), 3.0f);
+    ImGui::Dummy(ImVec2(16, 12)); // Move cursor past the chip
+    ImGui::SameLine();
+}
+
+// The Core Helper (Does the actual drawing)
+void TextWithBackground_Core(ImVec4 textColor, ImColor bcolor, const char* fmt, va_list args) {
+    char buf[1024];
+    vsnprintf(buf, sizeof(buf), fmt, args);
+
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImVec2 pos = ImGui::GetCursorScreenPos();
+    ImVec2 textSize = ImGui::CalcTextSize(buf);
+    ImVec2 padding = ImVec2(5.0f, 3.0f);
+
+    // Calculate Box Size
+    ImVec2 rect_max = ImVec2(pos.x + textSize.x + padding.x * 2.0f, pos.y + textSize.y + padding.y * 2.0f);
+
+    // Draw White Box
+    draw_list->AddRectFilled(pos, rect_max, bcolor, 4.0f);
+
+    // Draw Text (Shifted by padding)
+    ImGui::SetCursorScreenPos(ImVec2(pos.x + padding.x, pos.y + padding.y));
+    ImGui::TextColored(textColor, "%s", buf);
+
+    // Reset Cursor for the next UI element
+    ImGui::SetCursorScreenPos(ImVec2(pos.x, rect_max.y + ImGui::GetStyle().ItemSpacing.y));
+}
+
+// Explicit Background Color
+void TextWithBackground(ImVec4 textColor, ImColor bcolor, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    TextWithBackground_Core(textColor, bcolor, fmt, args);
+    va_end(args);
+}
+// Default White Background (Omits the bcolor parameter)
+void TextWithWhiteBackground(ImVec4 textColor, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    TextWithBackground_Core(textColor, IM_COL32(255, 255, 255, 255), fmt, args);
+    va_end(args);
 }
 
 void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalculator, ImGuiWindowFlags extern_windowFlags)
@@ -773,8 +779,20 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
         static ImVec4 colorNormal3 = ImVec4(0.647f, 1.000f, 0.780f, 0.784f);
         static ImVec4 colorWarning = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
 
+        // Used for local (green) or global colors (orange)
+        ImVec4 greenColor = ImColor::HSV(1.38f, 0.8f, 1.0f);
+        ImVec4 greenColor2 = ImColor::HSV(1.38f, 0.8f, 0.5f);
+        ImVec4 orangeColor = ImColor::HSV(2.1f, 0.8f, 1.0f);
+        ImVec4 orangeColor2 = ImColor::HSV(2.1f, 0.8f, 0.5f);
+
+        // First Curve (Red-ish)
+        const ImVec4 IMPLOT_RED = ImVec4(0.894f, 0.102f, 0.110f, 1.0f);
+        // Second Curve (Blue-ish)
+        const ImVec4 IMPLOT_BLUE = ImVec4(0.216f, 0.494f, 0.722f, 1.0f);
+
         ImVec4 colorText = colorNormal;
-        ImVec4 colorText_nom = colorNormal3;
+        ImVec4 colorText_nom = IMPLOT_RED;//ImPlot::GetColormapColor(1);//orangeColor;//colorNormal3;
+        ImVec4 colorText_true = IMPLOT_BLUE;//ImPlot::GetColormapColor(0);
         ImVec4 colorText2 = colorNormal2;
 
         // -------------------------------------------------------------------------
@@ -782,31 +800,6 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
         // -------------------------------------------------------------------------
         if (ImGui::BeginTabItem("Material Properties"))
         {
-            //// Check if file was loaded
-            //float static fileIsLoaded = false;
-            //std::string static lastLoadedFileName = "";
-            //if (tabData->loadedFromFileName.size() > 0 && lastLoadedFileName != tabData->loadedFromFileName)
-            //{
-            //    lastLoadedFileName = tabData->loadedFromFileName;
-            //    fileIsLoaded = true;
-            //}
-
-            //// On initialization
-            //if (fileIsLoaded)
-            //{
-            //    fileIsLoaded = false;
-            //    lastLoadedFileName = tabData->loadedFromFileName;
-
-            //    // Offset from zero point extension axis
-            //    //defaultValuesGUI::offsetZeroPointExtensionAxis = tabData->LR10OffsetZeroPointExtensionAxis;
-            //}
-
-            // Used for local (green) or global colors (orange)
-            ImVec4 greenColor = ImColor::HSV(1.38f, 0.8f, 1.0f);
-            ImVec4 greenColor2 = ImColor::HSV(1.38f, 0.8f, 0.5f);
-            ImVec4 orangeColor = ImColor::HSV(2.1f, 0.8f, 1.0f);
-            ImVec4 orangeColor2 = ImColor::HSV(2.1f, 0.8f, 0.5f);
-
             // --------------------------------
             // --- Buttons
             // --------------------------------
@@ -823,6 +816,8 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                 {
                     // Update the local material properties from the global values
                     DockingApps::calculator.SetLocalMaterialProperties(tabData, LR10KAppGlobals::areaOptionPicked, LR10KAppGlobals::calc_thickness, LR10KAppGlobals::calc_width, LR10KAppGlobals::calc_length, LR10KAppGlobals::calc_diameter);
+                    tabData->NeedsRecalculation.markAsUnsaved = true;
+                    tabData->NeedsRecalculation.recalculate = true;
                 }
                 ImGui::PopStyleColor();
                 ImGui::SetItemTooltip("Load global material properties into\nthe local values (this test).");
@@ -866,6 +861,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
             // Cross sectional area
             ImGui::SeparatorText("Cross-sectional area selection");
+            ImGui::PushFont(Extra::fonts.jetbrainsFont);
             if (ImGui::RadioButton("Rectangular", &LR10KAppGlobals::areaOptionPicked, 0))
             {
                 // Must be the same for local and global...
@@ -946,36 +942,9 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
             ImGui::Text("Global Start length (ε_n, σ_t, ε_t):");
             CreateInputFloatElement(tabData, "##Global Start length", &LR10KAppGlobals::calc_length, 0.01f, 1000.0f);
+            ImGui::PopFont();
 
             ImGui::EndDisabled();
-
-            //// --------------------------------
-            //// --- Colored text
-            //// --------------------------------
-            //if (
-            //    check_Thickness != LR10KAppGlobals::calc_thickness
-            //    || check_Width != LR10KAppGlobals::calc_width
-            //    || check_Length != LR10KAppGlobals::calc_length
-            //    || check_Diameter != LR10KAppGlobals::calc_diameter
-            //    || check_areaOption != LR10KAppGlobals::areaOptionPicked
-            //    || check_offsetZeroPoint != defaultValuesGUI::offsetZeroPointExtensionAxis
-            //    )
-            //{
-            //    // Only needed to warn about a change if a test is finished
-            //    if (tabData->test_finished)
-            //    {
-            //        colorText = colorWarning;
-            //        colorText_nom = colorWarning;
-            //        colorText2 = colorWarning;
-
-            //        defaultValuesGUI::invalidStressDataNotUpdated = true;
-            //    }
-            //}
-            //else
-            //    defaultValuesGUI::invalidStressDataNotUpdated = false;
-
-
-            //ImGui::Spacing();
 
             ImGui::EndTabItem();
         }
@@ -996,53 +965,25 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             str.append(" | σ)");
             ImGui::SeparatorText(str.c_str());
 
-            //bool unvalidCalculationStart =
-            //    (!tabData->test_finished || tabData->plot_dataPoints.size() < 1
-            //        || (LR10KAppGlobals::calc_length == 0 && (LR10KAppGlobals::calc_thickness == 0 || LR10KAppGlobals::calc_width == 0)));
-
-            //ImGui::BeginDisabled(unvalidCalculationStart);
-            //ImGui::SetItemTooltip("Material properties will be saved in GUI after each calculation");
-            //if (ImGui::Button("Calculate", { 219, 60 }))
-            //{
-            //    check_Thickness = LR10KAppGlobals::calc_thickness;
-            //    check_Width = LR10KAppGlobals::calc_width;
-            //    check_Length = LR10KAppGlobals::calc_length;
-            //    check_Diameter = LR10KAppGlobals::calc_diameter;
-            //    check_areaOption = LR10KAppGlobals::areaOptionPicked;
-
-            //    // Offset from zero point extension axis
-            //    check_offsetZeroPoint = defaultValuesGUI::offsetZeroPointExtensionAxis;
-
-            //    TabControl::CalculateDataFromTest(tabData);
-            //}
-            //ImGui::EndDisabled();
-            //ImGui::Spacing();
-
             ImGui::Spacing();
             ImGui::PushFont(NULL, style.FontSizeBase* scaling_header);
             ImGui::Text("Different calculated stress underneath");
             ImGui::PopFont();
 
-            ImGui::BulletText("Calculations will be saved in Excel Books also.");
+            DrawLegendChip(IMPLOT_RED);
+            ImGui::Text("Engineering Stress");
+            DrawLegendChip(IMPLOT_BLUE);
+            ImGui::Text("True Stress");
+
+            ImGui::Spacing();
+
+            ImGui::BulletText("Calculations will be saved in the Excel Books,\nalongside with the graph.");
+
+            ImGui::Spacing();
 
             // If it is tensile or compression
             bool condition1 = tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked); // Normal tension or compression
             bool condition2 = !tabData->tension && 1 == tabData->compressionOptionPicked; // 3-point compression
-
-            //if (condition1)
-            //{
-            //    // Calculate Young's Moduls (stress / strain at prop. limit point)
-            //    tabData->calcYoungsModulus = (tabData->calcPoint_NominalStressStrain_PropLimit[1] / tabData->calcPoint_NominalStressStrain_PropLimit[0]);
-            //    if (isnan(tabData->calcYoungsModulus))
-            //        tabData->calcYoungsModulus = 0.000f;
-            //}
-            //else if (!tabData->tension && 1 == tabData->compressionOptionPicked)
-            //{
-            //    // Calculate Young's Moduls
-            //    tabData->calcYoungsModulus = (tabData->calcData_Compression[0] * pow(tabData->length, 3)) / (4 * tabData->width * pow(tabData->thickness, 3) * tabData->calcData_Compression[1]);
-            //    if (isnan(tabData->calcYoungsModulus))
-            //        tabData->calcYoungsModulus = 0.000f;
-            //}
 
             static std::string str1 = "";
             static std::string str2 = "";
@@ -1050,85 +991,154 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
             if (ImGui::BeginTabBar("StressCalulationTabs", tab_bar_flags))
             {
+                // ---------------------------- Tension
                 if (condition1 && ImGui::BeginTabItem("Proportional Limit"))
                 {
+                    ImGui::PushFont(Extra::fonts.jetbrainsFont);
                     ImGui::PushFont(NULL, style.FontSizeBase* scaling);
                     ImGui::Text("Proportional Limit");
                     ImGui::Separator();
                     ImGui::PopFont();
 
-                    ImGui::SeparatorText("Nominal stress (engineering stress)");
+                    ImGui::SeparatorText("Engineering stress (nominal stress)");
                     str1 = "Stress, σ_nom/σ_e: %0.3f ";
                     str1.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_PropLimit[1]);
-                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_PropLimit[0] * 100);
+                    TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_PropLimit[1]);
+                    TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_PropLimit[0] * 100);
                     ImGui::SeparatorText("True stress");
                     str3 = "Stress, σ_t: %0.3f ";
                     str3.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_PropLimit[1]);
-                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_PropLimit[0] * 100);
+                    TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrain_PropLimit[1]);
+                    TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_PropLimit[0] * 100);
 
+                    ImGui::PopFont();
                     ImGui::EndTabItem();
                 }
                 if (condition1 && ImGui::BeginTabItem("Yielding"))
                 {
-                    ImGui::PushFont(NULL, style.FontSizeBase* scaling);
+                    ImGui::PushFont(Extra::fonts.jetbrainsFont);
+                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
                     ImGui::Text("Yielding Strength (lower)");
                     ImGui::Separator();
                     ImGui::PopFont();
 
-                    ImGui::SeparatorText("Nominal stress (engineering stress)");
-                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_yield[1]);
-                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_yield[0] * 100);
+                    ImGui::SeparatorText("Engineering stress (nominal stress)");
+                    TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_yield[1]);
+                    TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_yield[0] * 100);
                     ImGui::SeparatorText("True stress");
-                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_yield[1]);
-                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_yield[0] * 100);
+                    TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrain_yield[1]);
+                    TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_yield[0] * 100);
 
+                    ImGui::PopFont();
                     ImGui::EndTabItem();
                 }
                 if (condition1 && ImGui::BeginTabItem("UTS"))
                 {
+                    ImGui::PushFont(Extra::fonts.jetbrainsFont);
                     ImGui::PushFont(NULL, style.FontSizeBase * scaling);
                     ImGui::Text("Ultimate Tensile Strength (UTS)");
                     ImGui::Separator();
                     ImGui::PopFont();
 
-                    ImGui::SeparatorText("Nominal stress (engineering stress)");
-                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrainUTS[1]);
-                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrainUTS[0] * 100);
+                    ImGui::SeparatorText("Engineering stress (nominal stress)");
+                    TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrainUTS[1]);
+                    TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrainUTS[0] * 100);
                     ImGui::SeparatorText("True stress");
-                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrainUTS[1]);
-                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrainUTS[0] * 100);
+                    TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrainUTS[1]);
+                    TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrainUTS[0] * 100);
 
+                    ImGui::PopFont();
                     ImGui::EndTabItem();
                 }
                 if (condition1 && ImGui::BeginTabItem("Fracture"))
                 {
+                    ImGui::PushFont(Extra::fonts.jetbrainsFont);
                     ImGui::PushFont(NULL, style.FontSizeBase * scaling);
                     ImGui::Text("Fracture");
                     ImGui::Separator();
                     ImGui::PopFont();
 
-                    ImGui::SeparatorText("Nominal stress (engineering stress)");
-                    ImGui::TextColored(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_fracture[1]);
-                    ImGui::TextColored(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_fracture[0] * 100);
+                    ImGui::SeparatorText("Engineering stress (nominal stress)");
+                    TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_fracture[1]);
+                    TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_fracture[0] * 100);
                     ImGui::SeparatorText("True stress");
-                    ImGui::TextColored(colorText, str3.c_str(), tabData->calcPoint_TrueStressStrain_fracture[1]);
-                    ImGui::TextColored(colorText, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_fracture[0] * 100);
+                    TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrain_fracture[1]);
+                    TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_fracture[0] * 100);
 
+                    ImGui::PopFont();
                     ImGui::EndTabItem();
                 }
-                if (condition1 && ImGui::BeginTabItem("E-module"))
+
+                // ------------------------------ Compression
+
+                if (condition2 && ImGui::BeginTabItem("UTS"))
                 {
-                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
-                    ImGui::Text("Young's Modulus (E-module)");
+                    ImGui::PushFont(Extra::fonts.jetbrainsFont);
+                    ImGui::PushFont(NULL, style.FontSizeBase* scaling);
+                    ImGui::Text("Ultimate Tensile Strength (UTS)");
+                    ImGui::Separator();
                     ImGui::PopFont();
 
-                    if (ImGui::Button("Add custom E-Module Bounds"))
+                    ImGui::SeparatorText("UTS Bending");
+                    str = "Ultimate Tensile Strength: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
+                    TextWithWhiteBackground(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
+
+                    ImGui::PopFont();
+                    ImGui::EndTabItem();
+                }
+                if (condition2 && ImGui::BeginTabItem("Max. Bending Moment"))
+                {
+                    ImGui::PushFont(Extra::fonts.jetbrainsFont);
+                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
+                    ImGui::Text("Maximum Bending Moment");
+                    ImGui::Separator();
+                    ImGui::PopFont();
+
+                    ImGui::SeparatorText("Bending Moment");
+                    str = "Max. Moment (Force*Arm): %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1)).append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Nmm or lbf * in
+                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[2]);
+
+                    ImGui::PopFont();
+                    ImGui::EndTabItem();
+                }
+                if (condition2 && ImGui::BeginTabItem("Max. Load & Travel"))
+                {
+                    ImGui::PushFont(Extra::fonts.jetbrainsFont);
+                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
+                    ImGui::Text("Maximum Load & Travel");
+                    ImGui::Separator();
+                    ImGui::PopFont();
+
+                    ImGui::SeparatorText("Bending Load");
+                    std::string str = "Max. Load: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
+                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[0]);
+
+                    ImGui::SeparatorText("Bending Travel");
+                    str = "Max. Travel: %0.2f ";
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
+                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[1]);
+
+                    ImGui::PopFont();
+                    ImGui::EndTabItem();
+                }
+
+                // ----------------- Tension or Compression
+
+                if (ImGui::BeginTabItem("E-Modulus"))
+                {
+                    ImGui::PushFont(Extra::fonts.jetbrainsFont);
+                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
+                    ImGui::Text("Young's Modulus (E-Modulus)");
+                    ImGui::PopFont();
+
+                    if (ImGui::Button("Add custom E-Modulus Bounds"))
                         DockingApps::calculator.AddEmoduleBounds(tabData);
                     ImGui::Separator();
 
-                    ImGui::SeparatorText("Nominal stress (engineering stress)");
+                    ImGui::SeparatorText("Based on engineering stress (nominal stress)");
 
                     // 1. Default percentages (already represented as % for the UI)
                     double lowerEPerc = 0.05;
@@ -1205,8 +1215,8 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                             }
 
                             // 3. Trigger the app to recalculate the Young's Modulus instantly
-                            tabData->needs_recalculation = true;
-                            tabData->MarkTabAsUnsaved();
+                            tabData->NeedsRecalculation.markAsUnsaved = true;
+                            tabData->NeedsRecalculation.recalculate = true;
 
                             // (Optional) Play your standard UI click sound!
                             PlaySoundEffect("buttonClick0");
@@ -1217,74 +1227,18 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                         }
                     }
 
-                    std::string str2 = "Young's modulus, E-module: %0.3f ";
+                    std::string str2 = "Young's modulus, E-Modulus: %0.3f ";
 
                     if (LR10KAppGlobals::unitsConvertionIndex == 0)
                         str2.append("GPa");
                     else
                         str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText2, str2.c_str(), (double)tabData->calcYoungsModulus);
+                    TextWithBackground(colorText2, IM_COL32(52, 52, 52, 250), str2.c_str(), (double)tabData->calcYoungsModulus);
                     ImGui::Spacing();
 
-                    ImGui::EndTabItem();
-                }
-
-                // ------------------------------
-
-                if (condition2 && ImGui::BeginTabItem("UTS"))
-                {
-                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
-                    ImGui::Text("Ultimate Tensile Strength (UTS)");
-                    ImGui::Separator();
                     ImGui::PopFont();
-
-                    ImGui::SeparatorText("Young's Modulus (E-module)");
-                    str = "Young's modulus: E-module Bending = %0.3f ";
-                    if (LR10KAppGlobals::unitsConvertionIndex == 0)
-                        str2.append("GPa");
-                    else
-                        str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText2, str.c_str(), tabData->calcYoungsModulus);
-
-                    ImGui::SeparatorText("UTS Bending");
-                    str = "Ultimate Tensile Strength: %0.2f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
-
                     ImGui::EndTabItem();
-                }
-                if (condition2 && ImGui::BeginTabItem("Max. Bending Moment"))
-                {
-                    ImGui::PushFont(NULL, style.FontSizeBase* scaling);
-                    ImGui::Text("Maximum Bending Moment");
-                    ImGui::Separator();
-                    ImGui::PopFont();
 
-                    ImGui::SeparatorText("Bending Moment");
-                    str = "Moment (Force*Arm): %0.2f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1)).append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Nmm or lbf * in
-                    ImGui::TextColored(colorText_nom, str.c_str(), tabData->calcData_Compression[2]);
-
-                    ImGui::EndTabItem();
-                }
-                if (condition2 && ImGui::BeginTabItem("Max. Load & Travel"))
-                {
-                    ImGui::PushFont(NULL, style.FontSizeBase * scaling);
-                    ImGui::Text("Maximum Load & Travel");
-                    ImGui::Separator();
-                    ImGui::PopFont();
-
-                    ImGui::SeparatorText("Bending Load");
-                    std::string str = "Load: %0.2f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
-                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[0]);
-
-                    ImGui::SeparatorText("Bending Travel");
-                    str = "Travel: %0.2f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-                    ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[1]);
-
-                    ImGui::EndTabItem();
                 }
             }
 
@@ -1298,6 +1252,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
         {
             ImGui::SeparatorText("Filter out extension from start (without extensiometer)");
 
+            ImGui::PushFont(Extra::fonts.jetbrainsFont);
             // Have the option to move the starting strain point (x-axis) an offset distance from zero point
             ImGui::Text("Remove some slack from\nthe extension/strain axis:");
             ImGui::Text("0 mm = \"Default setup\".");
@@ -1332,6 +1287,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
             ImGui::EndDisabled();
             ImGui::Spacing();
+            ImGui::PopFont();
 
             ImGui::EndTabItem();
         }
@@ -1342,6 +1298,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
         {
             ImGui::SeparatorText("Calculate a percentage of the materials start length");
 
+            ImGui::PushFont(Extra::fonts.jetbrainsFont);
             // Calculate percentage of length of material to millimeter
             ImGui::Text("Percentage of the Start length:");
             static float percentageOfLength = 0.00f;
@@ -1358,6 +1315,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             ImGui::SetItemTooltip("(Read only)");
 
             ImGui::Spacing();
+            ImGui::PopFont();
 
             ImGui::EndTabItem();
         }
@@ -1425,7 +1383,7 @@ double linearRegressionR2(const std::vector<DataPoint>& data) {
 
 // -----------------------------------------------------------------------------
 // ------------------------------- Excel related -------------------------------
-// -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------- σ
 void create_style_gallery(TabControl::TabTestDataClass tabData) {
     lxw_workbook* workbook = workbook_new("chart_style_gallery.xlsx");
     lxw_worksheet* worksheet = workbook_add_worksheet(workbook, "Styles");
@@ -1467,7 +1425,7 @@ void create_style_gallery(TabControl::TabTestDataClass tabData) {
     workbook_close(workbook);
 }
 
-void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, lxw_format* bold, AppMainExcel::ExcelDataVariationWorksheetData dataVariation)
+void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, lxw_workbook* workbook, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, AppMainExcel::ExcelDataVariationWorksheetData dataVariation)
 {
     // Create your custom labels
     static lxw_chart_font labels_font_green     = { .color = LXW_COLOR_GREEN };
@@ -1493,14 +1451,46 @@ void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, st
         &label_e_higher
     };
 
-    // Crucial points
-    worksheet_write_string(worksheet, CELL("A1"), "P ID", bold);
-    worksheet_write_string(worksheet, CELL("B1"), "P X (mm)", bold);
-    worksheet_write_string(worksheet, CELL("C1"), "P Y (N)", bold);
+    /* Add a bold format to use to highlight the header cells. */
+    lxw_format* fmt_header = workbook_add_format(workbook);
+    format_set_bold(fmt_header);
+    format_set_align(fmt_header, LXW_ALIGN_CENTER);
 
-    // Load-extension data
-    worksheet_write_string(worksheet, CELL("D1"), "X (mm)", bold);
-    worksheet_write_string(worksheet, CELL("E1"), "Y (N)", bold);
+    lxw_format* fmt_decimal3 = workbook_add_format(workbook);
+    format_set_num_format(fmt_decimal3, "0.000");
+    format_set_align(fmt_decimal3, LXW_ALIGN_CENTER);
+
+    std::string label = "";
+    if (dataVariation == VAR_RAW)
+    {
+        // Crucial points
+        worksheet_write_string(worksheet, CELL("A1"), "P ID", fmt_header);
+        label = "P X (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(0)) + ")";
+        worksheet_write_string(worksheet, CELL("B1"), label.c_str(), fmt_header);
+        label = "P Y (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(1)) + ")";
+        worksheet_write_string(worksheet, CELL("C1"), label.c_str(), fmt_header);
+
+        // Load-extension data
+        label = "X (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(0)) + ")";
+        worksheet_write_string(worksheet, CELL("D1"), label.c_str(), fmt_header);
+        label = "Y (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(1)) + ")";
+        worksheet_write_string(worksheet, CELL("E1"), label.c_str(), fmt_header);
+    }
+    else
+    {
+        // Crucial points
+        worksheet_write_string(worksheet, CELL("A1"), "P ID", fmt_header);
+        label = "P X (ε)";
+        worksheet_write_string(worksheet, CELL("B1"), label.c_str(), fmt_header);
+        label = "P Y (σ, " + std::string(LR10KAppGlobals::GetUnitOption<const char*>(7)) + ")";
+        worksheet_write_string(worksheet, CELL("C1"), label.c_str(), fmt_header);
+
+        // Load-extension data
+        label = "X (ε)";
+        worksheet_write_string(worksheet, CELL("D1"), label.c_str(), fmt_header);
+        label = "Y (σ, " + std::string(LR10KAppGlobals::GetUnitOption<const char*>(7)) + ")";
+        worksheet_write_string(worksheet, CELL("E1"), label.c_str(), fmt_header);
+    }
 
     // Main plot points (graph)
     RollingBuffer tensileData = tabData.LR10KTensileData;
@@ -1520,13 +1510,13 @@ void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, st
         ImVec2 dataPlotPointStress = tensileData.Data[row];
 
         // Convert to STRESS
-        if (dataVariation != AppMainExcel::VAR_RAW)
+        if (dataVariation != VAR_RAW)
         {
             // Nominal stress
             dataPlotPointStress.x = LR10KAppGlobals::CalcEpsilon_e(dataPlotPointStress.x, L_0);
             dataPlotPointStress.y = LR10KAppGlobals::CalcSigma_e(dataPlotPointStress.y, A_0);
         }
-        if (dataVariation == AppMainExcel::VAR_TRUE_STRESS)
+        if (dataVariation == VAR_TRUE_STRESS)
         {
             // True stress
             dataPlotPointStress.x = LR10KAppGlobals::CalcEpsilon_t(dataPlotPointStress.x);
@@ -1536,25 +1526,25 @@ void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, st
         // -----------------------------------------------
 
         // Plot point
-        if (dataVariation == AppMainExcel::VAR_RAW)
+        if (dataVariation == VAR_RAW)
         {
             // Plot point (RAW)
-            worksheet_write_number(worksheet, row + 1, colStartData, dataPlotPointRaw.x, NULL);
-            worksheet_write_number(worksheet, row + 1, colStartData + 1, dataPlotPointRaw.y, NULL);
+            worksheet_write_number(worksheet, row + 1, colStartData, dataPlotPointRaw.x, fmt_decimal3);
+            worksheet_write_number(worksheet, row + 1, colStartData + 1, dataPlotPointRaw.y, fmt_decimal3);
         }
         else
         {
             // Plot point (STRESS)
-            worksheet_write_number(worksheet, row + 1, colStartData, dataPlotPointStress.x*100, NULL);
-            worksheet_write_number(worksheet, row + 1, colStartData + 1, dataPlotPointStress.y, NULL);
+            worksheet_write_number(worksheet, row + 1, colStartData, dataPlotPointStress.x*100, fmt_decimal3);
+            worksheet_write_number(worksheet, row + 1, colStartData + 1, dataPlotPointStress.y, fmt_decimal3);
         }
 
         // -----------------------------------------------
 
         // Only crucial points for RAW and Engineering stress...
-        if (dataVariation == AppMainExcel::VAR_RAW || dataVariation == AppMainExcel::VAR_ENG_STRESS)
+        if (dataVariation == VAR_RAW || dataVariation == VAR_ENG_STRESS)
         {
-            // Crucial points (UTS, E-module etc.)
+            // Crucial points (UTS, E-Modulus etc.)
             for (const auto& point_tuple : tabData.plot_dataPoints) {
                 // Get point
                 ImPlotPoint dataRaw = std::get<0>(point_tuple);
@@ -1562,7 +1552,7 @@ void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, st
 
                 int id = std::get<1>(point_tuple);
 
-                if (dataVariation == AppMainExcel::VAR_ENG_STRESS)
+                if (dataVariation == VAR_ENG_STRESS)
                 {
                     // Nominal stress
                     dataStress.x = LR10KAppGlobals::CalcEpsilon_e(dataStress.x, L_0);
@@ -1575,17 +1565,17 @@ void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, st
                     // Write into worksheet
                     worksheet_write_string(worksheet, rowStartPoint + 1, colStartPoint, TabControl::plot_items[id], NULL);
 
-                    if (dataVariation == AppMainExcel::VAR_ENG_STRESS)
+                    if (dataVariation == VAR_ENG_STRESS)
                     {
                         // ENG. STRESS
-                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 1, dataStress.x*100, NULL);
-                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 2, dataStress.y, NULL);
+                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 1, dataStress.x*100, fmt_decimal3);
+                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 2, dataStress.y, fmt_decimal3);
                     }
                     else
                     {
                         // RAW
-                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 1, dataRaw.x, NULL);
-                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 2, dataRaw.y, NULL);
+                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 1, dataRaw.x, fmt_decimal3);
+                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 2, dataRaw.y, fmt_decimal3);
                     }
 
                     // Add label to crucial point
@@ -1622,12 +1612,15 @@ void AppMainExcel::CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_wo
     // For current chart, we only want to show the labels that are active (the ones that have a point on the graph). So we create an array of pointers to only those labels.
     std::vector<lxw_chart_data_label*> activeLabels;
 
-    /* Add a bold format to use to highlight the header cells. */
-    lxw_format* bold = workbook_add_format(workbook);
-    format_set_bold(bold);
-
     /* Write some data for the chart. */
-    write_worksheet_data(tabData, &activeLabels, worksheet, bold, dataVariation);
+    write_worksheet_data(tabData, workbook, &activeLabels, worksheet, dataVariation);
+
+    // Set column width
+    worksheet_set_column(worksheet, 0, 0, 7, NULL);
+    worksheet_set_column(worksheet, 1, 1, 10, NULL);
+    worksheet_set_column(worksheet, 2, 2, 12, NULL);
+    worksheet_set_column(worksheet, 3, 3, 7, NULL);
+    worksheet_set_column(worksheet, 4, 4, 10, NULL);
 
     // Create smooth scatter plot with lines
     lxw_chart* chart = workbook_add_chart(workbook, LXW_CHART_SCATTER_SMOOTH);
@@ -1650,7 +1643,7 @@ void AppMainExcel::CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_wo
     // --------------- Crucial Points
     // ----------------------------------------------------
 
-    if (dataVariation == AppMainExcel::VAR_RAW || dataVariation == AppMainExcel::VAR_ENG_STRESS)
+    if (dataVariation == VAR_RAW || dataVariation == VAR_ENG_STRESS)
     {
         /* Add the second series to the chart (crucial points). */
         lxw_chart_series* series2 = chart_add_series(chart, NULL, NULL);
@@ -1771,47 +1764,166 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
     }
 
     // 2. Create Global Formats
-    lxw_format* fmt_bold = workbook_add_format(workbook);
-    format_set_bold(fmt_bold);
-
-    lxw_format* fmt_center_bold = workbook_add_format(workbook);
-    format_set_bold(fmt_center_bold);
-    format_set_align(fmt_center_bold, LXW_ALIGN_CENTER);
+    lxw_format* fmt_header = workbook_add_format(workbook);
+    format_set_bold(fmt_header);
+    format_set_bg_color(fmt_header, LXW_COLOR_BLUE);
+    format_set_font_color(fmt_header, LXW_COLOR_WHITE); // Makes the text readable
+    format_set_align(fmt_header, LXW_ALIGN_CENTER);
+    format_set_border(fmt_header, LXW_BORDER_THIN);
 
     // ---------------------------------------------------------
     // A. FULL REPORT SHEET
     // ---------------------------------------------------------
     bool dimensionsAdded = (tabData.thickness > 0 && tabData.width > 0 && tabData.length > 0);
 
+    std::string unit_raw = LR10KAppGlobals::GetUnitOption<const char*>(0); //SI: mm
+    std::string unit_stress = LR10KAppGlobals::GetUnitOption<const char*>(7); //SI: N/mm^2 eller MPa
+    std::string unit_strain = "% (ɛ)"; //SI: N/mm^2 eller MPa
+    std::string unit_speed = LR10KAppGlobals::GetUnitOption<const char*>(2); //SI: mm/min
+    std::string label = ""; // Container
+
+    // Formats
+    lxw_format* fmt_bold_left = workbook_add_format(workbook);
+    format_set_bold(fmt_bold_left);
+    format_set_align(fmt_bold_left, LXW_ALIGN_LEFT);
+
+    lxw_format* fmt_bold_right = workbook_add_format(workbook);
+    format_set_bold(fmt_bold_right);
+    format_set_align(fmt_bold_right, LXW_ALIGN_RIGHT);
+
+    lxw_format* fmt_decimal3 = workbook_add_format(workbook);
+    format_set_num_format(fmt_decimal3, "0.000");
+
+    lxw_format* fmt_decimal2 = workbook_add_format(workbook);
+    format_set_num_format(fmt_decimal2, "0.00");
+
+    lxw_format* fmt_decimal0 = workbook_add_format(workbook);
+    format_set_num_format(fmt_decimal0, "0");
+
     if (dimensionsAdded) {
         lxw_worksheet* ws_report = workbook_add_worksheet(workbook, "Full Report");
-        worksheet_set_column(ws_report, 0, 3, 30, NULL);
+        worksheet_set_column(ws_report, 0, 0, 32, NULL);
+        worksheet_set_column(ws_report, 1, 2, 13, NULL);
+        worksheet_set_column(ws_report, 3, 3, 32, NULL);
+        worksheet_set_column(ws_report, 4, 5, 13, NULL);
 
-        worksheet_write_string(ws_report, 0, 0, "MATERIAL TESTING REPORT", fmt_center_bold);
-        worksheet_merge_range(ws_report, 0, 0, 0, 2, "MATERIAL TESTING REPORT", fmt_center_bold);
-        worksheet_write_string(ws_report, 1, 0, tabData.date.c_str(), NULL);
+        worksheet_write_string(ws_report, 0, 0, "MATERIAL TESTING REPORT", fmt_header);
+        worksheet_merge_range(ws_report, 0, 0, 0, 5, "MATERIAL TESTING REPORT", fmt_header);
+        worksheet_write_string(ws_report, 1, 0, std::string("Test date: " + tabData.date).c_str(), fmt_bold_left);
 
         // Properties
-        worksheet_write_string(ws_report, 3, 0, "Start Thickness (mm)", NULL);
-        worksheet_write_number(ws_report, 3, 1, tabData.thickness, NULL);
+        std::string dim = tabData.unitsConvertionIndex == 0 ? "SI" : "English Engineering";
+        dim = "Dimensions (" + dim + ")";
+        worksheet_write_string(ws_report, CELL("A4"), dim.c_str(), fmt_bold_left);
 
-        worksheet_write_string(ws_report, 4, 0, "Start Width (mm)", NULL);
-        worksheet_write_number(ws_report, 4, 1, tabData.width, NULL);
+        label = "Start Thickness (" + unit_raw + ")";
+        worksheet_write_string(ws_report, CELL("A5"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("B5"), tabData.thickness, fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("C5"), unit_raw.c_str(), fmt_bold_left);
 
-        worksheet_write_string(ws_report, 5, 0, "Gauge Length (mm)", NULL);
-        worksheet_write_number(ws_report, 5, 1, tabData.length, NULL);
+        label = "Start Width (" + unit_raw + ")";
+        worksheet_write_string(ws_report, CELL("A6"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("B6"), tabData.width, fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("C6"), unit_raw.c_str(), fmt_bold_left);
 
-        // (Add other calculations like E-Modulus here if needed)
+        label = "Gauge Length (" + unit_raw + ")";
+        worksheet_write_string(ws_report, CELL("A7"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("B7"), tabData.length, fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("C7"), unit_raw.c_str(), fmt_bold_left);
+
+        label = "Cross-sectional area (" + unit_raw + "^2)";
+        worksheet_write_string(ws_report, CELL("A8"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("B8"), tabData.area, fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("C8"), unit_raw.c_str(), fmt_bold_left);
+
+        // (Add other calculations like E-Modulus here if needed) σ
+        int strain = 0;
+        int stress = 1;
+
+        // Stress
+        worksheet_write_string(ws_report, CELL("A10"), "Engineering stress (nominal stress)", fmt_bold_left);
+
+        worksheet_write_string(ws_report, CELL("A11"), "Young's Moduls, E-Modulus (GPa)", NULL);
+        worksheet_write_number(ws_report, CELL("B11"), tabData.calcYoungsModulus, fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("C11"), "GPa", fmt_bold_left);
+
+        label = "Proportional Limit (" + unit_stress + ")";
+        worksheet_write_string(ws_report, CELL("A12"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("B12"), tabData.calcPoint_NominalStressStrain_PropLimit[stress], fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("C12"), unit_stress.c_str(), fmt_bold_left);
+
+        label = "Yield Strength (" + unit_stress + ")";
+        worksheet_write_string(ws_report, CELL("A13"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("B13"), tabData.calcPoint_NominalStressStrain_yield[stress], fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("C13"), unit_stress.c_str(), fmt_bold_left);
+
+        label = "Ultimate Tensile Stress (" + unit_stress + ")";
+        worksheet_write_string(ws_report, CELL("A14"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("B14"), tabData.calcPoint_NominalStressStrainUTS[stress], fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("C14"), unit_stress.c_str(), fmt_bold_left);
+
+        label = "Fracture (" + unit_stress + ")";
+        worksheet_write_string(ws_report, CELL("A15"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("B15"), tabData.calcPoint_NominalStressStrain_fracture[stress], fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("C15"), unit_stress.c_str(), fmt_bold_left);
+
+        // Strain
+        worksheet_write_string(ws_report, CELL("D10"), "Engineering strain (nominal strain)", fmt_bold_left);
+
+        label = "Proportional Limit (" + unit_strain + ")";
+        worksheet_write_string(ws_report, CELL("D12"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("E12"), tabData.calcPoint_NominalStressStrain_PropLimit[strain]*100, fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("F12"), unit_strain.c_str(), fmt_bold_left);
+
+        label = "Yield Strength (" + unit_strain + ")";
+        worksheet_write_string(ws_report, CELL("D13"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("E13"), tabData.calcPoint_NominalStressStrain_yield[strain]*100, fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("F13"), unit_strain.c_str(), fmt_bold_left);
+
+        label = "Ultimate Tensile Stress (" + unit_strain + ")";
+        worksheet_write_string(ws_report, CELL("D14"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("E14"), tabData.calcPoint_NominalStressStrainUTS[strain]*100, fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("F14"), unit_strain.c_str(), fmt_bold_left);
+
+        label = "Fracture (" + unit_strain + ")";
+        worksheet_write_string(ws_report, CELL("D15"), label.c_str(), NULL);
+        worksheet_write_number(ws_report, CELL("E15"), tabData.calcPoint_NominalStressStrain_fracture[strain]*100, fmt_decimal3);
+        worksheet_write_string(ws_report, CELL("F15"), unit_strain.c_str(), fmt_bold_left);
     }
 
     // ---------------------------------------------------------
     // B. SETUP SHEET
     // ---------------------------------------------------------
     lxw_worksheet* ws_setup = workbook_add_worksheet(workbook, "Setup");
-    worksheet_set_column(ws_setup, 0, 2, 20, NULL);
-    worksheet_write_string(ws_setup, 0, 0, "LR 10K Settings", fmt_center_bold);
-    // (Write your setup values here as before)
+    worksheet_set_column(ws_setup, 0, 3, 27, NULL); //27px
+    worksheet_write_string(ws_setup, 0, 0, "LR 10K SETTINGS", fmt_header);
+    worksheet_merge_range(ws_setup, 0, 0, 0, 2, "LR 10K SETTINGS", fmt_header);
 
+    // (Write your setup values here as before)
+    label = "Crosshead speed (" + unit_speed + ")";
+    worksheet_write_string(ws_setup, CELL("A3"), label.c_str(), NULL);
+    worksheet_write_number(ws_setup, CELL("B3"), tabData.settings_speedAndPlot[0], fmt_decimal2);
+    worksheet_write_string(ws_setup, CELL("C3"), unit_speed.c_str(), fmt_bold_left);
+
+    label = "Jog speed (" + unit_speed + ")";
+    worksheet_write_string(ws_setup, CELL("A4"), label.c_str(), NULL);
+    worksheet_write_number(ws_setup, CELL("B4"), tabData.settings_speedAndPlot[1], fmt_decimal2);
+    worksheet_write_string(ws_setup, CELL("C4"), unit_speed.c_str(), fmt_bold_left);
+
+    label = "Load Error (%)";
+    worksheet_write_string(ws_setup, CELL("A5"), label.c_str(), NULL);
+    worksheet_write_number(ws_setup, CELL("B5"), tabData.settings_speedAndPlot[2], fmt_decimal2);
+    worksheet_write_string(ws_setup, CELL("C5"), "%", fmt_bold_left);
+
+    label = "Test Type (Tension or Compr.)";
+    worksheet_write_string(ws_setup, CELL("A6"), label.c_str(), NULL);
+    worksheet_write_string(ws_setup, CELL("B6"), tabData.tension ? "Tension Testing" : "Compression Testing", fmt_bold_right);
+
+    // Some old saves won't have this data, and is set to 0 after loading it in (before 2026)
+    label = "Sampling Rate (Hz)";
+    worksheet_write_string(ws_setup, CELL("A7"), label.c_str(), NULL);
+    worksheet_write_number(ws_setup, CELL("B7"), 1 / tabData.LR10KTensileData.SamplingRate, fmt_decimal0);
+    worksheet_write_string(ws_setup, CELL("C7"), "Hz", fmt_bold_left);
 
     // ---------------------------------------------------------
     // C. GRAPH 1: LOAD - EXTENSION (The "Raw" Graph)
@@ -1949,59 +2061,51 @@ void AppMainFileSystem::SaveXlsxBrowserLogic(TabControl::TabTestDataClass* tabDa
 
 void AppMainFileSystem::OpenLR10KTestFileBrowserLogic()
 {
-    if (fileBrowserOpenLR10KTest.HasSelected())
+    // Check if either the browser or the drag-and-drop triggered
+    if (!LR10KAppGlobals::pendingFileToLoad.empty() || fileBrowserOpenLR10KTest.HasSelected())
     {
-        // Get current selection (path + filename)
-        const std::string filename = fileBrowserOpenLR10KTest.GetSelected().string();
-        fileBrowserOpenLR10KTest.ClearSelected();
+        std::string filename;
 
-        // Want to save the last folder location used
+        // 1. Determine the source of the file path
+        if (!LR10KAppGlobals::pendingFileToLoad.empty()) {
+            filename = LR10KAppGlobals::pendingFileToLoad;
+            LR10KAppGlobals::pendingFileToLoad = ""; // Clear immediately
+
+            // Sync the browser folder location so it's ready for the next "Open" click
+            fileBrowserOpenLR10KTest.SetPwd(std::filesystem::path(filename).parent_path());
+        }
+        else {
+            filename = fileBrowserOpenLR10KTest.GetSelected().string();
+            fileBrowserOpenLR10KTest.ClearSelected();
+        }
+
+        // 2. Save the last folder location
         DockingApps::mainFileSystem.SaveApplicationFolderSettingsOnly();
 
-        // Load from JSON file
+        // 3. Load from JSON
         TabControl::TabTestDataClass* tabDataLoaded = DockingApps::mainFileSystem.LoadJSONDataFromFileForANewTab(filename.c_str());
         tabDataLoaded->loadedFromFileName = filename;
 
-        // Load current file folder location
-        // Get current selection (path + filename). Filname will be folder name.
-        std::stringstream filenameStream(filename);
-        std::string segment;
-        std::vector<std::string> seglist;
+        // 4. Sleek Path Logic: Use std::filesystem to get the folder path
+        // This replaces the stringstream/seglist loop entirely!
+        std::filesystem::path p(filename);
+        tabDataLoaded->current_temp_preSaveLocation = p.parent_path().string() + "\\";
 
-        // Split
-        while (std::getline(filenameStream, segment, '\\'))
-        {
-            seglist.push_back(segment);
-        }
-        std::string newFilename = "";
-        for (int i = 0; i < seglist.size() - 1; i++)
-        {
-            newFilename.append(seglist[i]);
-            newFilename.append("\\");
-        }
-        // Save it for later, if user wants to save the file again.
-        tabDataLoaded->current_temp_preSaveLocation = newFilename;
-
-        // Check if any data was loaded
+        // 5. Validation and Tab Creation (Rest of your existing code)
         if (tabDataLoaded->isValid())
         {
-            // Add new tab with the retrived tab data
             DockingApps::mainTabSystem.CreateANewTab(tabDataLoaded);
 
-            // Update the GUI after the new tab has been created
-            //TabControl::RefreshUpdateImportantDataPoints(tabDataLoaded);
             if ((tabDataLoaded->thickness > 0 && tabDataLoaded->width > 0) || tabDataLoaded->length > 0)
                 tabDataLoaded->ConvertUnitsToNewUnitAfterLoad(tabDataLoaded);
 
             PlaySoundEffect("saveFileSuccess");
-
-            // This tells ImPlot to auto-fit the axes on the very next frame
             tabDataLoaded->request_graph_autofit = true;
-
             DockingApps::console.AddLog("Successfully loaded plot data to a new tab!");
         }
-        else
+        else {
             DockingApps::console.AddLog("[error] Could not load plot data to new tab...");
+        }
     }
 }
 
@@ -2629,6 +2733,7 @@ void TabControl::AddNewPointFromLoadAndExtension(TabControl::TabTestDataClass* t
         if (newPoint.x >= 0.0f && newPoint.y >= 0.0f && (lastPointAdded.x == 0.0f || newPoint.x > lastPointAdded.x))
             // Add point
             tabData->LR10KTensileData.AddPoint(newPoint.x, newPoint.y);
+            tabData->LR10KTensileData.AddTime(std::chrono::high_resolution_clock::now());
 
         // Increment data (used always for both real and fake load)
         if (mainGUIGlobals::useDemoMode
@@ -2656,49 +2761,6 @@ TabControl::TabTestDataClass* TabControl::FindTabTestData(int tabId)
 
     return {};
 }
-/**
-    @brief Used for refreshing and updating important crucial points list, used in the quick report.
-**/
-//void TabControl::RefreshUpdateImportantDataPoints(TabControl::TabTestDataClass* tabData, bool markTabUnsaved)
-//{
-//    if (tabData == nullptr) return;
-//
-//    // Refresh and update crucial points added to the important data points vector plot_importantDataPoints
-//    std::vector<std::tuple<ImPlotPoint, int>> allDataPoints   = tabData->plot_dataPoints;
-//    tabData->plot_importantDataPoints.clear();
-//
-//    // Try and write all of the important data properties
-//    bool propIndexFound[4]{ false, false, false, false };
-//    for (int i = 0; i < IM_ARRAYSIZE(propIndexFound); i++)
-//    {
-//        // Reset important data points vector
-//        tabData->plot_importantDataPoints.push_back({});
-//
-//        // Check every data point, so every property can be added in an acending order
-//        for (int j = 0; j < allDataPoints.size(); j++)
-//        {
-//            // Current looped data
-//            ImPlotPoint dataPoint = std::get<ImPlotPoint>(allDataPoints[j]);
-//            int dataPointPropIndex = std::get<int>(allDataPoints[j]);
-//
-//            // Only find one of each
-//            if (propIndexFound[i]) continue;
-//
-//            // Check if it is within the range of valid options
-//            //std::cout << "PropIndex: " << propIndex << std::endl;
-//            if (dataPointPropIndex == i)
-//            {
-//                // Write correspondingly in acending order
-//                tabData->plot_importantDataPoints.at(i).first   = dataPoint;
-//                tabData->plot_importantDataPoints.at(i).second  = dataPointPropIndex;
-//                propIndexFound[i] = true;
-//            }
-//        }
-//    }
-//
-//    if (markTabUnsaved)
-//        tabData->MarkTabAsUnsaved();
-//}
 /**
     @brief Used for undoing crucial point.
 **/
@@ -2819,74 +2881,6 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
 
             if (!tabData->test_finished)
             {
-                //if (tabData->LR10KTensileData.Data.Size > 0)
-                //{
-                //    //// Take the latest data point
-                //    //int latestPointIndex = tabData->LR10KTensileData.Data.Size - 1;
-                //    //const ImVec2 latestDataPoint = tabData->LR10KTensileData.Data[latestPointIndex];
-
-                //    //// -------------------------------------------------------------
-                //    //// ---------- Try detecting a propotional limit point ----------
-                //    //// -------------------------------------------------------------
-                //    //// Calculate delta time in seconds
-                //    //static int limit = 9; // Needs 9 points to check if there is a linear regression
-
-                //    //std::chrono::duration<double> deltaTime = std::chrono::high_resolution_clock::now() - TabControl::timestampForLastAddedRegressionPoint;
-
-                //    //// 165 ms | 6 points a second
-                //    //// Always try and search for a new point, and remove the old one,
-                //    //// if a UTS has not been added yet
-                //    //if (0 == tabData->plot_importantDataPoints[0].first.y && deltaTime.count() >= 0.165 && LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad() > 100.0f)
-                //    //{
-                //    //    // Try detecting the propotional limit based on linear regression
-                //    //    static std::vector<DataPoint> data = {  };
-                //    //    data.push_back({ latestDataPoint.x, latestDataPoint.y });
-
-                //    //    // Find the linear regression
-                //    //    double rSquared = linearRegressionR2(data);
-
-                //    //    // rSquared > 0.9 is very certain
-                //    //    // Only add if tension
-                //    //    if (data.size() == limit && rSquared > tabData->calcLinRegressionConst)
-                //    //    {
-                //    //        tabData->AssignPoint_PropotionalLimit(tabData, latestDataPoint);
-                //    //    }
-
-                //    //    // Reset and try to find again
-                //    //    if (data.size() > limit)
-                //    //        data = { };
-
-                //    //    // Set again
-                //    //    TabControl::timestampForLastAddedRegressionPoint = std::chrono::high_resolution_clock::now();
-                //    //}
-
-                //    // -------------------------------------------------------------
-                //    // ---------------- Try detecting yielding point ---------------
-                //    // -------------------------------------------------------------
-                //    // REMOVED SINCE IT DOESN'T WORK FOR EVERY CENARIO. OLD CODE. Should be done manually
-                //    // Try figuring out if there is a big jump in load, and assume a dip in material strength resistance has occured
-                //    // If load decreases over 25 % of load in last point, then there should be a material strength loss that occured for most materials... (assumes)
-                //    //if (0 == tabData->plot_importantDataPoints[1].first.y && tabData->LR10KTensileData.Data.Size > 1)
-                //    //{
-                //    //    int prevPointIndex = tabData->LR10KTensileData.Data.Size - 2;
-                //    //    const ImVec2 prevDataPoint = tabData->LR10KTensileData.Data[prevPointIndex];
-
-                //    //    // 25 % decrease - Actual ending of test occurs when this functions returns true
-                //    //    if (latestDataPoint.y <= (prevDataPoint.y - prevDataPoint.y * 0.25))
-                //    //    {
-                //    //        tabData->AssignPoint_YieldPoint(tabData, latestDataPoint);
-                //    //    }
-                //    //}
-                //}
-
-                // Get latest UTS point (used for detecting break underneath)
-                //ImPlotPoint UTSPoint = tabData->GetUTS(); // UTS
-
-                // Try detecting break
-                /*DockingApps::mutexControl.BreakDetection();
-                if (DetectIfABreakHasOccured(tabData, UTSPoint, LR10KAppGlobals::enable_breakThreshold.load(), LR10KAppGlobals::breakThreshold.load()))
-                    LR10KControlSystem::EndTest(tabData);*/
-
                 // Check if there is a physical crash or not to stop the machine
                 DockingApps::mutexControl.StatusMessage();
                 if (
@@ -2908,77 +2902,6 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
 
     return 0;
 }
-
-/**
-    @brief  @brief  Checks if a break has occured in the testing part
-    @details Will assume there is a break and end the test, if the graph goes under e.g. 10 % of the UTS point.
-                This percentage can be adjusted and the logic is confirmed to be in the original software.
-    @param  tabData                        - 
-    @param  UTSPoint                       - 
-    @param  enable_automaticBreakDetection - 
-    @param  breakThreshold                 - 
-    @retval                                - 
-**/
-//bool TabControl::DetectIfABreakHasOccured(TabControl::TabTestDataClass* tabData, ImPlotPoint UTSPoint, int enable_automaticBreakDetection, float breakThreshold)
-//{
-//    std::cout << "Detecting break... UTS: " << UTSPoint.y << std::endl;
-//
-//    if (tabData == nullptr || tabData->plot_importantDataPoints[3].first.y > 0) return false;
-//
-//    // Latest data point from tabData
-//    RollingBuffer tabDataLoaded = tabData->LR10KTensileData;
-//
-//    if (tabDataLoaded.Data.Size > 0)
-//    {
-//        int latestPointIndex = tabDataLoaded.Data.Size - 1;
-//        const ImVec2 latestDataPoint = tabDataLoaded.Data[latestPointIndex];
-//
-//        const float limit = 15.0f;
-//        // Check if the current test have not passed 15 N
-//        if (latestDataPoint.y >= limit)
-//            tabData->testHasGoneAbove15N = true;
-//
-//        if (0 == enable_automaticBreakDetection) // Manual (default)
-//        {
-//            if (tabData->testHasGoneAbove15N && latestDataPoint.y <= UTSPoint.y * breakThreshold)
-//            {
-//                tabData->AssignPoint_UltimateTensileStrength(tabData);
-//                tabData->AssignPoint_BreakPoint(tabData, latestDataPoint);
-//
-//                return true;
-//            }
-//        }
-//        else if (1 == enable_automaticBreakDetection) // Automatic
-//        {
-//            // Try figuring out if there is a big jump in load, and assume a clean break on part has occured
-//            // If load increases over 25 % of load in last point, then there should be a break that occured for most materials... (assumes)
-//            if (tabData->testHasGoneAbove15N && tabDataLoaded.Data.Size > 1 && 0 == tabData->plot_importantDataPoints[3].first.y)
-//            {
-//                int prevPointIndex = tabDataLoaded.Data.Size - 2;
-//                const ImVec2 prevDataPoint = tabDataLoaded.Data[prevPointIndex];
-//
-//                // 25 % increase - Actual ending of test occurs when this functions returns true
-//                if (latestDataPoint.y >= prevDataPoint.y * 1.25)
-//                {
-//                    tabData->AssignPoint_BreakPoint(tabData, prevDataPoint);
-//                }
-//            }
-//
-//            // Check if the current point is lower or equal to 15 N, after it has passed 15 N
-//            if (tabData->testHasGoneAbove15N && latestDataPoint.y < limit)
-//            {
-//                tabData->AssignPoint_UltimateTensileStrength(tabData);
-//
-//                if (0 == tabData->plot_importantDataPoints[3].first.y)
-//                    tabData->AssignPoint_BreakPoint(tabData, latestDataPoint);
-//
-//                return true;
-//            }
-//        }
-//    }
-//
-//    return false;
-//}
 
 /**
     @brief  Checks if distance travelled control is activated.
@@ -3059,19 +2982,22 @@ void TabControl::CalculateDataFromTest(TabControl::TabTestDataClass* tabData)
     bool condition1 = tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked); // Normal tension or compression
     bool condition2 = !tabData->tension && 1 == tabData->compressionOptionPicked; // 3-point compression
 
-    if (tabData->needs_recalculation) {
+    if (tabData->NeedsRecalculation.recalculate) {
         if (condition1)
         {
             // Calculate stresses
             DockingApps::calculator.CalculateStressPoints(tabData);
+            if (tabData->NeedsRecalculation.markAsUnsaved) tabData->MarkTabAsUnsaved();
         }
         else if (condition2)
         {
             // Calculate bending moment and UTS
             DockingApps::calculator.CalculateCompressionBendMomentAndUTS(tabData);
+            if (tabData->NeedsRecalculation.markAsUnsaved) tabData->MarkTabAsUnsaved();
         }
 
-        tabData->needs_recalculation = false;
+        tabData->NeedsRecalculation.markAsUnsaved = false;
+        tabData->NeedsRecalculation.recalculate = false;
     }
 }
 
@@ -3116,188 +3042,6 @@ void AppMainTabSystem::CreateTabMenuSystem(TabControl::TabTestDataClass* tabData
 
         tabData = newTabTestData;
     }
-
-    // TabItemButton() and Leading/Trailing flags are distinct features which we will demo together.
-    // (It is possible to submit regular tabs with Leading/Trailing flags, or TabItemButton tabs without Leading/Trailing flags...
-    // but they tend to make more sense together)
-
-    // Expose some other flags which are useful to showcase how they interact with Leading/Trailing tabs
-    //static ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown;
-
-    //if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags))
-    //{
-    //    // Leading TabItemButton(): click the "?" button to open a menu
-    //    if (ImGui::TabItemButton(" ? ", ImGuiTabItemFlags_Leading | ImGuiTabItemFlags_NoTooltip))
-    //        ImGui::OpenPopup("MyHelpMenu");
-    //    if (ImGui::BeginPopup("MyHelpMenu"))
-    //    {
-    //        ImGui::Selectable("These are all of your current tests.\n\nTo start a new test, click the \"+ New Test\" button.\nYou can save a test as an Excel book also.");
-    //        ImGui::EndPopup();
-    //    }
-
-    //    bool notALockedTab = !tabData->test_unfinished_test_started;
-
-    //    // Demo Trailing Tabs: click the "+" button to add a new tab (in your app you may want to use a font icon instead of the "+")
-    //    // Note that we submit it before the regular tabs, but because of the ImGuiTabItemFlags_Trailing flag it will always appear at the end.
-    //    if (ImGui::TabItemButton("+ New Test", ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip)
-    //        && TabControl::activeTestTabsId.Size < TabControl::MAXTABS && notALockedTab)
-    //    {
-    //        //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData, true);
-    //        TabControl::TabTestDataClass* newTabTestData = new TabControl::TabTestDataClass;
-
-    //        CreateANewTab(newTabTestData);
-
-    //        PlaySoundEffect("buttonClick1");
-    //    }
-
-    //    // Submit our regular 
-    //    for (int i = 0; i < TabControl::activeTestTabsId.Size; i++)
-    //    {
-    //        // Get new tab and previous tab
-    //        int tabTestId = TabControl::activeTestTabsId[i];
-    //        TabControl::TabTestDataClass* loopedTabData = TabControl::allTabTestData[tabTestId];
-
-    //        bool open = true;
-    //        char name[16];
-
-    //        // Changing flag depending on if the document is saved or not
-    //        int flags = loopedTabData->unsavedThingsInTab ? ImGuiTabItemFlags_UnsavedDocument : ImGuiTabItemFlags_None;
-
-    //        // Lambda functions for closing current tab.
-    //        static auto closeTab = [](const char* name, int i)
-    //        {
-    //            ImGui::SetTabItemClosed(name);
-    //            TabControl::activeTestTabsId.erase(TabControl::activeTestTabsId.Data + i); // Remove tab
-
-    //            PlaySoundEffect("buttonClick0");
-    //        };
-
-    //        // Lambda functions for tab information.
-    //        static auto tabInformation = [](
-    //            TabControl::TabTestDataClass* activeTabData
-    //            , TabControl::TabTestDataClass* tabData
-    //            , int activeTabTestId
-    //            , const char* name
-    //            , bool notALockedTab)
-    //        {
-    //                // Reset previous active tab, so it can be updated again later
-    //                if (!activeTabData->updatedGraphOnOpen) tabData->updatedGraphOnOpen = false;
-
-    //                std::cout << "This tab ID: " << activeTabData->updatedGraphOnOpen << " and Old tab ID: " << tabData->updatedGraphOnOpen << std::endl;
-
-    //                // Set current active tab index id
-    //                TabControl::currActiveTabIndexId = activeTabTestId;
-
-    //                // Name of tab
-    //                std::string nameOut = name;
-
-    //                ImGui::Text("This is tensile test: %s. You can save the data within the \"Graph\" panel as a .XLSX file, and as a loadable file in the menu.", Trim(nameOut).c_str());
-    //                ImGui::Separator();
-    //                if (activeTabData->test_finished)
-    //                {
-    //                    ImGui::Text("This test is finished. It was completed: %s", activeTabData->date.c_str());
-
-    //                    if (activeTabData->loadedFromFileName.size() > 0)
-    //                    {
-    //                        ImGui::Text("(Represents same data as in file: %s).", activeTabData->loadedFromFileName.c_str());
-    //                    }
-    //                    ImGui::Separator();
-    //                }
-
-    //                // Clean the temporary description, if needed
-    //                static int lastTempDescriptionIdUpdated = -1;
-    //                if (lastTempDescriptionIdUpdated != tabData->tabId)
-    //                {
-    //                    // Clear temporary
-    //                    for (int i = 0; i < IM_ARRAYSIZE(TabControl::tempDescription); i++)
-    //                    {
-    //                        TabControl::tempDescription[i] = {};
-    //                    }
-    //                    // Insert loaded from tabData, once
-    //                    for (int i = 0; i < tabData->description.length(); i++)
-    //                    {
-    //                        TabControl::tempDescription[i] = tabData->description.c_str()[i];
-    //                    }
-
-    //                    // Save status
-    //                    lastTempDescriptionIdUpdated = tabData->tabId;
-    //                }
-
-    //                // Update some GUI values, that will be inherited from tabData (this could be done elsewhere also.., but this one is nice to have here at least)
-    //                defaultValuesGUI::offsetZeroPointExtensionAxis = tabData->LR10OffsetZeroPointExtensionAxis;
-    //        };
-
-    //        // Tab name
-    //        snprintf(name, IM_ARRAYSIZE(name), "%04d      ", tabTestId);
-
-    //        if (TabControl::activeTestTabsId.Size > 1)
-    //        {
-    //            // When a tab becomes active, this returns true
-    //            // When a tab is closed/removed, "open" will be false
-
-    //            // When a test has started running, it should not be
-    //            // possible to change to another tab.
-    //            if (TabControl::forcedTabIndexId == tabTestId && tabData->test_unfinished_test_started)
-    //                flags |= ImGuiTabItemFlags_SetSelected;
-
-    //            bool tabIsActive = ImGui::BeginTabItem(name, &open, flags);
-    //            if (tabIsActive)
-    //            {
-    //                // Update the settings for vertical sliders if it is not the same as the settings from GUI
-    //                if (LR10KAppGlobals::testing_speedAndPlotActual[0] != tabData->settings_speedAndPlot[0] || LR10KAppGlobals::testing_speedAndPlotActual[2] != tabData->settings_speedAndPlot[2])
-    //                {
-    //                    LR10KAppGlobals::testing_speedAndPlotGUI[0] = ((tabData->settings_speedAndPlot[0] / LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[0]) * 100);
-    //                    LR10KAppGlobals::testing_speedAndPlotGUI[2] = tabData->settings_speedAndPlot[2];
-
-    //                    LR10KAppGlobals::testing_speedAndPlotActual[0] = tabData->settings_speedAndPlot[0];
-    //                    LR10KAppGlobals::testing_speedAndPlotActual[2] = tabData->settings_speedAndPlot[2];
-    //                }
-
-    //                // Update the units of the tab if it is not the same as the settings from GUI
-    //                if (tabData->fileFinishedLoading && tabData->unitsConvertionIndex != LR10KAppGlobals::unitsConvertionIndex)
-    //                {
-    //                    LR10KAppGlobals::unitsConvertionIndex = tabData->unitsConvertionIndex;
-    //                    tabData->ConvertUnitsToNewUnit(tabData, LR10KAppGlobals::unitsConvertionIndex, false);
-    //                }
-
-    //                tabInformation(loopedTabData, tabData, tabTestId, name, notALockedTab);
-    //                ImGui::EndTabItem();
-    //            }
-    //        }
-    //        else
-    //        {
-    //            bool tabIsActive = ImGui::BeginTabItem(name, NULL, flags);
-
-    //            if (tabIsActive)
-    //            {
-    //                tabInformation(loopedTabData, tabData, tabTestId, name, notALockedTab);
-    //                ImGui::EndTabItem();
-    //            }
-    //        }
-
-    //        // When trying to close a tab (don't care to remove the actual tab data, to keep everything uniq for this "session")
-
-    //        // Name of tab
-    //        std::string nameOut = name;
-
-    //        std::string popUpID = "Close tab #";
-    //        popUpID.append(Trim(nameOut));
-    //        popUpID.append(" without saving?");
-
-    //        if (!open && TabControl::activeTestTabsId.Size > 1 && notALockedTab)
-    //        {
-    //            if (mainGUIGlobals::ignoreSavingPrompt || !loopedTabData->unsavedThingsInTab)
-    //                closeTab(name, i);
-    //        }
-
-    //        // Prompt window for a single tab when trying to close it.
-    //        bool closeTabCheck = false;
-    //        DockingApps::mainFileSystem.PromptUserToCloseTabBeforeSaving(popUpID.c_str(), (!open && TabControl::activeTestTabsId.Size > 1 && notALockedTab && !mainGUIGlobals::ignoreSavingPrompt && TabControl::allTabTestData[tabTestId]->unsavedThingsInTab), &closeTabCheck);
-    //        if (closeTabCheck) closeTab(name, i);
-    //    }
-
-    //    ImGui::EndTabBar();
-    //}
 
     // Expose some other flags which are useful to showcase how they interact with Leading/Trailing tabs
     static ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyResizeDown;
@@ -3560,6 +3304,8 @@ ImPlotPoint TabControl::TabTestDataClass::GetFracturePoint(TabTestDataClass* tab
         fracturePoint = pointData;
     }
 
+    tabData->MarkTabAsUnsaved();
+
     return fracturePoint;
 }
 
@@ -3610,6 +3356,7 @@ void TabControl::TabTestDataClass::AssignPoint_UltimateTensileStrength(TabContro
     {
         plot_dataPoints.push_back({ UTSPoint, 2 });
         DockingApps::console.AddLog("Automatically added a Ultimate Tensile Strength point. (just an assumtion)");
+        tabData->MarkTabAsUnsaved();
     }
     else
         DockingApps::console.AddLog("Could not add Ultimate Tensile Strength since one or more points were NaN...");
@@ -3621,9 +3368,8 @@ void TabControl::TabTestDataClass::AssignPoint_BreakPoint(TabControl::TabTestDat
     {
         plot_dataPoints.push_back({ breakPoint, 3 });
 
-        // Assign correct data point index ID Globally
-        //plot_importantDataPoints[3] = { breakPoint, 3 }; // Break point has index ID 3
         DockingApps::console.AddLog("Automatically added a Break/Fracture point. (just an assumption)");
+        tabData->MarkTabAsUnsaved();
     }
     else
         DockingApps::console.AddLog("Could not add Break Point since one or more points were NaN...");
@@ -3731,19 +3477,6 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestData
         tabData->plot_dataPoints[i] = std::make_tuple(points, index);
     }
 
-    //// Crucial points
-    //for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-    //{
-    //    ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
-    //    points.x *= unitConv_dist;
-    //    points.y *= unitConv_force;
-
-    //    const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
-
-    //    // Save
-    //    tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
-    //}
-
     // -------------------------------------------------------------------------
     // -------------------------------- Finished -------------------------------
     // -------------------------------------------------------------------------
@@ -3761,21 +3494,8 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestData
         LR10KAppGlobals::calc_diameter  = tabData->diameter;
     }
 
-    if (tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked))
-    {
-        // Calculated points for different types of stresses
-        /*DockingApps::calculator.CalculateStressPoints(tabData, false, false, markAsSaved);
-        DockingApps::calculator.CalculateStresses(tabData);*/
-    }
-    else if (!tabData->tension && 1 == tabData->compressionOptionPicked)
-    {
-        // Calculate bending moment and UTS
-        //DockingApps::calculator.CalculateCompressionBendMomentAndUTS(tabData, false, false, markAsSaved);
-    }
-
-    // Update graph
-    //if (updateGlobals)
-        //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
+    tabData->NeedsRecalculation.markAsUnsaved = true;
+    tabData->NeedsRecalculation.recalculate = true;
 }
 void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::TabTestDataClass* tabData)
 {
@@ -3792,10 +3512,10 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::Ta
     // E.g. n/mm^2 and lbs/in^2
     const double unitConv_stress = LR10KAppGlobals::GetUnitOption<double>(10, tabData->unitsConvertionIndex);
 
-    tabData->thickness  *= unitConv_dist;
-    tabData->width      *= unitConv_dist;
-    tabData->length     *= unitConv_dist;
-    tabData->diameter   *= unitConv_dist;
+    tabData->thickness *= unitConv_dist;
+    tabData->width *= unitConv_dist;
+    tabData->length *= unitConv_dist;
+    tabData->diameter *= unitConv_dist;
     // Area will be calculated automatically
 
     // "Normal" plot data
@@ -3808,66 +3528,41 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::Ta
     // Plot points
     for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
     {
-        ImPlotPoint points    = std::get<ImPlotPoint>(tabData->plot_dataPoints[i]);
+        ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_dataPoints[i]);
         points.x *= unitConv_dist;
         points.y *= unitConv_force;
 
-        const int index             = std::get<int>(tabData->plot_dataPoints[i]);
+        const int index = std::get<int>(tabData->plot_dataPoints[i]);
 
         // Save
         tabData->plot_dataPoints[i] = std::make_tuple(points, index);
     }
-
-    //// Crucial points
-    //for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-    //{
-    //    ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
-    //    points.x *= unitConv_dist;
-    //    points.y *= unitConv_force;
-
-    //    const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
-
-    //    // Save
-    //    tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
-    //}
 
     // -------------------------------------------------------------------------
     // -------------------------------- Finished -------------------------------
     // -------------------------------------------------------------------------
 
     // Update global values
-    LR10KAppGlobals::calc_thickness    = tabData->thickness;
-    LR10KAppGlobals::calc_width        = tabData->width;
-    LR10KAppGlobals::calc_length       = tabData->length;
-    LR10KAppGlobals::calc_diameter     = tabData->diameter;
-
-    if (tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked))
-    {
-        // Calculated points for different types of stresses
-        /*DockingApps::calculator.CalculateStressPoints(tabData, true, true, true, false);
-        DockingApps::calculator.CalculateStresses(tabData);*/
-    }
-    else if (!tabData->tension && 1 == tabData->compressionOptionPicked)
-    {
-        // Calculate bending moment and UTS
-        //DockingApps::calculator.CalculateCompressionBendMomentAndUTS(tabData, true, true, false);
-    }
-
-    // Update graph
-    //TabControl::AutoAdjustNormalExtensionLoadVariabels(tabData);
+    LR10KAppGlobals::calc_thickness = tabData->thickness;
+    LR10KAppGlobals::calc_width = tabData->width;
+    LR10KAppGlobals::calc_length = tabData->length;
+    LR10KAppGlobals::calc_diameter = tabData->diameter;
 
     // Update to new unit
+    if (LR10KAppGlobals::unitsConvertionIndex == tabData->unitsConvertionIndex)
+        tabData->NeedsRecalculation.markAsUnsaved = false;
+        
     LR10KAppGlobals::unitsConvertionIndex = tabData->unitsConvertionIndex;
+    tabData->NeedsRecalculation.recalculate = true;
 }
 void TabControl::TabTestDataClass::MarkTabAsSaved()
 {
-    if (unsavedThingsInTab)
-        unsavedThingsInTab = false;
+    unsavedThingsInTab = false;
 }
+
 void TabControl::TabTestDataClass::MarkTabAsUnsaved()
 {
-    if (!unsavedThingsInTab)
-        unsavedThingsInTab = true;
+    unsavedThingsInTab = true;
 }
 
 // -----------------------------------------------------------------------------
@@ -4869,6 +4564,7 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
             else if (LR10KAppGlobals::configurationDone)
             {
                 LR10KControlSystem::SendTestSetupToLR10K();
+                tabData->LR10KTensileData.StartTimeTest = std::chrono::steady_clock::now();
                 _LR10KController.w_Go();
             }
 
@@ -4878,8 +4574,6 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
             tabData->test_unfinished_test_started = true;
 
             TabControl::aTestIsStartedOnTabIndexId = TabControl::currActiveTabIndexId;
-
-            tabData->MarkTabAsUnsaved();
 
             tabData->oldLoadErrorValue = tabData->settings_speedAndPlot[2];
 
@@ -4924,7 +4618,13 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
         }
     }
     else
+    {
+        // If you expect a 1-minute test at 50Hz, that's 3,000 points. Reserve 10,000 to be safe!
+        tabData->LR10KTensileData.Data.reserve(10000);
+        tabData->LR10KTensileData.TimeData.reserve(10000);
+
         return executeTest();
+    }
 
     return false;
 }
@@ -4939,9 +4639,14 @@ bool LR10KControlSystem::EndTest(TabControl::TabTestDataClass* tabData)
     if (tabData->test_unfinished_test_started && !tabData->test_finished)
     {
         if (LR10KAppGlobals::configurationDone)
+        {
             _LR10KController.w_EndTest();
+        }
 
-        LR10KAppGlobals::zeroPointIsSet = false;
+        tabData->LR10KTensileData.TimeData = { };
+        tabData->LR10KTensileData.StartTimeTest = TimePoint();
+
+        //LR10KAppGlobals::zeroPointIsSet = false;
 
         tabData->test_finished = true;
         tabData->test_unfinished_test_started = false;
@@ -5250,6 +4955,7 @@ void AppConsole::Draw(TabControl::TabTestDataClass* tabData, const char* title, 
     const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
     if (ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar))
     {
+        ImGui::PushFont(Extra::fonts.jetbrainsFont);
         if (ImGui::BeginPopupContextWindow())
         {
             if (ImGui::Selectable("Clear")) ClearLog();
@@ -5315,6 +5021,7 @@ void AppConsole::Draw(TabControl::TabTestDataClass* tabData, const char* title, 
         ScrollToBottom = false;
 
         ImGui::PopStyleVar();
+        ImGui::PopFont();
     }
     ImGui::EndChild();
     ImGui::Separator();

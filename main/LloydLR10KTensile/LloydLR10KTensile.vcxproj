@@ -117,6 +117,12 @@
       <AdditionalDependencies>d3d12.lib;d3dcompiler.lib;dxgi.lib;Winmm.lib;OneCore.lib;opencv_world4120d.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /y /d /i "$(ProjectDir)fonts" "$(OutDir)fonts"
+xcopy /y /d /i "$(ProjectDir)images" "$(OutDir)images"
+xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
+xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -160,10 +166,15 @@
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /y /d /i "$(ProjectDir)fonts" "$(OutDir)fonts"
+xcopy /y /d /i "$(ProjectDir)images" "$(OutDir)images"
+xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
+xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\backends\imgui_ImageLoader_dx12.cpp" />
-    <ClCompile Include="..\..\backends\imgui_impl_dx11.cpp" />
     <ClCompile Include="..\..\backends\imgui_impl_dx12.cpp" />
     <ClCompile Include="..\..\imgui.cpp" />
     <ClCompile Include="..\..\imgui_demo.cpp" />
@@ -175,18 +186,6 @@
     <ClCompile Include="..\..\implot_demo.cpp" />
     <ClCompile Include="..\..\implot_items.cpp" />
     <ClCompile Include="..\..\misc\cpp\imgui_stdlib.cpp" />
-    <ClCompile Include="..\..\PathManager.cpp" />
-    <ClCompile Include="..\..\scratch\clsScratchTable.cpp" />
-    <ClCompile Include="..\..\XLSXColors\clsRGBColorRecord.cpp" />
-    <ClCompile Include="..\..\XLSXColors\XLSXColorLib.cpp" />
-    <ClCompile Include="..\..\Xlsx\Chart.cpp" />
-    <ClCompile Include="..\..\Xlsx\Chartsheet.cpp" />
-    <ClCompile Include="..\..\Xlsx\Drawing.cpp" />
-    <ClCompile Include="..\..\Xlsx\SimpleXlsxDef.cpp" />
-    <ClCompile Include="..\..\Xlsx\Workbook.cpp" />
-    <ClCompile Include="..\..\Xlsx\Worksheet.cpp" />
-    <ClCompile Include="..\..\Xlsx\XlsxHeaders.cpp" />
-    <ClCompile Include="..\..\Zip\zip.cpp" />
     <ClCompile Include="common.cpp" />
     <ClCompile Include="appstructs.cpp" />
     <ClCompile Include="LR10KBufferMessage.cpp" />
@@ -197,7 +196,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\backends\imgui_ImageLoader_dx12.h" />
-    <ClInclude Include="..\..\backends\imgui_impl_dx11.h" />
     <ClInclude Include="..\..\backends\imgui_impl_dx12.h" />
     <ClInclude Include="..\..\backends\stb_image.h" />
     <ClInclude Include="..\..\imconfig.h" />
@@ -210,21 +208,7 @@
     <ClInclude Include="..\..\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="..\..\nlohmann\json.hpp" />
     <ClInclude Include="..\..\nlohmann\json_fwd.hpp" />
-    <ClInclude Include="..\..\PathManager.hpp" />
-    <ClInclude Include="..\..\scratch\clsScratchTable.h" />
     <ClInclude Include="..\..\stb_image.h" />
-    <ClInclude Include="..\..\UTF8Encoder.hpp" />
-    <ClInclude Include="..\..\XLSXColors\clsRGBColorRecord.h" />
-    <ClInclude Include="..\..\XLSXColors\XLSXColorLib.h" />
-    <ClInclude Include="..\..\Xlsx\Chart.h" />
-    <ClInclude Include="..\..\Xlsx\Chartsheet.h" />
-    <ClInclude Include="..\..\Xlsx\Drawing.h" />
-    <ClInclude Include="..\..\Xlsx\SimpleXlsxDef.h" />
-    <ClInclude Include="..\..\Xlsx\Workbook.h" />
-    <ClInclude Include="..\..\Xlsx\Worksheet.h" />
-    <ClInclude Include="..\..\Xlsx\XlsxHeaders.h" />
-    <ClInclude Include="..\..\XMLWriter.hpp" />
-    <ClInclude Include="..\..\Zip\zip.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="appstructs.h" />
     <ClInclude Include="init.h" />
@@ -241,11 +225,21 @@
     <None Include="..\README.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Media Include="effects\buttonClick0.wav" />
-    <Media Include="effects\buttonClick1.wav" />
-    <Media Include="effects\endTest.wav" />
-    <Media Include="effects\saveFileSuccess.wav" />
-    <Media Include="effects\startTest.wav" />
+    <Media Include="effects\buttonClick0.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\buttonClick1.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\endTest.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\saveFileSuccess.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\startTest.wav">
+      <FileType>Document</FileType>
+    </Media>
     <Media Include="videos\LR10K_COMPLETEATEST.mp4" />
     <Media Include="videos\LR10K_GUI.mp4" />
     <Media Include="videos\LR10K_SETUP.mp4" />
@@ -254,11 +248,27 @@
     <ResourceCompile Include="LloydLR10KTensile.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="USN-symbol_hvit.ico" />
-    <Image Include="USN-symbol_lilla.ico" />
+    <Text Include="..\..\misc\cpp\README.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\..\misc\cpp\README.txt" />
+    <Image Include="icons\USN-symbol_hvit.ico" />
+    <Image Include="icons\USN-symbol_lilla.ico" />
+    <Image Include="images\bootbackground_start.png" />
+    <Image Include="images\usn-background-1.jpg" />
+    <Image Include="images\usn-background-2.jpg" />
+    <Image Include="images\USN-symbol_hvit.png" />
+    <Image Include="images\USN-symbol_lilla.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="fonts\Inter_18pt-Medium.ttf">
+      <FileType>Document</FileType>
+    </Font>
+    <Font Include="fonts\Inter_18pt-Regular.ttf">
+      <FileType>Document</FileType>
+    </Font>
+    <Font Include="fonts\JetBrainsMono-Medium.ttf">
+      <FileType>Document</FileType>
+    </Font>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
