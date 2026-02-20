@@ -2492,7 +2492,7 @@ void TabControl::AddNewPointFromLoadAndExtension(TabControl::TabTestDataClass* t
         if (newPoint.x >= 0.0f && newPoint.y >= 0.0f && (lastPointAdded.x == 0.0f || newPoint.x > lastPointAdded.x))
             // Add point
             tabData->LR10KTensileData.AddPoint(newPoint.x, newPoint.y);
-            tabData->LR10KTensileData.AddTime(std::chrono::high_resolution_clock::now());
+            tabData->LR10KTensileData.AddTime();
 
         // Increment data (used always for both real and fake load)
         if (mainGUIGlobals::useDemoMode
@@ -4260,9 +4260,11 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
             else if (LR10KAppGlobals::configurationDone)
             {
                 LR10KControlSystem::SendTestSetupToLR10K();
-                tabData->LR10KTensileData.StartTimeTest = std::chrono::steady_clock::now();
                 _LR10KController.w_Go();
             }
+
+            tabData->LR10KTensileData.StartTimeTest = std::chrono::steady_clock::now();
+            tabData->LR10KTensileData.TimeData.clear(); // Make sure to clear old data from previous tests too!
 
             tabData->tension = LR10KAppGlobals::tensionTesting;
 
@@ -4339,7 +4341,7 @@ bool LR10KControlSystem::EndTest(TabControl::TabTestDataClass* tabData)
             _LR10KController.w_EndTest();
         }
 
-        tabData->LR10KTensileData.TimeData = { };
+        tabData->LR10KTensileData.TimeData.clear(); // Make sure to clear old data from previous tests too!
         tabData->LR10KTensileData.StartTimeTest = TimePoint();
 
         g_Extensiometer.is_recording = false;

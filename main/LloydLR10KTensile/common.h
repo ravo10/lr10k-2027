@@ -87,8 +87,10 @@ struct RollingBuffer {
         @param startTime - seconds
         @param currentTime - seconds
     **/
-    void AddTime(TimePoint CurrentTime)
+    void AddTime()
     {
+        TimePoint CurrentTime = std::chrono::steady_clock::now();
+
         // 1. Subtract the time points directly. Chrono safely calculates the exact difference.
         std::chrono::duration<double> elapsed = CurrentTime - StartTimeTest;
 
@@ -105,6 +107,12 @@ struct RollingBuffer {
         else {
             SamplingRate = 0.0; // Prevent divide-by-zero on the very first tick
         }
+
+        // Format to 4 decimal places for precision
+        std::cout << "Sim Info: " << dataPoints << " points over "
+            << std::fixed << std::setprecision(4) << totalTime << " seconds ( "
+            << "Curr time: " << CurrentTime.time_since_epoch() << " and start time: " << StartTimeTest.time_since_epoch() << " )"
+            << SamplingRate << " Hz" << std::endl;
     }
 };
 
