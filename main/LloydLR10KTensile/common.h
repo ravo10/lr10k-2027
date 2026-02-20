@@ -650,7 +650,6 @@ namespace TabControl {
         double calcPoint_NominalStressStrain_PropLimit[2]{ 0, 0 };  //!< Holds the proportional limit nominal stress and strain. (point)
         double calcPoint_TrueStressStrain_PropLimit[2]{ 0, 0 };     //!< Holds the proportional limit true stress and strain. (point)
         float  calcYoungsModulus = 0.0f;                            //!< Holds the E-Modulus that is created from the propotional limit point.
-        float  calcLinRegressionConst = 0.9f;                       //!< The value that linear regression returns. >0.9f is very certain. Used with "linearRegressionR2" function.
 
         double calcPoint_NominalStressStrain_yield[2]{ 0, 0 };      //!< Holds the yield nominal stress and strain. (point)
         double calcPoint_TrueStressStrain_yield[2]{ 0, 0 };         //!< Holds the yield true stress and strain. (point)

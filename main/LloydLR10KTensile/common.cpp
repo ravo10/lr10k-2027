@@ -198,204 +198,9 @@ void AppCalculator::AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabDa
         tabData->plot_dataPoints[i] = std::make_tuple(points, index);
     }
 
-    // Crucial points
-    //for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-    //{
-    //    ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
-    //    points.y *= loadScalar;
-
-    //    const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
-
-    //    // Save
-    //    tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
-    //}
-
     // Save new load error
     tabData->oldLoadErrorValue = currentLoadErrorGUI;
 }
-
-//void AppCalculator::CalculateStressPoints2(TabControl::TabTestDataClass* tabData, bool initDimensions, bool playSound, bool markAsSaved, bool saveAppSettings)
-//{
-//    // -------------------------------------------------------------------------
-//    // ------------------------------ Calculations -----------------------------
-//    // -------------------------------------------------------------------------
-//
-//    // -------------------------------------------------------------------------
-//    // T_0 = Start thickness, W_0 = Start width, L_0 = Start length
-//    // Do the calculations based on the crucial points added (F/A)
-//
-//    const double T_0 = LR10KAppGlobals::calc_thickness;      // Start Thickness
-//    const double W_0 = LR10KAppGlobals::calc_width;          // Start Width
-//    const double L_0 = LR10KAppGlobals::calc_length;         // Start Length
-//    const double D_0 = LR10KAppGlobals::calc_diameter;       // Start Diameter
-//    double A_0 = 0; // Start Area
-//
-//    // -------------------------------------------------------------------------
-//    // Reset all previous calculated properties
-//    // -------------------------------------------------------------------------
-//    auto resetProp = [](double arr[2]) { for (int i = 0; i < 2; i++) { arr[i] = 0; } };
-//
-//    resetProp(tabData->calcPoint_NominalStressStrain_PropLimit);
-//    resetProp(tabData->calcPoint_TrueStressStrain_PropLimit);
-//
-//    resetProp(tabData->calcPoint_NominalStressStrain_yield);
-//    resetProp(tabData->calcPoint_TrueStressStrain_yield);
-//
-//    resetProp(tabData->calcPoint_NominalStressStrainUTS);
-//    resetProp(tabData->calcPoint_TrueStressStrainUTS);
-//
-//    resetProp(tabData->calcPoint_NominalStressStrain_fracture);
-//    resetProp(tabData->calcPoint_TrueStressStrain_fracture);
-//
-//    // Find the most important data point by picking the first of that index ID
-//    auto findImportantDataPoint = [](TabControl::TabTestDataClass* tabData, int indexID, ImPlotPoint &ForceExtension, bool &found) -> void {
-//            for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
-//            {
-//                ImPlotPoint dataPoint = std::get<ImPlotPoint>(tabData->plot_dataPoints[i]);
-//                int dataPointPropID = std::get<int>(tabData->plot_dataPoints[i]);
-//
-//                if (dataPointPropID == indexID)
-//                {
-//                    // Save the force load
-//                    ForceExtension.x = dataPoint.x;  // Extension
-//                    ForceExtension.y = dataPoint.y;  // Load
-//
-//                    found = true;
-//
-//                    break;
-//                }
-//            }
-//        };
-//
-//    // -------------------------------------------------------------------------
-//    // ----------------- Find the first propotional limit point ----------------
-//    // ------------------- based on the ID of the data points ------------------
-//    // -------------------------------------------------------------------------
-//    ImPlotPoint propLimitForceExtension;
-//    bool foundPropLimit = false;
-//
-//    // Index ID = 0 is the Prop. limit
-//    findImportantDataPoint(tabData, 0, propLimitForceExtension, foundPropLimit);
-//
-//    // -------------------------------------------------------------------------
-//    // --------------------- Find the first yielding point ---------------------
-//    // ------------------- based on the ID of the data points ------------------
-//    // -------------------------------------------------------------------------
-//    ImPlotPoint yieldingForceExtension;
-//    bool foundY = false;
-//    // Index ID = 1 is the Yield
-//    findImportantDataPoint(tabData, 1, yieldingForceExtension, foundY);
-//
-//    // -------------------------------------------------------------------------
-//    // ---------------------- Find the first maximum point ---------------------
-//    // ------------------- based on the ID of the data points ------------------
-//    // -------------------------------------------------------------------------
-//    ImPlotPoint ultimateTensileStrengthForceExtension;
-//    bool foundUts = false;
-//    // Index ID = 2 is the Ultimate Tensile Strength
-//    findImportantDataPoint(tabData, 2, ultimateTensileStrengthForceExtension, foundUts);
-//
-//    // -------------------------------------------------------------------------
-//    // --------------------- Find the first fracture point ---------------------
-//    // ------------------- based on the ID of the data points ------------------
-//    // -------------------------------------------------------------------------
-//    ImPlotPoint fractureForceExtension;
-//    bool foundFracture = false;
-//    // Index ID = 3 is the Yield
-//    findImportantDataPoint(tabData, 3, fractureForceExtension, foundFracture);
-//
-//    // -------------------------------------------------------------------------
-//    // --------------------------- PROPORTIONAL LIMIT --------------------------
-//    // -------------------------------------------------------------------------
-//    if (foundPropLimit)
-//    {
-//        DockingApps::console.AddLog("Found a Proportional limit point! Calculating...");
-//
-//        // The engineering/nominal stress and strain
-//        tabData->calcPoint_NominalStressStrain_PropLimit[0] = LR10KAppGlobals::CalcEpsilon_e(propLimitForceExtension.x, L_0);
-//        tabData->calcPoint_NominalStressStrain_PropLimit[1] = LR10KAppGlobals::CalcSigma_e(propLimitForceExtension.y, A_0);
-//
-//        // The true stress and strain
-//        tabData->calcPoint_TrueStressStrain_PropLimit[0] = LR10KAppGlobals::CalcEpsilon_t(tabData->calcPoint_NominalStressStrain_PropLimit[0]);
-//        tabData->calcPoint_TrueStressStrain_PropLimit[1] = LR10KAppGlobals::CalcSigma_t(tabData->calcPoint_NominalStressStrain_PropLimit[0], tabData->calcPoint_NominalStressStrain_PropLimit[1]);
-//    }
-//    else
-//    {
-//        DockingApps::console.AddLog("[warn] Could not find a Proportional limit point for calculation...");
-//    }
-//
-//    // -------------------------------------------------------------------------
-//    // --------------------------- YIELDING STRENGTH ---------------------------
-//    // -------------------------------------------------------------------------
-//    if (foundY)
-//    {
-//        DockingApps::console.AddLog("Found a Yielding point! Calculating...");
-//
-//        // The engineering/nominal stress and strain
-//        tabData->calcPoint_NominalStressStrain_yield[0] = LR10KAppGlobals::CalcEpsilon_e(yieldingForceExtension.x, L_0);
-//        tabData->calcPoint_NominalStressStrain_yield[1] = LR10KAppGlobals::CalcSigma_e(yieldingForceExtension.y, A_0);
-//
-//        // The true stress and strain
-//        tabData->calcPoint_TrueStressStrain_yield[0] = LR10KAppGlobals::CalcEpsilon_t(tabData->calcPoint_NominalStressStrain_yield[0]);
-//        tabData->calcPoint_TrueStressStrain_yield[1] = LR10KAppGlobals::CalcSigma_t(tabData->calcPoint_NominalStressStrain_yield[0], tabData->calcPoint_NominalStressStrain_yield[1]);
-//    }
-//    else
-//    {
-//        DockingApps::console.AddLog("[error] Could not find a Yielding point for calculation...");
-//    }
-//
-//    // -------------------------------------------------------------------------
-//    // ------------------ MAXIMUM (ULTIMATE TENSILE STRENGTH) ------------------
-//    // -------------------------------------------------------------------------
-//    if (foundUts)
-//    {
-//        DockingApps::console.AddLog("Found an Ultimate Tensile Strength point! Calculating...");
-//
-//        // The engineering strain/nominal stress is: F/A_0 and strain: Delta_L / L_0
-//        tabData->calcPoint_NominalStressStrainUTS[0] = LR10KAppGlobals::CalcEpsilon_e(ultimateTensileStrengthForceExtension.x, L_0);  // Epsilon_e or Epsilon_n
-//        tabData->calcPoint_NominalStressStrainUTS[1] = LR10KAppGlobals::CalcSigma_e(ultimateTensileStrengthForceExtension.y, A_0);    // Sigma_e or Sigma_n
-//
-//        // The true stress is: Sigma_e * ( 1 + Epsilon_e ) and strain: ln * ( 1 + Epsilon_e )
-//        tabData->calcPoint_TrueStressStrainUTS[0] = LR10KAppGlobals::CalcEpsilon_t(tabData->calcPoint_NominalStressStrainUTS[0]);                                       // Epsilon_t
-//        tabData->calcPoint_TrueStressStrainUTS[1] = LR10KAppGlobals::CalcSigma_t(tabData->calcPoint_NominalStressStrainUTS[0], tabData->calcPoint_NominalStressStrainUTS[1]);   // Sigma_t
-//    }
-//    else
-//    {
-//        DockingApps::console.AddLog("[error] Could not find a Ultimate Tensile Strength point for calculation...");
-//    }
-//
-//    // -------------------------------------------------------------------------
-//    // -------------------------------- FRACTURE -------------------------------
-//    // -------------------------------------------------------------------------
-//    if (foundFracture)
-//    {
-//        DockingApps::console.AddLog("Found a Fracture point! Calculating...");
-//
-//        // The engineering/nominal stress and strain
-//        tabData->calcPoint_NominalStressStrain_fracture[0] = LR10KAppGlobals::CalcEpsilon_e(fractureForceExtension.x, L_0);
-//        tabData->calcPoint_NominalStressStrain_fracture[1] = LR10KAppGlobals::CalcSigma_e(fractureForceExtension.y, A_0);
-//
-//        // The true stress and strain
-//        tabData->calcPoint_TrueStressStrain_fracture[0] = LR10KAppGlobals::CalcEpsilon_t(tabData->calcPoint_NominalStressStrain_fracture[0]);
-//        tabData->calcPoint_TrueStressStrain_fracture[1] = LR10KAppGlobals::CalcSigma_t(tabData->calcPoint_NominalStressStrain_fracture[0], tabData->calcPoint_NominalStressStrain_fracture[1]);
-//    }
-//    else
-//    {
-//        DockingApps::console.AddLog("[error] Could not find a Fracture point for calculation...");
-//    }
-//
-//    // -------------------------------------------------------------------------
-//    // ------------------ Save any calculations to current tab -----------------
-//    // -------------------------------------------------------------------------
-//    if (saveAppSettings) // Default
-//        DockingApps::mainFileSystem.SaveApplicationSettings();
-//
-//    if (markAsSaved)
-//        tabData->MarkTabAsUnsaved();
-//
-//    if (playSound)
-//        PlaySoundEffect("buttonClick1");
-//}
 
 void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData, bool playSound)
 {
@@ -484,40 +289,6 @@ void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData,
     // -------------------------------------------------------------------------
     if (playSound)       PlaySoundEffect("buttonClick1");
 }
-
-//void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound, bool markAsSaved, bool saveAppSettings)
-//{
-//    const double T_0 = LR10KAppGlobals::calc_thickness;     // Thickness
-//    const double W_0 = LR10KAppGlobals::calc_width;         // Width
-//    const double L_0 = LR10KAppGlobals::calc_length;        // Length
-//    double A_0 = T_0 * W_0;                                 // Area
-//
-//    tabData->thickness  = T_0;
-//    tabData->width      = W_0;
-//    tabData->length     = L_0;
-//
-//    ImPlotPoint UTS = tabData->GetUTS();
-//
-//    tabData->calcData_Compression[0] = UTS.y;    // Load             (max y)
-//    tabData->calcData_Compression[1] = UTS.x;    // Travel distance  (max x)
-//
-//    // Max bending moment
-//    tabData->calcData_Compression[2] = (tabData->calcData_Compression[0] * tabData->calcData_Compression[1]) / 4;
-//    // UTS
-//    tabData->calcData_Compression[3] = (3 * tabData->calcData_Compression[0] * tabData->calcData_Compression[1]) / (2 * W_0 * sqrt(T_0));
-//
-//    // -------------------------------------------------------------------------
-//    // ------------------ Save any calculations to current tab -----------------
-//    // -------------------------------------------------------------------------
-//    if (saveAppSettings) // Default
-//        DockingApps::mainFileSystem.SaveApplicationSettings();
-//
-//    if (markAsSaved)
-//        tabData->MarkTabAsUnsaved();
-//
-//    if (playSound)
-//        PlaySoundEffect("buttonClick1");
-//}
 
 void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound)
 {
@@ -1343,42 +1114,6 @@ double calculateMean(const std::vector<DataPoint>& data, double(DataPoint::* mem
         sum += point.*member;
     }
     return sum / data.size();
-}
-
-/**
-    @brief  Function to perform linear regression and calculate R²
-    @details If this value is above 0.9, it is very certain of linear regression.
-    @param  data - 
-    @retval      - 
-**/
-double linearRegressionR2(const std::vector<DataPoint>& data) {
-    // Calculate means of x and y values
-    double xMean = calculateMean(data, &DataPoint::x);
-    double yMean = calculateMean(data, &DataPoint::y);
-
-    // Calculate slope (m) and intercept (b) of the linear equation
-    double numerator = 0.0;
-    double denominator = 0.0;
-    for (const DataPoint& point : data) {
-        double xDiff = point.x - xMean;
-        double yDiff = point.y - yMean;
-        numerator += xDiff * yDiff;
-        denominator += xDiff * xDiff;
-    }
-    double slope = numerator / denominator;
-    double intercept = yMean - slope * xMean;
-
-    // Calculate R²
-    double totalVariation = 0.0;
-    double regressionVariation = 0.0;
-    for (const DataPoint& point : data) {
-        double predictedY = slope * point.x + intercept;
-        totalVariation += pow(point.y - yMean, 2);
-        regressionVariation += pow(predictedY - yMean, 2);
-    }
-    double rSquared = regressionVariation / totalVariation;
-
-    return rSquared;
 }
 
 // -----------------------------------------------------------------------------
@@ -2937,34 +2672,6 @@ void TabControl::CheckIfDistanceTraveledToLimit(TabControl::TabTestDataClass* ta
 }
 
 /**
-    @brief Clean up.
-    @details Because of a bug that made important points not have the index added etc., this is needed for ALL old files <= 10.10.23.
-    @param tabData - 
-**/
-//void TabControl::CleanUpImportantPoints(TabControl::TabTestDataClass* tabData)
-//{
-//    for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-//    {
-//        // Add correct index if there is a match, otherwise erase it
-//        bool aMatch = false;
-//        for (int j = 0; j < tabData->plot_dataPoints.size(); j++)
-//        {
-//            if (tabData->plot_importantDataPoints[i].first.x == std::get<ImPlotPoint>(tabData->plot_dataPoints[j]).x)
-//            {
-//                aMatch = true;
-//
-//                // Set the correct index
-//                tabData->plot_importantDataPoints[i].second = std::get<int>(tabData->plot_dataPoints[j]);
-//            }
-//        }
-//
-//        // Remove the unused ones
-//        if (!aMatch && i < tabData->plot_importantDataPoints.size()) //!!Important!!
-//            tabData->plot_importantDataPoints.erase(tabData->plot_importantDataPoints.begin() + i);
-//    }
-//}
-
-/**
     @brief Main function for calculating e.g. stresses and strain. It is run before main.Draw.
     @param tabData - 
 **/
@@ -3188,23 +2895,6 @@ bool AppMainTabSystem::ThisTabIsNotRunningATest()
     return false;
 }
 
-
-//std::vector<ImPlotPoint> TabControl::TabTestDataClass::GetImportantDataPointsOnly()
-//{
-//    std::vector<ImPlotPoint> onlyDataPoints;
-//
-//    for (int i = 0; i < plot_dataPoints.size(); i++)
-//    {
-//        ImPlotPoint dataPoint;
-//        dataPoint.x = std::get<ImPlotPoint>(plot_dataPoints[i]).x;
-//        dataPoint.y = std::get<ImPlotPoint>(plot_dataPoints[i]).y;
-//
-//        onlyDataPoints.push_back(dataPoint);
-//    }
-//
-//    return onlyDataPoints;
-//}
-
 std::vector<std::pair<ImPlotPoint, int>> TabControl::TabTestDataClass::GetCrucialDataPoints()
 {
     std::vector<std::pair<ImPlotPoint, int>> crucialDataPoints;
@@ -3241,30 +2931,6 @@ bool TabControl::TabTestDataClass::CheckIfCrucialPointExsists(int pointID)
 
     return hasID;
 }
-
-//std::vector<ImPlotPoint> TabControl::TabTestDataClass::GetCrucialDataPointsOnly(TabTestDataClass* tabData)
-//{
-//    // Only four - and it will be placed in order since the text underneath will be displayed in order.
-//    std::vector<ImPlotPoint> onlyCrucialDataPoints{ {}, {}, {}, {} };
-//
-//    int pointsAdded = 0;
-//    for (int i = 0; i < plot_dataPoints.size(); i++)
-//    {
-//        if (pointsAdded == 5) break;
-//
-//        ImPlotPoint dataPoint;
-//        dataPoint.x = std::get<ImPlotPoint>(plot_dataPoints[i]).x;
-//        dataPoint.y = std::get<ImPlotPoint>(plot_dataPoints[i]).y;
-//
-//        if (TabControl::CheckIfImportantPoint(tabData, i))
-//        {
-//            onlyCrucialDataPoints[std::get<int>(plot_dataPoints[i])] = dataPoint;
-//            pointsAdded++;
-//        }
-//    }
-//
-//    return onlyCrucialDataPoints;
-//}
 
 ImPlotPoint TabControl::TabTestDataClass::GetUTS()
 {
@@ -3555,11 +3221,11 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::Ta
     LR10KAppGlobals::unitsConvertionIndex = tabData->unitsConvertionIndex;
     tabData->NeedsRecalculation.recalculate = true;
 }
+
 void TabControl::TabTestDataClass::MarkTabAsSaved()
 {
     unsavedThingsInTab = false;
 }
-
 void TabControl::TabTestDataClass::MarkTabAsUnsaved()
 {
     unsavedThingsInTab = true;
