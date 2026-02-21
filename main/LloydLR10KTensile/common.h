@@ -928,7 +928,7 @@ double RoundTo(double val, int prec);
 /**
     @struct AppCalculator
     @brief  Is a panel which will deliver a full material report including calculations of e.g. maximum stress
-            etc. based on the area, start length, end length ++ which to be manually entered.
+            etc. based on the area, gauge length, end length ++ which to be manually entered.
 **/
 struct AppCalculator
 {
@@ -938,7 +938,7 @@ struct AppCalculator
     **/
     void AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabData);
     /**
-        @brief Set material properties. This is used to set locally the area, start length, end length ++ which to be manually entered. This has to be executed before "CalculateStresses".
+        @brief Set material properties. This is used to set locally the area, gauge length, end length ++ which to be manually entered. This has to be executed before "CalculateStresses".
         @param tabData -
         @param areaOption -
         @param thickness -
@@ -948,7 +948,7 @@ struct AppCalculator
     **/
     void SetLocalMaterialProperties(TabControl::TabTestDataClass* tabData, int areaOption, double thickness, double width, double length, double diameter);
     /**
-        @brief Set material properties. This is used to set globally the area, start length, end length ++ which to be manually entered. This has to be executed before "CalculateStresses".
+        @brief Set material properties. This is used to set globally the area, gauge length, end length ++ which to be manually entered. This has to be executed before "CalculateStresses".
         @param tabData -
         @param areaOption -
         @param thickness -

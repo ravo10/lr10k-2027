@@ -675,20 +675,20 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
             if (tabData->areaOptionPicked == 0)
             {
-                ImGui::Text("Start thickness (σ_n, σ_t):");
-                CreateInputDoubleElement(tabData, "##Start thickness", &tabData->thickness, 0.01, 300);
+                ImGui::Text("Gauge Thickness (σ_n, σ_t):");
+                CreateInputDoubleElement(tabData, "##Gauge thickness", &tabData->thickness, 0.01, 300);
 
-                ImGui::Text("Start width (σ_n, σ_t):");
-                CreateInputDoubleElement(tabData, "##Start width", &tabData->width, 0.01, 500);
+                ImGui::Text("Gauge Width (σ_n, σ_t):");
+                CreateInputDoubleElement(tabData, "##Gauge width", &tabData->width, 0.01, 500);
             }
             else if (tabData->areaOptionPicked == 1)
             {
-                ImGui::Text("Start diameter (σ_n, σ_t):");
+                ImGui::Text("Gauge Diameter (D0) (σ_n, σ_t):");
                 CreateInputDoubleElement(tabData, "##Diameter", &tabData->diameter, 0.01, 800);
             }
 
-            ImGui::Text("Start length (ε_n, σ_t, ε_t):");
-            CreateInputDoubleElement(tabData, "##Start length", &tabData->length, 0.01, 1000);
+            ImGui::Text("Gauge Length (L0) (ε_n, σ_t, ε_t):");
+            CreateInputDoubleElement(tabData, "##Gauge length", &tabData->length, 0.01, 1000);
             ImGui::EndDisabled();
 
             // Global values
@@ -699,20 +699,20 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
             if (LR10KAppGlobals::areaOptionPicked == 0)
             {
-                ImGui::Text("Global Start thickness (σ_n, σ_t):");
-                CreateInputFloatElement(tabData, "##Global start thickness", &LR10KAppGlobals::calc_thickness, 0.01f, 300.0f);
+                ImGui::Text("Global Gauge Thickness (σ_n, σ_t):");
+                CreateInputFloatElement(tabData, "##Global thickness", &LR10KAppGlobals::calc_thickness, 0.01f, 300.0f);
 
-                ImGui::Text("Global Start width (σ_n, σ_t):");
-                CreateInputFloatElement(tabData, "##Global start width", &LR10KAppGlobals::calc_width, 0.01f, 800.0f);
+                ImGui::Text("Global Gauge Width (σ_n, σ_t):");
+                CreateInputFloatElement(tabData, "##Global width", &LR10KAppGlobals::calc_width, 0.01f, 800.0f);
             }
             else if (LR10KAppGlobals::areaOptionPicked == 1)
             {
-                ImGui::Text("Global Start diameter (σ_n, σ_t):");
+                ImGui::Text("Global Gauge Diameter (σ_n, σ_t):");
                 CreateInputFloatElement(tabData, "##Global Diameter", &LR10KAppGlobals::calc_diameter, 0.01f, 500.0f);
             }
 
-            ImGui::Text("Global Start length (ε_n, σ_t, ε_t):");
-            CreateInputFloatElement(tabData, "##Global Start length", &LR10KAppGlobals::calc_length, 0.01f, 1000.0f);
+            ImGui::Text("Global Gauge Length (L0) (ε_n, σ_t, ε_t):");
+            CreateInputFloatElement(tabData, "##Global Gauge length", &LR10KAppGlobals::calc_length, 0.01f, 1000.0f);
             ImGui::PopFont();
 
             ImGui::EndDisabled();
@@ -1071,7 +1071,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
             ImGui::PushFont(Extra::fonts.jetbrainsFont);
             // Calculate percentage of length of material to millimeter
-            ImGui::Text("Percentage of the Start length:");
+            ImGui::Text("Percentage of the Gauge Length:");
             static float percentageOfLength = 0.00f;
             if (ImGui::InputFloat("##Percentage of length1", &percentageOfLength, (0.1f), (0.5f), "%.2f", ImGuiInputTextFlags_CharsScientific))
             {
@@ -1551,17 +1551,34 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
         dim = "Dimensions (" + dim + ")";
         worksheet_write_string(ws_report, CELL("A4"), dim.c_str(), fmt_bold_left);
 
-        label = "Start Thickness (" + unit_raw + ")";
-        worksheet_write_string(ws_report, CELL("A5"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("B5"), tabData.thickness, fmt_decimal3);
-        worksheet_write_string(ws_report, CELL("C5"), unit_raw.c_str(), fmt_bold_left);
+        
 
-        label = "Start Width (" + unit_raw + ")";
-        worksheet_write_string(ws_report, CELL("A6"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("B6"), tabData.width, fmt_decimal3);
-        worksheet_write_string(ws_report, CELL("C6"), unit_raw.c_str(), fmt_bold_left);
+        if (tabData.areaOptionPicked == 0)
+        {
+            label = "Gauge Thickness (" + unit_raw + ")";
+            worksheet_write_string(ws_report, CELL("A5"), label.c_str(), NULL);
+            worksheet_write_number(ws_report, CELL("B5"), tabData.thickness, fmt_decimal3);
+            worksheet_write_string(ws_report, CELL("C5"), unit_raw.c_str(), fmt_bold_left);
 
-        label = "Gauge Length (" + unit_raw + ")";
+            label = "Gauge Width (" + unit_raw + ")";
+            worksheet_write_string(ws_report, CELL("A6"), label.c_str(), NULL);
+            worksheet_write_number(ws_report, CELL("B6"), tabData.width, fmt_decimal3);
+            worksheet_write_string(ws_report, CELL("C6"), unit_raw.c_str(), fmt_bold_left);
+        }
+        else if (tabData.areaOptionPicked == 1)
+        {
+            label = "-";
+            worksheet_write_string(ws_report, CELL("A5"), label.c_str(), NULL);
+            worksheet_write_string(ws_report, CELL("B5"), "-", NULL);
+            worksheet_write_string(ws_report, CELL("C5"), "-", NULL);
+
+            label = "Gauge Diameter (" + unit_raw + ")";
+            worksheet_write_string(ws_report, CELL("A6"), label.c_str(), NULL);
+            worksheet_write_number(ws_report, CELL("B6"), tabData.diameter, fmt_decimal3);
+            worksheet_write_string(ws_report, CELL("C6"), unit_raw.c_str(), fmt_bold_left);
+        }
+
+        label = "Gauge Length (L0) (" + unit_raw + ")";
         worksheet_write_string(ws_report, CELL("A7"), label.c_str(), NULL);
         worksheet_write_number(ws_report, CELL("B7"), tabData.length, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("C7"), unit_raw.c_str(), fmt_bold_left);
@@ -4294,7 +4311,7 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
 
     if (tabData == nullptr) return false;
 
-    // Check if user has added start length, start thickness etc. for test
+    // Check if user has added gauge length, gauge thickness etc. for test
     bool userHasNotAddedDimensions = LR10KAppGlobals::calc_length == 0
         || (LR10KAppGlobals::areaOptionPicked == 0 && (LR10KAppGlobals::calc_width == 0 || LR10KAppGlobals::calc_thickness == 0))
         || (LR10KAppGlobals::areaOptionPicked == 1 && LR10KAppGlobals::calc_diameter == 0);

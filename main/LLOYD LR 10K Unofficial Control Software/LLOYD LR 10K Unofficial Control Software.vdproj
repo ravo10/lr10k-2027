@@ -271,7 +271,7 @@
         "PackageFilesAs" = "3:2"
         "PackageFileSize" = "3:-2147483648"
         "CabType" = "3:1"
-        "Compression" = "3:2"
+        "Compression" = "3:3"
         "SignOutput" = "11:FALSE"
         "CertificateFile" = "8:"
         "PrivateKeyFile" = "8:"
@@ -303,7 +303,7 @@
         "PackageFilesAs" = "3:2"
         "PackageFileSize" = "3:-2147483648"
         "CabType" = "3:1"
-        "Compression" = "3:2"
+        "Compression" = "3:3"
         "SignOutput" = "11:FALSE"
         "CertificateFile" = "8:"
         "PrivateKeyFile" = "8:"
@@ -322,6 +322,11 @@
                     {
                     "Name" = "8:Microsoft .NET Framework 4.7.2 (x86 and x64)"
                     "ProductCode" = "8:.NETFramework,Version=v4.7.2"
+                    }
+                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:Microsoft.Visual.C++.14.0.x64"
+                    {
+                    "Name" = "8:Visual C++ \"14\" Runtime Libraries (x64)"
+                    "ProductCode" = "8:Microsoft.Visual.C++.14.0.x64"
                     }
                 }
             }
@@ -382,7 +387,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -422,7 +427,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -502,7 +507,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -542,7 +547,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -582,7 +587,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -602,7 +607,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -622,7 +627,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -642,7 +647,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -682,7 +687,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -762,7 +767,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -782,7 +787,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -842,7 +847,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -882,7 +887,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -902,7 +907,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -982,7 +987,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -1122,7 +1127,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -1142,7 +1147,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -1281,15 +1286,15 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:LLOYD LR 10K Unofficial Control Software"
         "ProductCode" = "8:{9273F468-40FC-4B32-A6C0-3B229E818395}"
-        "PackageCode" = "8:{8F763034-41A9-4CAE-B336-BC4E78C74362}"
+        "PackageCode" = "8:{BA071E05-7816-4B95-8767-0C01A5D16A2D}"
         "UpgradeCode" = "8:{686F73AC-8F49-4304-A938-A8A02E890844}"
         "AspNetVersion" = "8:2.0.50727.0"
         "RestartWWWService" = "11:FALSE"
-        "RemovePreviousVersions" = "11:FALSE"
+        "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
         "ProductVersion" = "8:1.1.0"
-        "Manufacturer" = "8:Rasmus Ullestad Relling"
+        "Manufacturer" = "8:USN (ravo10)"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://github.com/ravo10/lr10k"
         "Title" = "8:LR 10K Control Software"
@@ -1404,7 +1409,7 @@
             "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_7C69CC693F854DC69CBB9E73D8B6790C"
             {
             "Name" = "8:LR 10K Control Software"
-            "Arguments" = "8:"
+            "Arguments" = "8:Opens up LR 10K Control Software (test, log and record)"
             "Description" = "8:"
             "ShowCmd" = "3:1"
             "IconIndex" = "3:0"
@@ -1412,13 +1417,13 @@
             "Target" = "8:_452657B327F7411A8DDD49E4A79FA22C"
             "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
             "WorkingFolder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
-            "Icon" = "8:"
+            "Icon" = "8:_995E37C4A1CB49C5B149BB1792A9FF78"
             "Feature" = "8:"
             }
             "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_98DAB3002AFB406399F1769E09261DAC"
             {
             "Name" = "8:LR 10K Control Software"
-            "Arguments" = "8:"
+            "Arguments" = "8:Opens up LR 10K Control Software (test, log and record)."
             "Description" = "8:"
             "ShowCmd" = "3:1"
             "IconIndex" = "3:0"
@@ -1426,13 +1431,13 @@
             "Target" = "8:_452657B327F7411A8DDD49E4A79FA22C"
             "Folder" = "8:_1E827131E7F849A795C8E552AB1EC66A"
             "WorkingFolder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
-            "Icon" = "8:"
+            "Icon" = "8:_995E37C4A1CB49C5B149BB1792A9FF78"
             "Feature" = "8:"
             }
             "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_9A0DEABB0F8446D685C8C9D17B9EF3A9"
             {
             "Name" = "8:LR 10K Control Software"
-            "Arguments" = "8:"
+            "Arguments" = "8:Opens up LR 10K Control Software (test, log and record)"
             "Description" = "8:"
             "ShowCmd" = "3:1"
             "IconIndex" = "3:0"
@@ -1440,7 +1445,7 @@
             "Target" = "8:_452657B327F7411A8DDD49E4A79FA22C"
             "Folder" = "8:_62804ECB856E4CC2949674F3842A170A"
             "WorkingFolder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
-            "Icon" = "8:"
+            "Icon" = "8:_995E37C4A1CB49C5B149BB1792A9FF78"
             "Feature" = "8:"
             }
         }

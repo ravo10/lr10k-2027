@@ -1699,24 +1699,11 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Keep camera running even if this window is closed.");
             ImGui::SameLine(0.0f, 40.0f);
 
-            ImGui::BeginDisabled(tabData->test_finished
+            ImGui::BeginDisabled(
+                !LR10KAppGlobals::configurationDone
+                || tabData->test_finished
                 || tabData->test_unfinished_test_started
-                || tabData->test_running_test
-                || (!LR10KAppGlobals::zeroPointIsSet && !mainGUIGlobals::useDemoMode));
-            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.23f, 0.72f, 0.57f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.23f, 0.8f, 0.7f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.23f, 0.9f, 0.8f));
-
-            if (ImGui::Button("Start Test"))
-            {
-                DockingApps::console.ExecCommand(tabData, "start");
-            }
-            ImGui::PopStyleColor(3);
-            ImGui::EndDisabled();
-
-            ImGui::SameLine();
-
-            ImGui::BeginDisabled(!LR10KAppGlobals::configurationDone || tabData->test_finished);
+                || tabData->test_running_test);
             ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.11f, 0.06f, 0.8f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.11f, 0.07f, 0.9f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.11f, 0.08f, 1.0f));
@@ -1727,6 +1714,25 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 {
                     PlaySoundEffect("buttonClick0");
                 }
+            }
+            ImGui::PopStyleColor(3);
+            ImGui::EndDisabled();
+
+            ImGui::SameLine();
+
+            ImGui::BeginDisabled(
+                !LR10KAppGlobals::configurationDone
+                || tabData->test_finished
+                || tabData->test_unfinished_test_started
+                || tabData->test_running_test
+                || (!LR10KAppGlobals::zeroPointIsSet && !mainGUIGlobals::useDemoMode));
+            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.23f, 0.72f, 0.57f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.23f, 0.8f, 0.7f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.23f, 0.9f, 0.8f));
+
+            if (ImGui::Button("Start Test"))
+            {
+                DockingApps::console.ExecCommand(tabData, "start");
             }
             ImGui::PopStyleColor(3);
             ImGui::EndDisabled();
@@ -1822,34 +1828,70 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 // Left Panel: MASK View
                 if (g_Extensiometer.is_active && g_pResourceCamera && g_Extensiometer.show_cvmask)
                 {
-                    if (ImGui::BeginChild("ExtMaskChild", ImVec2(400, 0), true, ImGuiWindowFlags_MenuBar))
+                    
+
+                    if (ImGui::BeginChild("Ext.LeftPanel", ImVec2(400, 0), true))
                     {
-                        if (ImGui::BeginMenuBar()) { ImGui::Text("CV Mask (Binary)"); ImGui::EndMenuBar(); }
+                        // --- Sub-Window 1: Extension/strain information window---
+                        if (ImGui::BeginChild("ExtStrainInformation", ImVec2(0, 200), true, ImGuiWindowFlags_MenuBar))
+                        {
+                            ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
-                        if (g_pResourceMask != nullptr && g_hGpuDescMask.ptr != 0) {
-                            // 1. Get available space in the window
-                            ImVec2 availSize = ImGui::GetContentRegionAvail();
+                            ImVec2 cursorStart = ImGui::GetCursorPos();
 
-                            // 2. Calculate the best size that fits within 'availSize' while keeping 'aspect'
-                            float w = availSize.x;
-                            float h = w / aspect;
+                            if (ImGui::BeginMenuBar()) { ImGui::Text("Tracking Information (ext. & strain)"); ImGui::EndMenuBar(); }
 
-                            // If the calculated height is too tall for the space, constrain by height instead
-                            if (h > availSize.y)
-                            {
-                                h = availSize.y;
-                                w = h * aspect;
+                            if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
+                                ImGui::SeparatorText("Current values");
+
+                                //ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 10));
+                                ImGui::TextColored(ImVec4(0, 1, 0, 1), "Extension: %.3f mm", g_Extensiometer.results.travel_mm);
+
+                                //ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 30));
+                                ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage);
+
+                                // Draw Overlay Text
+                                ImGui::Spacing();
+                                ImGui::Text("Normal behavior: Extension and strain\nmight jump unexpectedly after fracture,\nand loose tracking.");
                             }
-
-                            // 3. Draw the image with the corrected size
-                            ImGui::Image((ImTextureID)g_hGpuDescMask.ptr, ImVec2(w, h));
-
-                            /*ImVec2 size = ImGui::GetContentRegionAvail();
-                            ImGui::Image((ImTextureID)g_hGpuDescMask.ptr, size);*/
+                            else {
+                                ImGui::Text("Waiting for camera feed...");
+                            }
                         }
-                        else {
-                            ImGui::Text("Waiting for mask data...");
+                        ImGui::PopFont();
+                        ImGui::EndChild();
+
+                        // --- Sub-Window 2: CV Mask ---
+                        if (ImGui::BeginChild("ExtCVMask", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar))
+                        {
+                            if (ImGui::BeginMenuBar()) { ImGui::Text("CV Mask (Binary)"); ImGui::EndMenuBar(); }
+
+                            if (g_pResourceMask != nullptr && g_hGpuDescMask.ptr != 0) {
+                                // 1. Get available space in the window
+                                ImVec2 availSize = ImGui::GetContentRegionAvail();
+
+                                // 2. Calculate the best size that fits within 'availSize' while keeping 'aspect'
+                                float w = availSize.x;
+                                float h = w / aspect;
+
+                                // If the calculated height is too tall for the space, constrain by height instead
+                                if (h > availSize.y)
+                                {
+                                    h = availSize.y;
+                                    w = h * aspect;
+                                }
+
+                                // 3. Draw the image with the corrected size
+                                ImGui::Image((ImTextureID)g_hGpuDescMask.ptr, ImVec2(w, h));
+
+                                /*ImVec2 size = ImGui::GetContentRegionAvail();
+                                ImGui::Image((ImTextureID)g_hGpuDescMask.ptr, size);*/
+                            }
+                            else {
+                                ImGui::Text("Waiting for mask data...");
+                            }
                         }
+                        ImGui::EndChild();
                     }
                     ImGui::EndChild();
                     ImGui::SameLine();
@@ -1861,29 +1903,17 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                     float rightPanelWidth = g_Extensiometer.show_cvsettings ? 350.0f : 0.0f;
                     float centerWidth = ImGui::GetContentRegionAvail().x - rightPanelWidth - ImGui::GetStyle().ItemSpacing.x;
 
-                    if (ImGui::BeginChild("ExtCameraChild", ImVec2(centerWidth, 0), true, ImGuiWindowFlags_MenuBar))
+                    if (ImGui::BeginChild("Ext.CenterPanel", ImVec2(centerWidth, 0), true, ImGuiWindowFlags_MenuBar))
                     {
                         if (ImGui::BeginMenuBar()) { ImGui::Text(live_camera_feed_text.c_str()); ImGui::EndMenuBar(); }
 
                         ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
                         if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
-                            ImVec2 cursorStart = ImGui::GetCursorPos();
-
-                            // Draw Overlay Text
-                            ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 10));
-                            ImGui::TextColored(ImVec4(0, 1, 0, 1), "Extension: %.3f mm", g_Extensiometer.results.travel_mm);
-
-                            ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 30));
-                            ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage);
-
-                            // Go to zero point from extensiometers perspective
-                            //ImGui::SameLine();
-                            //ImGui::Button("Go to zero point (from ext. perspective)");
-
-                            ImGui::Text("Start length (ε_n, σ_t, ε_t):");
-                            ImGui::InputFloat("##Start length 2", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
-                            ImGui::Text("More material properties in the calculator view.");
+                            ImGui::Text("Gauge Length (L0) (ε_n, σ_t, ε_t):");
+                            ImGui::InputFloat("##Gauge length 2", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+                            ImGui::Text("(More material properties in the calculator view.)");
+                            ImGui::Spacing();
 
                             // 1. Get available space in the window
                             ImVec2 availSize = ImGui::GetContentRegionAvail();
@@ -1920,7 +1950,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 if (g_Extensiometer.is_active && g_Extensiometer.show_cvsettings)
                 {
                     ImGui::SameLine();
-                    if (ImGui::BeginChild("ExtSettingsChild", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar))
+                    if (ImGui::BeginChild("Ext.RightPanel", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar))
                     {
                         if (ImGui::BeginMenuBar()) { ImGui::Text("Settings"); ImGui::EndMenuBar(); }
 
@@ -4151,7 +4181,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
 
     ImGui::PushItemWidth(280.0f);
     std::string link = "https://github.com/ravo10/lr10k";
-    ImGui::Text("GitHub repo.:"); ImGui::SameLine(); ImGui::InputText("##GitHubRepo", (char*)link.c_str(), link.size(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly);
+    ImGui::Text("GitHub repo.:"); ImGui::SameLine(); ImGui::InputText("##GitHubRepo", (char*)link.c_str(), link.size() + 1, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly);
     ImGui::PopItemWidth();
     ImGui::Spacing();
     ImGui::Text("Full documentation on GitHub + documentation with Doxygen.");
