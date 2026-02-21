@@ -57,10 +57,12 @@ static const char* LR10KAppVersion = "1.1.0 [20.02.2026]"; //!< App version - E.
     @brief  Utility structure for realtime plot.
 **/
 struct RollingBuffer {
-    ImVector<ImVec2> Data;      //!< The data that will contain the plot points x and y.
-    ImVector<double> TimeData;  //!< The data that will contain the plots current time points.
-    TimePoint StartTimeTest;    //!< This holds the last known start time for an ongoing test (updates for every start test). Only used during a test - not saved.
-    double SamplingRate;        //!< This holds the sampling rate calculated at an ended test. (in Hz)
+    ImVector<ImVec2> Data;          //!< The data that will contain the plot points x and y.
+    ImVector<ImVec2> SmoothedData;  //!< The data that will contain the smoothed plot points, from Data.
+    int SmoothedDataWindowIndex;    //!< The window index for the smoothed data.
+    ImVector<double> TimeData;      //!< The data that will contain the plots current time points.
+    TimePoint StartTimeTest;        //!< This holds the last known start time for an ongoing test (updates for every start test). Only used during a test - not saved.
+    double SamplingRate;            //!< This holds the sampling rate calculated at an ended test. (in Hz)
 
     /**
         @brief RollingBuffer object constructor
@@ -69,6 +71,8 @@ struct RollingBuffer {
     {
         Data = { };
         TimeData = { };
+        SmoothedData = { };
+        SmoothedDataWindowIndex = 5;
         StartTimeTest = TimePoint();
         SamplingRate = 0.00;
     };
@@ -634,7 +638,6 @@ namespace TabControl {
         float LR10OffsetZeroPointExtensionAxis; //!< Holds the offset from zero point relative to the extension axis. (remove som slack)
 
         std::vector<std::tuple<ImPlotPoint, int>> plot_dataPoints;    //!< This holds every custom data point classes added by the user (ID and Data) [ImPlotPoint], prop. index [int]. (will always be snapped onto the graph after the new update)
-        //std::vector<std::pair<ImPlotPoint, int>> plot_importantDataPoints{ {}, {}, {}, {} };  //!< This holds the four important data used for the quick report [ImPlotPoint], in acending order + Every data points property index are stored here, from "plot_items" [int].
         float settings_speedAndPlot[3];             //!< Settings for the test. mm/min, mm/min & percentage (These are changing values)
         float oldLoadErrorValue;                    //!< Is used to get the difference value for the load error after a test is finished; to know how much to increase/decrease the load. Is set on Star Test[1], Load File[2] and update load error[3].
 
@@ -853,7 +856,19 @@ namespace TabControl {
     void CalculateDataFromTest(TabTestDataClass* tabData);
 }
 
+/**
+    @brief Add this helper function somewhere above your UI code or in common.cpp
+    @param rawData -
+    @param target_x -
+**/
 extern int FindClosestRawDataIndex(const ImVector<ImVec2>& rawData, double target_x);
+
+/**
+    @brief Smooth out tensile data with more points
+    @param raw_data -
+    @param window_size -
+**/
+ImVector<ImVec2> SmoothTensileData(const ImVector<ImVec2>& raw_data, int window_size);
 
 // -----------------------------------------------------------------------------
 // ----------------------------------- LR10K -----------------------------------

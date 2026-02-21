@@ -308,6 +308,9 @@ json AppMainFileSystem::CreateJSONDataFromCurrentTab(TabControl::TabTestDataClas
 
     // Sampling Rate (for plot)
     tabDataJson["LR10KTensileData_SamplingRate"] = tabData->LR10KTensileData.SamplingRate;
+
+    // Smoothed data
+    tabDataJson["LR10KTensileData_SmoothedDataWindowIndex"] = tabData->LR10KTensileData.SmoothedDataWindowIndex;
     
     // Crucial points
     for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
@@ -380,12 +383,27 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
             tabData->LR10KTensileData.AddPoint(pointX, pointY);
     }
 
+    // -----------------------------
+    // SMOOTH OUT GRAPH LATER
+    // -----------------------------
+    // 1. Pass by reference to the smoother
+    // 2. The smoother returns a NEW vector (the copy) which is now 'clean'
+    ImVector<ImVec2> clean_data = SmoothTensileData(tabData->LR10KTensileData.Data, tabData->LR10KTensileData.SmoothedDataWindowIndex);
+    tabData->LR10KTensileData.SmoothedData = clean_data;
+
     // Sampling Rate (for plot)
 	std::string_view samplingRate = "LR10KTensileData_SamplingRate";
 	if (tabDataJson.contains(std::string{ samplingRate }))
 		tabData->LR10KTensileData.SamplingRate = tabDataJson["LR10KTensileData_SamplingRate"];
 	else
 		tabData->LR10KTensileData.SamplingRate = 0.0;
+
+    // Smoothed data
+    std::string_view windowIndex = "LR10KTensileData_SmoothedDataWindowIndex";
+    if (tabDataJson.contains(std::string{ windowIndex }))
+        tabData->LR10KTensileData.SmoothedDataWindowIndex = tabDataJson["LR10KTensileData_SmoothedDataWindowIndex"];
+    else
+        tabData->LR10KTensileData.SmoothedDataWindowIndex = 5;
     
     // Crucial points
     for (int i = 0; i < tabDataJson["plot_dataPoints"].size(); i++)
@@ -2726,35 +2744,57 @@ void cuttedOutAreaMarkedDeltaL(TabControl::TabTestDataClass* tabData)
 
     if (defaultValuesGUI::offsetZeroPointExtensionAxis > 0)
     {
-        // 2. Convert the raw extension into visual X-coordinates depending on the graph mode
+        // 1. Calculate the visual X-offset based on graph mode
         double L_0 = tabData->length > 0 ? tabData->length : 1.0;
+        double raw_val = defaultValuesGUI::offsetZeroPointExtensionAxis;
+
         double visual_offset_x = LR10KAppGlobals::showStressStrain
-            ? LR10KAppGlobals::CalcEpsilon_e(defaultValuesGUI::offsetZeroPointExtensionAxis, L_0)
-            : defaultValuesGUI::offsetZeroPointExtensionAxis;
+            ? LR10KAppGlobals::CalcEpsilon_e(raw_val, L_0)
+            : raw_val;
 
-        ImGuiStyle& style = ImGui::GetStyle();
-        const ImVec4 crosshairColor = style.Colors[ImGuiCol_CheckMark];
+        if (LR10KAppGlobals::showStressStrain && tabData->request_graph_autofit) return;
 
-        // 3. Use the calculated visual_offset_x instead of the raw variable
-        ImVec2 rFilledmin = ImPlot::PlotToPixels(ImPlotPoint(0.0f, ImPlot::GetPlotLimits().Y.Max));
-        ImVec2 rFilledmax = ImPlot::PlotToPixels(ImPlotPoint(visual_offset_x, 0));
+        // 2. Rect & Line Drawing (Pixel Space for safety)
+        ImVec2 plot_pos = ImPlot::GetPlotPos();
+        ImVec2 plot_size = ImPlot::GetPlotSize();
+        float plot_top_y = plot_pos.y;
+        float plot_bottom_y = plot_pos.y + plot_size.y;
 
-        ImVec2 rmin = ImPlot::PlotToPixels(ImPlotPoint(visual_offset_x, ImPlot::GetPlotLimits().Y.Max));
-        ImVec2 rmax = ImPlot::PlotToPixels(ImPlotPoint(visual_offset_x, 0));
+        float x_start_px = ImPlot::PlotToPixels(ImPlotPoint(0.0, 0.0)).x;
+        float x_end_px = ImPlot::PlotToPixels(ImPlotPoint(visual_offset_x, 0.0)).x;
 
-        const ImU32 colorFilledRect = IM_COL32(0, 0, 0, 166); // RGBA
-        const ImU32 colorFilledText = IM_COL32(171, 255, 183, 220); // RGBA
-        const ImU32 colorEndLine = ImGui::ColorConvertFloat4ToU32(crosshairColor);
+        const ImU32 colorFilledRect = IM_COL32(0, 0, 0, 166);
+        const ImU32 colorFilledText = IM_COL32(171, 255, 183, 220);
+        const ImU32 colorEndLine = ImGui::ColorConvertFloat4ToU32(ImGui::GetStyle().Colors[ImGuiCol_CheckMark]);
 
         ImPlot::PushPlotClipRect();
-        ImPlot::GetPlotDrawList()->AddRectFilled(rFilledmin, rFilledmax, colorFilledRect);
-        ImPlot::GetPlotDrawList()->AddLine(rmin, rmax, colorEndLine, 0.5f);
+        ImPlot::GetPlotDrawList()->AddRectFilled(ImVec2(x_start_px, plot_top_y), ImVec2(x_end_px, plot_bottom_y), colorFilledRect);
+        ImPlot::GetPlotDrawList()->AddLine(ImVec2(x_end_px, plot_top_y), ImVec2(x_end_px, plot_bottom_y), colorEndLine, 1.0f);
         ImPlot::PopPlotClipRect();
 
+        // 3. Dynamic Text Formatting
+        char filter_label[64];
+        if (LR10KAppGlobals::showStressStrain) {
+            // Show as strain %
+            sprintf(filter_label, "Filtered: %.2f %%", visual_offset_x);
+        }
+        else {
+            // Show as raw extension (mm)
+            sprintf(filter_label, "Filtered: %.2f mm", visual_offset_x);
+        }
+
+        // 4. Plot Text with NoFit and Vertical Flags
         ImPlot::PushStyleColor(ImPlotCol_InlayText, ImGui::ColorConvertU32ToFloat4(colorFilledText));
 
-        // Draw the text exactly in the middle of the new visual offset
-        ImPlot::PlotText("Filtered out", visual_offset_x / 2.0, ImPlot::GetPlotLimits().Y.Max / 2.0, ImVec2(-5.0f, 26.0f), ImPlotTextFlags_Vertical);
+        // Calculate current visual center of Y axis
+        double center_y = ImPlot::GetPlotLimits().Y.Min + (ImPlot::GetPlotLimits().Y.Size() / 2.0);
+
+        // This line is the magic bullet:
+        ImPlot::PlotText(filter_label,
+            visual_offset_x / 2.0,
+            center_y,
+            ImVec2(0, 0),
+            ImPlotTextFlags_Vertical | ImPlotItemFlags_NoFit);
 
         ImPlot::PopStyleColor();
     }
@@ -2936,7 +2976,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     // -------------------------------------------------------------------------
     // 2. Fetch constants safely (ensure A_0 and L_0 are not 0)
     StressStrainContext ctx;
-    ctx.RawData = tabData->LR10KTensileData.Data.Data; // Pointer to your raw array
+    ctx.RawData = tabData->LR10KTensileData.SmoothedData.Data; // Pointer to your raw array (but smoothed out)
     ctx.Area0 = (tabData->area > 0) ? tabData->area : 1.0;
     ctx.Length0 = (tabData->length > 0) ? tabData->length : 1.0;
 
@@ -3015,6 +3055,20 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     );
     ImGui::SameLine(0.0f, 20.0f);
     ImGui::Checkbox("Hide Settings View", &hideLR10KSettingsView);
+
+    ImGui::SameLine(0.0f, 20.0f);
+
+    // In your UI panel:
+    // Use an odd number for the slider so there is always a true "center" point in the window
+    if (ImGui::SliderInt("Smoothing Level", &tabData->LR10KTensileData.SmoothedDataWindowIndex, 1, 51))
+    {
+        // Then pass it to your function:
+        ImVector<ImVec2> clean_point_data = SmoothTensileData(tabData->LR10KTensileData.Data, tabData->LR10KTensileData.SmoothedDataWindowIndex);
+        tabData->LR10KTensileData.SmoothedData = clean_point_data;
+
+        tabData->MarkTabAsUnsaved();
+    }
+
     ImGui::Spacing();
 
     ImGui::PushFont(Extra::fonts.jetbrainsFont);
@@ -3097,8 +3151,8 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
 
         // Assuming your real-time data is stored in standard arrays/vectors inside tabData
         if (LR10KAppGlobals::showStressStrain) {
-            ImPlot::PlotLineG("Engineering stress", LR10KAppGlobals::NominalStressStrainGetter, &ctx, tabData->LR10KTensileData.Data.Size);
-            ImPlot::PlotLineG("True stress", LR10KAppGlobals::TrueStressStrainGetter, &ctx, tabData->LR10KTensileData.Data.Size);
+            ImPlot::PlotLineG("Engineering stress", LR10KAppGlobals::NominalStressStrainGetter, &ctx, tabData->LR10KTensileData.SmoothedData.Size);
+            ImPlot::PlotLineG("True stress", LR10KAppGlobals::TrueStressStrainGetter, &ctx, tabData->LR10KTensileData.SmoothedData.Size);
         }
         else {
             // Plot standard Load-Extension in real-time
@@ -3113,9 +3167,9 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
                 ImPlot::PushStyleColor(ImPlotCol_Fill, lineColor);
 
                 ImPlot::PlotLine(tabData->tension ? "Tension" : "Compression"
-                    , &tabData->LR10KTensileData.Data[0].x
-                    , &tabData->LR10KTensileData.Data[0].y
-                    , tabData->LR10KTensileData.Data.Size
+                    , &tabData->LR10KTensileData.SmoothedData[0].x
+                    , &tabData->LR10KTensileData.SmoothedData[0].y
+                    , tabData->LR10KTensileData.SmoothedData.Size
                     , ImPlotLineFlags_Shaded, 0, 2 * sizeof(float));
 
                 ImPlot::PopStyleColor(2);
@@ -3136,14 +3190,14 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
             double raw_click_ext = LR10KAppGlobals::showStressStrain ? (click_pos.x * L_0) : click_pos.x;
 
             // 3. Find the index of the exact closest point in your real dataset
-            int snap_idx = FindClosestRawDataIndex(tabData->LR10KTensileData.Data, raw_click_ext);
+            int snap_idx = FindClosestRawDataIndex(tabData->LR10KTensileData.SmoothedData, raw_click_ext);
 
             // 4. If we successfully found a point on the line...
             if (snap_idx != -1)
             {
                 // Grab the EXACT raw coordinates from your dataset
-                double snapped_raw_ext = tabData->LR10KTensileData.Data[snap_idx].x;
-                double snapped_raw_load = tabData->LR10KTensileData.Data[snap_idx].y;
+                double snapped_raw_ext = tabData->LR10KTensileData.SmoothedData[snap_idx].x;
+                double snapped_raw_load = tabData->LR10KTensileData.SmoothedData[snap_idx].y;
 
                 // Save the perfectly snapped point (4 = 'Custom' point)
                 tabData->plot_dataPoints.push_back({ ImPlotPoint(snapped_raw_ext, snapped_raw_load), 4 });
@@ -3229,12 +3283,12 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
                     }
 
                     double dragged_raw_x = LR10KAppGlobals::showStressStrain ? (draw_x * ctx.Length0) : draw_x;
-                    int snap_idx = FindClosestRawDataIndex(tabData->LR10KTensileData.Data, dragged_raw_x);
+                    int snap_idx = FindClosestRawDataIndex(tabData->LR10KTensileData.SmoothedData, dragged_raw_x);
 
                     if (snap_idx != -1)
                     {
-                        raw_pt.x = tabData->LR10KTensileData.Data[snap_idx].x;
-                        raw_pt.y = tabData->LR10KTensileData.Data[snap_idx].y;
+                        raw_pt.x = tabData->LR10KTensileData.SmoothedData[snap_idx].x;
+                        raw_pt.y = tabData->LR10KTensileData.SmoothedData[snap_idx].y;
                     }
                 }
                 else
@@ -3258,7 +3312,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
                 if (!is_dragging && pointID >= 0 && pointID <= 6)
                 {
                     if (pointID == 5)
-                        ImPlot::Annotation(draw_x, draw_y, color, ImVec2(-10, -15), false, "{%d} [%s]", i, labels[pointID]);
+                        ImPlot::Annotation(draw_x, draw_y, color, ImVec2(10, 15), false, "{%d} [%s]", i, labels[pointID]);
                     else
                         ImPlot::Annotation(draw_x, draw_y, color, ImVec2(10, -15), false, "{%d} [%s]", i, labels[pointID]);
                 }
