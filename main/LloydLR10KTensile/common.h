@@ -870,6 +870,13 @@ extern int FindClosestRawDataIndex(const ImVector<ImVec2>& rawData, double targe
 **/
 ImVector<ImVec2> SmoothTensileData(const ImVector<ImVec2>& raw_data, int window_size);
 
+/**
+    @brief Snap crucial point to smoothed curve
+    @param plot_dataPoints -
+    @param smoothed_data -
+**/
+void SnapCrucialPointsToSmoothedCurve(std::vector<std::tuple<ImPlotPoint, int>>& plot_dataPoints, ImVector<ImVec2>& smoothed_data);
+
 // -----------------------------------------------------------------------------
 // ----------------------------------- LR10K -----------------------------------
 // -----------------------------------------------------------------------------

@@ -154,6 +154,31 @@ ImVector<ImVec2> SmoothTensileData(const ImVector<ImVec2>& raw_data, int window_
 	return smoothed_data;
 }
 
+void SnapCrucialPointsToSmoothedCurve(std::vector<std::tuple<ImPlotPoint, int>>& plot_dataPoints, ImVector<ImVec2>& smoothed_data)
+{
+    // If there is no graph data to snap to, exit safely
+    if (smoothed_data.empty()) return;
+
+    // Loop through every crucial marker
+    for (auto& ptTuple : plot_dataPoints)
+    {
+        // Get a reference to the ImPlotPoint so we can modify it permanently
+        ImPlotPoint& pt = std::get<0>(ptTuple);
+
+        // Find the index in the smoothed graph that matches the marker's X value (Strain)
+        // (Reusing the FindClosestRawDataIndex function you already have!)
+        int snap_idx = FindClosestRawDataIndex(smoothed_data, pt.x);
+
+        if (snap_idx != -1)
+        {
+            // Update the marker to sit exactly on the new smoothed curve
+            // We update both X and Y just to prevent any floating-point drift
+            pt.x = smoothed_data[snap_idx].x;
+            pt.y = smoothed_data[snap_idx].y;
+        }
+    }
+}
+
 ImPlotPoint LR10KAppGlobals::NominalStressStrainGetter(int idx, void* user_data) {
     // Cast the void* back to our struct
     StressStrainContext* ctx = (StressStrainContext*)user_data;
@@ -2990,18 +3015,18 @@ void AppMainTabSystem::CreateTabMenuSystem(TabControl::TabTestDataClass* tabData
                     // Flag this tab to auto-fit its axes on the next frame!
                     // (You should add `bool request_graph_autofit = false;` to your TabTestDataClass)
                     loopedTabData->request_graph_autofit = true;
-                }
 
-                // ==========================================
-                // TAB CONTENT / INFORMATION UPDATE
-                // ==========================================
-                // Update the settings for vertical sliders if changed
-                if (LR10KAppGlobals::testing_speedAndPlotActual[0] != loopedTabData->settings_speedAndPlot[0] || LR10KAppGlobals::testing_speedAndPlotActual[2] != loopedTabData->settings_speedAndPlot[2])
-                {
-                    LR10KAppGlobals::testing_speedAndPlotGUI[0] = ((loopedTabData->settings_speedAndPlot[0] / LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[0]) * 100);
-                    LR10KAppGlobals::testing_speedAndPlotGUI[2] = loopedTabData->settings_speedAndPlot[2];
-                    LR10KAppGlobals::testing_speedAndPlotActual[0] = loopedTabData->settings_speedAndPlot[0];
-                    LR10KAppGlobals::testing_speedAndPlotActual[2] = loopedTabData->settings_speedAndPlot[2];
+                    // ==========================================
+                    // TAB CONTENT / INFORMATION UPDATE
+                    // ==========================================
+                    // Update the settings for vertical sliders if changed
+                    if (LR10KAppGlobals::testing_speedAndPlotActual[0] != loopedTabData->settings_speedAndPlot[0] || LR10KAppGlobals::testing_speedAndPlotActual[2] != loopedTabData->settings_speedAndPlot[2])
+                    {
+                        LR10KAppGlobals::testing_speedAndPlotGUI[0] = ((loopedTabData->settings_speedAndPlot[0] / LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[0]) * 100);
+                        LR10KAppGlobals::testing_speedAndPlotGUI[2] = loopedTabData->settings_speedAndPlot[2];
+                        LR10KAppGlobals::testing_speedAndPlotActual[0] = loopedTabData->settings_speedAndPlot[0];
+                        LR10KAppGlobals::testing_speedAndPlotActual[2] = loopedTabData->settings_speedAndPlot[2];
+                    }
                 }
 
                 // Update units if changed
@@ -3843,7 +3868,15 @@ float LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad()
 **/
 float LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension()
 {
-    float value = TabControl::LR10KRawExtension * LR10KAppGlobals::Convert_to_mm;
+    float value;
+
+    if (LR10KAppGlobals::opticalSourceAsExtensiometer)
+        // Real extension from the optical camera source (comes from the Computer Vision thread)
+        value = g_Extensiometer.results.travel_mm;
+    else
+        // From machine
+        value = TabControl::LR10KRawExtension * LR10KAppGlobals::Convert_to_mm;
+
     // Reverse positive direction when compression is enabled
     value = LR10KAppGlobals::tensionTesting ? value : value * -1;
 
@@ -4497,6 +4530,13 @@ bool LR10KControlSystem::EndTest(TabControl::TabTestDataClass* tabData)
         {
             _LR10KController.w_EndTest();
         }
+
+        // Set the smoothed data
+        ImVector<ImVec2> clean_point_data = SmoothTensileData(tabData->LR10KTensileData.Data, tabData->LR10KTensileData.SmoothedDataWindowIndex);
+        tabData->LR10KTensileData.SmoothedData = clean_point_data;
+
+        // Snap the dots so they perfectly hug the new curve!
+        SnapCrucialPointsToSmoothedCurve(tabData->plot_dataPoints, tabData->LR10KTensileData.SmoothedData);
 
         tabData->LR10KTensileData.TimeData.clear(); // Make sure to clear old data from previous tests too!
         tabData->LR10KTensileData.StartTimeTest = TimePoint();

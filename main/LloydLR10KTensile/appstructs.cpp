@@ -44,22 +44,40 @@ struct Extra_Widgets {
 
         ImGui::PushID(pushID);
 
-        // E.g. mm and in
+        // Unit conversion
         const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8);
 
-        // Slider related (percentage)
-        float sliderMinValue = LR10KAppGlobals::testing_speedAndPlotMinValuesGUI[settingIndex];
-        float sliderMaxValue = LR10KAppGlobals::testing_speedAndPlotMaxValuesGUI[settingIndex];
+        // 1. Get exact boundaries for BOTH GUI and Actual
+        float guiMin = LR10KAppGlobals::testing_speedAndPlotMinValuesGUI[settingIndex];
+        float guiMax = LR10KAppGlobals::testing_speedAndPlotMaxValuesGUI[settingIndex];
 
-        // Actual data related boundaries
-        float minActual = LR10KAppGlobals::testing_speedAndPlotMinValuesActual[settingIndex] * unitConv_dist;
-        float maxActual = LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[settingIndex] * unitConv_dist;
+        float actualMin = LR10KAppGlobals::testing_speedAndPlotMinValuesActual[settingIndex] * unitConv_dist;
+        float actualMax = LR10KAppGlobals::testing_speedAndPlotMaxValuesActual[settingIndex] * unitConv_dist;
+
+        // 2. Setup Limits based on Index
+        float sliderMin, sliderMax;
+        const char* formatStr;
+        float stepSize = 1.0f; // 1 unit (e.g., 1 mm/min or 1%)
+
+        if (settingIndex == 2)
+        {
+            // Index 2 requested to be -100% to 100%
+            sliderMin = -100.0f;
+            sliderMax = 100.0f;
+            formatStr = "%.0f %%";
+        }
+        else
+        {
+            // Indices 0 and 1 use real units natively
+            sliderMin = actualMin;
+            sliderMax = actualMax;
+            formatStr = "%.0f"; // Draw without decimals
+        }
 
         float sizeHeight = 270.0f;
         float sizeChildWidth = sizeWidth;
-        float sizeChildHeight = sizeHeight + (includeIncrementer ? 50.0f : 0.0f);
+        float sizeChildHeight = sizeHeight + (includeIncrementer ? 90.0f : 0.0f);
 
-        // REMOVED 'static' so each widget tracks its own save state independently!
         bool unSavedChanges = false;
 
         // Styling
@@ -69,43 +87,55 @@ struct Extra_Widgets {
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(r_color, 0.9f, 0.9f));
         ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, sizeWidth);
 
-        // Container child
         ImGui::BeginChild("##childAdjuster", ImVec2(sizeChildWidth, sizeChildHeight), false, ImGuiWindowFlags_NoBackground);
 
-        // 1. The Slider Widget
-        ImGui::VSliderFloat(label, ImVec2(sizeWidth, sizeHeight), &LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex], sliderMinValue, sliderMaxValue, "%.0f %%");
+        // 3. The Slider Widget - Bound DIRECTLY to the physical Actual value
+        ImGui::VSliderFloat(label, ImVec2(sizeWidth, sizeHeight), &LR10KAppGlobals::testing_speedAndPlotActual[settingIndex], sliderMin, sliderMax, formatStr);
 
-        // ImGui's built-in way to check if a user just let go of the mouse after dragging
         if (ImGui::IsItemDeactivatedAfterEdit())
         {
             unSavedChanges = true;
         }
 
-        // Capture hover state right after the slider (before drawing buttons)
         bool sliderHoveredOrActive = ImGui::IsItemActive() || ImGui::IsItemHovered();
 
-        // 2. The Increment/Decrement Buttons
+        // E.g. mm/min
+        if (settingIndex == 2)
+        {
+            ImGui::Text("Error");
+        }
+        else
+        {
+            ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(2));
+        }
+
+
+        // 4. The Increment Buttons (Steps exactly by 1)
         if (includeIncrementer)
         {
             ImGui::Spacing();
             float spacing = 3.0f;
-            float btnWidth = (sizeWidth / 2.0f) - (spacing / 2.0f); // Math to perfectly fit both buttons
+            float btnWidth = (sizeWidth / 2.0f) - (spacing / 2.0f);
 
             ImGui::PushButtonRepeat(true);
             ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(r_color, 0.5f, 0.5f));
 
-            if (ImGui::Button("-", ImVec2(btnWidth, 30)) && LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] > sliderMinValue)
+            if (ImGui::Button("-", ImVec2(btnWidth, 30)) && LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] > sliderMin)
             {
-                LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex]--;
-                unSavedChanges = true; // Trigger save on button click
+                LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] -= stepSize;
+                if (LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] < sliderMin)
+                    LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] = sliderMin;
+                unSavedChanges = true;
             }
 
             ImGui::SameLine(0.0f, spacing);
 
-            if (ImGui::Button("+", ImVec2(btnWidth, 30)) && LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] < sliderMaxValue)
+            if (ImGui::Button("+", ImVec2(btnWidth, 30)) && LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] < sliderMax)
             {
-                LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex]++;
-                unSavedChanges = true; // Trigger save on button click
+                LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] += stepSize;
+                if (LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] > sliderMax)
+                    LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] = sliderMax;
+                unSavedChanges = true;
             }
 
             ImGui::PopStyleColor();
@@ -113,36 +143,32 @@ struct Extra_Widgets {
         }
         ImGui::EndChild();
 
-        // Make the output value not show "-0" (cleaner approach)
-        if (LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] == 0.0f)
-        {
-            LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] = 0.0f;
-        }
+        float displayValue = LR10KAppGlobals::testing_speedAndPlotActual[settingIndex];
 
-        // 3. Calculate Actual Values (Moved OUTSIDE the hover check)
-        float guiValue = LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex];
-        float displayValue = guiValue;
-
+        // 5. BULLETPROOF SYNC: Force the GUI array to precisely match the Actual array
+        // This stops background loops from overwriting our slider when we let go!
         if (settingIndex == 2)
         {
-            LR10KAppGlobals::testing_speedAndPlotActual[2] = guiValue;
+            LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] = displayValue;
         }
         else
         {
-            displayValue = maxActual * (guiValue / 100.0f);
-            if (displayValue < minActual) displayValue = minActual;
+            float actualRange = actualMax - actualMin;
+            float guiRange = guiMax - guiMin;
 
-            LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] = displayValue;
+            if (actualRange > 0.0001f) {
+                float ratio = (displayValue - actualMin) / actualRange;
+                LR10KAppGlobals::testing_speedAndPlotGUI[settingIndex] = guiMin + (ratio * guiRange);
+            }
         }
 
-        // 4. Draw Tooltip
+        // 6. Draw Tooltip
         if (sliderHoveredOrActive)
         {
-            // ImGui has built-in printf formatting, saving us from using std::string and sprintf_s!
             ImGui::SetTooltip("%s%.2f%s", tooltipText1, displayValue, tooltipText2);
         }
 
-        // 5. Save Data
+        // 7. Save Data
         if (unSavedChanges && acceptChanges)
         {
             tabData->settings_speedAndPlot[settingIndex] = LR10KAppGlobals::testing_speedAndPlotActual[settingIndex];
@@ -421,6 +447,9 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
         // The other boolean will be calculated automatically on insert
         tabData->plot_dataPoints.push_back({ point, dataPointIndex });
     }
+
+    // Snap the dots so they perfectly hug the new curve!
+    SnapCrucialPointsToSmoothedCurve(tabData->plot_dataPoints, tabData->LR10KTensileData.SmoothedData);
 
     // Other information about the test
     tabData->test_unfinished_test_started = tabDataJson["test_unfinished_test_started"];
@@ -1335,21 +1364,31 @@ static std::string live_camera_feed_text = "Live Camera Feed";
 
 void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
 {
-    // 1. Setup Camera (Runs once when thread starts)
+    // =========================================================
+    // 1. SETUP CAMERA & OPTIMIZATIONS
+    // =========================================================
     cv::VideoCapture cap(1); // Try external first
     if (!cap.isOpened()) cap.open(0); // Fallback to internal
 
     if (cap.isOpened()) {
+        // Optimization: Cap resolution to 800x600 to save CPU (Camera driver picks closest match)
+        cap.set(cv::CAP_PROP_FRAME_WIDTH, 800);
+        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 600);
+
         cap.set(cv::CAP_PROP_AUTOFOCUS, 0);
         cap.set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
     }
 
     // Local variables for processing
-    cv::Mat frame, hsv, mask, frame_display;
-    const double PHYSICAL_L0_MM = 50.0;
+    cv::Mat frame, frame_display;
     const double EMA_ALPHA = 0.1;
 
-    // 2. Processing Loop
+    // Timer for throttling UI uploads
+    auto lastUploadTime = std::chrono::steady_clock::now();
+
+    // =========================================================
+    // 2. PROCESSING LOOP
+    // =========================================================
     while (!g_CV_stopFlag)
     {
         // HANDLE HARDWARE SWITCH REQUEST
@@ -1371,13 +1410,11 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
 
         cap >> frame;
         if (frame.empty()) {
-            g_Extensiometer.is_connected = false; // Camera is open but failing to send data
+            g_Extensiometer.is_connected = false;
             continue;
         }
 
-        // If we reach here, the camera is working!
         g_Extensiometer.is_connected = true;
-
 
         // --- 1. HANDLE RECORDING STATES, TELEMETRY & RAW WRITER ---
         if (!g_Extensiometer.is_recording)
@@ -1387,16 +1424,15 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
         }
         else
         {
-            // Open RAW file if needed
+            // Open RAW file with fast MJPG codec
             if (!g_Extensiometer.video_writer_raw.isOpened() && !g_Extensiometer.video_save_path_raw.empty())
             {
-                int fourcc = cv::VideoWriter::fourcc('X', 'V', 'I', 'D');
+                int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G'); // Much faster than XVID!
                 double fps = cap.get(cv::CAP_PROP_FPS);
                 if (fps < 1 || fps > 120) fps = 30.0;
 
                 g_Extensiometer.video_writer_raw.open(g_Extensiometer.video_save_path_raw, fourcc, fps, frame.size(), true);
 
-                // Reset telemetry counters on start
                 g_Extensiometer.recording_frame_count = 0;
                 g_Extensiometer.recording_start_time = ImGui::GetTime();
             }
@@ -1404,118 +1440,97 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
             // Generate Telemetry String
             double elapsed = ImGui::GetTime() - g_Extensiometer.recording_start_time;
             char telemetry[128];
-            // Added a blinking "REC" indicator (blinks every ~0.5s)
             const char* rec_blink = (int(elapsed * 2) % 2 == 0) ? "REC" : "   ";
             sprintf(telemetry, "[%s] T+%.2fs | Frame: %05d | Strain: %.2f%%",
                 rec_blink, elapsed, g_Extensiometer.recording_frame_count, g_Extensiometer.results.strain_percentage);
 
-            // Draw Telemetry on RAW frame (Smaller text)
             int y_pos = frame.rows - 10;
-            // Smaller box: Height 20px, Width ~360px
             cv::rectangle(frame, cv::Point(5, y_pos - 15), cv::Point(360, y_pos + 5), cv::Scalar(0, 0, 0), -1);
-            // Smaller font: 0.45 scale
             cv::putText(frame, telemetry, cv::Point(10, y_pos),
                 cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
 
-            // Write to RAW video
             if (g_Extensiometer.video_writer_raw.isOpened()) {
                 g_Extensiometer.video_writer_raw.write(frame);
             }
-
             g_Extensiometer.recording_frame_count++;
         }
 
-        // =========================================================
-        // 2. PREPARE DISPLAY FRAME 
-        // =========================================================
-        // Because we draw the text on 'frame' ABOVE, it automatically gets copied here!
+        // --- 2. PREPARE DISPLAY FRAME & DIMMING ---
         frame.copyTo(frame_display);
 
-        // =========================================================
-        // 2. DRAW RESTRICTIVE AREA OVERLAY (Always visible)
-        // =========================================================
-        if (g_Extensiometer.restrictive_area > 0.001f) // check slightly > 0
+        int margin = 0;
+        if (g_Extensiometer.restrictive_area > 0.001f) {
+            margin = (int)(frame.cols * g_Extensiometer.restrictive_area);
+            if (margin >= frame.cols / 2) margin = 0; // Safety fallback
+        }
+
+        // Draw restrictive visual dimming
+        if (margin > 0)
         {
-            int margin = (int)(frame.cols * g_Extensiometer.restrictive_area);
+            cv::Mat roiLeft = frame_display(cv::Rect(0, 0, margin, frame.rows));
+            cv::Mat roiRight = frame_display(cv::Rect(frame.cols - margin, 0, margin, frame.rows));
 
-            // Ensure margin is valid
-            if (margin > 0 && margin < frame.cols / 2)
-            {
-                // A. DIMMING (IN-PLACE FIX)
-                // We grab a 'Region of Interest' (ROI) which points to the actual pixels in frame_display
-                cv::Mat roiLeft = frame_display(cv::Rect(0, 0, margin, frame.rows));
-                cv::Mat roiRight = frame_display(cv::Rect(frame.cols - margin, 0, margin, frame.rows));
+            roiLeft.convertTo(roiLeft, -1, 0.5, 0);   // Darken Left by 50%
+            roiRight.convertTo(roiRight, -1, 0.5, 0); // Darken Right by 50%
 
-                // .convertTo(dst, type, scale, shift)
-                // Passing 'roiLeft' as both src and dst modifies the pixels IN PLACE.
-                roiLeft.convertTo(roiLeft, -1, 0.5, 0);   // Darken Left by 50%
-                roiRight.convertTo(roiRight, -1, 0.5, 0); // Darken Right by 50%
+            cv::Scalar lineColor(255, 255, 0); // Cyan
+            int thickness = 2;
+            int dashLen = 20, gapLen = 15;
 
-                // B. DASHED LINES
-                cv::Scalar lineColor(255, 255, 0); // Cyan
-                int thickness = 2;
-                int dashLen = 20;
-                int gapLen = 15;
+            for (int y = 0; y < frame.rows; y += (dashLen + gapLen)) {
+                cv::line(frame_display, cv::Point(margin, y), cv::Point(margin, std::min(y + dashLen, frame.rows)), lineColor, thickness);
+                cv::line(frame_display, cv::Point(frame.cols - margin, y), cv::Point(frame.cols - margin, std::min(y + dashLen, frame.rows)), lineColor, thickness);
+            }
+        }
 
-                for (int y = 0; y < frame.rows; y += (dashLen + gapLen)) {
-                    // Left Line
-                    cv::line(frame_display,
-                        cv::Point(margin, y),
-                        cv::Point(margin, std::min(y + dashLen, frame.rows)),
-                        lineColor, thickness);
+        // =========================================================
+        // 3. IMAGE PROCESSING (TRUE R.O.I. OPTIMIZATION)
+        // =========================================================
+        cv::Mat full_mask = cv::Mat::zeros(frame.size(), CV_8UC1); // Full size black mask for UI
+        std::vector<cv::Point2f> centers;
 
-                    // Right Line
-                    cv::line(frame_display,
-                        cv::Point(frame.cols - margin, y),
-                        cv::Point(frame.cols - margin, std::min(y + dashLen, frame.rows)),
-                        lineColor, thickness);
+        if (margin < frame.cols / 2)
+        {
+            cv::Rect active_roi(margin, 0, frame.cols - (2 * margin), frame.rows);
+
+            // 0-cost memory crop. We only process the bright center!
+            cv::Mat cropped_frame = frame(active_roi);
+            cv::Mat cropped_hsv, cropped_mask;
+
+            // Lighter Blur Kernel (5x5 instead of 9x9)
+            cv::GaussianBlur(cropped_frame, cropped_frame, cv::Size(5, 5), 0);
+            cv::cvtColor(cropped_frame, cropped_hsv, cv::COLOR_BGR2HSV);
+
+            cv::inRange(cropped_hsv,
+                cv::Scalar(g_Extensiometer.settings.h_min, g_Extensiometer.settings.s_min, g_Extensiometer.settings.v_min),
+                cv::Scalar(g_Extensiometer.settings.h_max, g_Extensiometer.settings.s_max, g_Extensiometer.settings.v_max),
+                cropped_mask);
+
+            cv::erode(cropped_mask, cropped_mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
+            cv::dilate(cropped_mask, cropped_mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8)));
+
+            // Paste the calculated cropped mask back into the full-size mask for the UI
+            cropped_mask.copyTo(full_mask(active_roi));
+
+            std::vector<std::vector<cv::Point>> contours;
+            cv::findContours(cropped_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+            for (const auto& c : contours) {
+                if (cv::contourArea(c) > 50) {
+                    cv::Moments m = cv::moments(c);
+                    if (m.m00 != 0) {
+                        // Add 'margin' back to X so the dot matches the display frame!
+                        float cx = (float)(m.m10 / m.m00) + margin;
+                        float cy = (float)(m.m01 / m.m00);
+                        centers.push_back(cv::Point2f(cx, cy));
+                    }
                 }
             }
         }
 
         // =========================================================
-        // 3. IMAGE PROCESSING (Algorithm)
+        // 4. PHYSICS & DRAW MARKERS
         // =========================================================
-        // We process 'frame' (the raw image), not 'frame_display' (the one with lines)
-        cv::GaussianBlur(frame, frame, cv::Size(9, 9), 0);
-        cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
-
-        // Create Mask
-        cv::inRange(hsv,
-            cv::Scalar(g_Extensiometer.settings.h_min, g_Extensiometer.settings.s_min, g_Extensiometer.settings.v_min),
-            cv::Scalar(g_Extensiometer.settings.h_max, g_Extensiometer.settings.s_max, g_Extensiometer.settings.v_max),
-            mask);
-
-        // Apply same restriction to the MASK so the algorithm ignores the dimmed areas
-        if (g_Extensiometer.restrictive_area > 0.001f)
-        {
-            int margin = (int)(frame.cols * g_Extensiometer.restrictive_area);
-            if (margin > 0 && margin < frame.cols / 2) {
-                mask(cv::Rect(0, 0, margin, frame.rows)) = 0;
-                mask(cv::Rect(frame.cols - margin, 0, margin, frame.rows)) = 0;
-            }
-        }
-
-        cv::erode(mask, mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
-        cv::dilate(mask, mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8)));
-
-        // Find Contours & Centers
-        std::vector<std::vector<cv::Point>> contours;
-        cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-        std::vector<cv::Point2f> centers;
-        for (const auto& c : contours) {
-            if (cv::contourArea(c) > 50) {
-                cv::Moments m = cv::moments(c);
-                if (m.m00 != 0) centers.push_back(cv::Point2f((float)(m.m10 / m.m00), (float)(m.m01 / m.m00)));
-            }
-        }
-
-        // =========================================================
-        // 4. DRAW MARKERS (Overlay on top of lines)
-        // =========================================================
-        static bool lostMarkerDetected = false;
-
         if (centers.size() == 2) {
             live_camera_feed_text = "Live Camera Feed";
 
@@ -1523,11 +1538,8 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
             cv::Point2f p1 = centers[0];
             cv::Point2f p2 = centers[1];
 
-            // Calculations
-            // 1. Calculate Distance
             double currentRawDist = cv::norm(p1 - p2);
 
-            // 2. Handle Initialization / Reset
             if (!g_Extensiometer.initialized || g_Extensiometer.reset_requested) {
                 g_Extensiometer.initial_dist_px = currentRawDist;
                 g_Extensiometer.smooth_dist_px = currentRawDist;
@@ -1535,37 +1547,25 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
                 g_Extensiometer.reset_requested = false;
             }
             else {
-                // 3. Exponential Moving Average (Smoothing)
-                // Use a local constant for Alpha if not defined globally
-                const double EMA_ALPHA = 0.1;
                 g_Extensiometer.smooth_dist_px = (EMA_ALPHA * currentRawDist) + ((1.0 - EMA_ALPHA) * g_Extensiometer.smooth_dist_px);
             }
 
-            // 4. Calculate Physics (Strain)
-            // Ensure this constant matches your physical setup (e.g., 50mm gauge length)
             const double PHYSICAL_L0_MM = LR10KAppGlobals::calc_length;
 
             if (g_Extensiometer.initial_dist_px > 0) {
                 double elongationPx = g_Extensiometer.smooth_dist_px - g_Extensiometer.initial_dist_px;
                 double strain = elongationPx / g_Extensiometer.initial_dist_px;
 
-                // >>> CRITICAL: SAVE RESULTS HERE <<<
                 g_Extensiometer.results.travel_mm = (float)(strain * PHYSICAL_L0_MM);
                 g_Extensiometer.results.strain_percentage = (float)(strain * 100.0);
             }
 
-            // 5. Visuals
             cv::line(frame_display, p1, p2, cv::Scalar(0, 255, 0), 2);
             cv::circle(frame_display, p1, 5, cv::Scalar(0, 0, 255), -1);
             cv::circle(frame_display, p2, 5, cv::Scalar(0, 0, 255), -1);
         }
         else {
-            // Not exactly 2 markers found - show searching message
             live_camera_feed_text = "Live Camera Feed (Searching for markers...)";
-
-            /*cv::putText(frame_display, "Searching for markers...", cv::Point(30, 50),
-                cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 2);*/
-
             if (LR10KAppGlobals::opticalSourceAsExtensiometer)
             {
                 if (!g_Extensiometer.lostMarkerDetectedlost_tracking && tabData->test_unfinished_test_started && tabData->test_running_test)
@@ -1573,41 +1573,48 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
             }
         }
 
-        // ------ VIDEO RECORD WITH MARKERS & OVERLAYS ------
+        // --- OVERLAY VIDEO RECORDER ---
         if (g_Extensiometer.is_recording)
         {
             if (!g_Extensiometer.video_writer_overlay.isOpened() && !g_Extensiometer.video_save_path.empty())
             {
-                int fourcc = cv::VideoWriter::fourcc('X', 'V', 'I', 'D');
+                int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
                 double fps = cap.get(cv::CAP_PROP_FPS);
                 if (fps < 1 || fps > 120) fps = 30.0;
-
                 g_Extensiometer.video_writer_overlay.open(g_Extensiometer.video_save_path, fourcc, fps, frame_display.size(), true);
             }
 
-            if (g_Extensiometer.video_writer_overlay.isOpened())
-            {
+            if (g_Extensiometer.video_writer_overlay.isOpened()) {
                 g_Extensiometer.video_writer_overlay.write(frame_display);
             }
         }
 
         // =========================================================
-        // 5. UPLOAD TO GUI
+        // 5. UPLOAD TO GUI (THROTTLED & MUTEX-SAFE)
         // =========================================================
+
+        // Convert colors OUTSIDE the lock to save UI thread time
+        cv::Mat tempCameraRGBA, tempMaskRGBA;
+        cv::cvtColor(frame_display, tempCameraRGBA, cv::COLOR_BGR2RGBA);
+        cv::cvtColor(full_mask, tempMaskRGBA, cv::COLOR_GRAY2RGBA);
+
+        auto now = std::chrono::steady_clock::now();
+
+        // Throttle UI texture updates to ~20 FPS (50ms)
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastUploadTime).count() > 50)
         {
+            // Only lock for the split-second memory copy
             std::lock_guard<std::mutex> lock(g_CV_frameMutex);
-
-            // This 'frame_display' now definitely has the lines and the dimming
-            cv::cvtColor(frame_display, g_sharedCameraFrame, cv::COLOR_BGR2RGBA);
-            cv::cvtColor(mask, g_sharedMaskFrame, cv::COLOR_GRAY2RGBA);
-
+            tempCameraRGBA.copyTo(g_sharedCameraFrame);
+            tempMaskRGBA.copyTo(g_sharedMaskFrame);
             g_hasNewFrame = true;
+
+            lastUploadTime = now;
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    // Thread Stopping: Release Camera
     cap.release();
 }
 
@@ -1711,10 +1718,22 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             // This is the master switch that allows the camera to run in background
             bool prev_active = g_Extensiometer.is_active;
 
-            ImGui::Checkbox("##ActiveSwitch", &g_Extensiometer.is_active);
+            ImGui::BeginDisabled(tabData->test_unfinished_test_started);
+            if (ImGui::Checkbox("##ActiveSwitch", &g_Extensiometer.is_active))
+            {
+                if (g_Extensiometer.is_active) LR10KAppGlobals::opticalSourceAsExtensiometer = true;
+            }
             ImGui::SameLine();
             ImGui::Text(g_Extensiometer.is_active ? "CAMERA ACTIVE" : "CAMERA OFF");
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Keep camera running even if this window is closed.");
+            ImGui::EndDisabled();
+
+            ImGui::SameLine(0.0f, 20.0f);
+            ImGui::BeginDisabled(!g_Extensiometer.is_active || tabData->test_unfinished_test_started);
+            ImGui::Checkbox("Use Optical Ext.", &LR10KAppGlobals::opticalSourceAsExtensiometer);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Use the optical extensiometer to track extension from sample.");
+            ImGui::EndDisabled();
+
             ImGui::SameLine(0.0f, 40.0f);
 
             ImGui::BeginDisabled(
@@ -1722,9 +1741,9 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 || tabData->test_finished
                 || tabData->test_unfinished_test_started
                 || tabData->test_running_test);
-            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.11f, 0.06f, 0.8f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.11f, 0.07f, 0.9f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.11f, 0.08f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.11f, 0.72f, 0.57f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.11f, 0.8f, 0.7f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.11f, 0.9f, 0.8f));
 
             if (ImGui::Button("Set zero point"))
             {
@@ -1738,9 +1757,12 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
             ImGui::SameLine();
 
+            std::string buttonType1Text = "Set Storage Folder";
+            if (tabData->current_temp_preSaveLocation != "")
+                buttonType1Text = "Start Test";
+
             ImGui::BeginDisabled(
-                !LR10KAppGlobals::configurationDone
-                || tabData->test_finished
+                tabData->test_finished
                 || tabData->test_unfinished_test_started
                 || tabData->test_running_test
                 || (!LR10KAppGlobals::zeroPointIsSet && !mainGUIGlobals::useDemoMode));
@@ -1748,7 +1770,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.23f, 0.8f, 0.7f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.23f, 0.9f, 0.8f));
 
-            if (ImGui::Button("Start Test"))
+            if (ImGui::Button(buttonType1Text.c_str()))
             {
                 DockingApps::console.ExecCommand(tabData, "start");
             }
@@ -2298,7 +2320,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
             ImGui::EndDisabled();
             // --- Load Adjustment Vertical Slider ---
             ImGui::SameLine();
-            Extra::widgets.widgetCreate_VerticalSlider(tabData, 2, "load_adjustment", "##Load Adjustment", 60, 0.0f /*Red*/, "Load Error Adjustment: ", " %% load error", acceptChanges2);
+            Extra::widgets.widgetCreate_VerticalSlider(tabData, 2, "load_adjustment", "##Load Adjustment", 60, 0.0f /*Red*/, "Load Error Adjustment: ", " % load error", acceptChanges2);
             ImGui::EndGroup();
 
             ImGui::Spacing();
@@ -2914,12 +2936,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         }
         else
         {
-            if (LR10KAppGlobals::opticalSourceAsExtensiometer)
-                // Real extension from the optical camera source (comes from the Computer Vision thread)
-                LR10KExtension = g_Extensiometer.results.travel_mm;
-            else
-                // Real extension from LR 10K Tensile Machine
-                LR10KExtension = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
+            LR10KExtension = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
         }
 
         if (!mainGUIGlobals::useDemoModeLiveLoad)
@@ -2938,18 +2955,9 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     }
     else
     {
-        // Switch between Machine Encoder and Optical Extensiometer
-        if (LR10KAppGlobals::opticalSourceAsExtensiometer)
-        {
-            // Get data from the Computer Vision thread
-            LR10KExtension = g_Extensiometer.results.travel_mm;
-        }
-        else
-        {
-            // Get data from the LR 10K Tensile Machine (comes from the LR 10K Tensile Machine and calculated elsewhere)
-            LR10KExtension = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
-        }
-
+        // Get data from the LR 10K Tensile Machine (comes from the LR 10K Tensile Machine and calculated elsewhere)
+        // Optical extensiometer activated, will return the extension from that
+        LR10KExtension = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
         LR10KLoad = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad();
     }
 
@@ -2974,9 +2982,15 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     // -------------------------------------------------------------------------
     // ------------------- Calculate Nominal and True Strain -------------------
     // -------------------------------------------------------------------------
+
+    // Smoothed data will be available after test is finished, but we can still plot the raw data in real-time as it comes in
+    ImVector<ImVec2> stressStrainData = tabData->LR10KTensileData.Data;
+    if (tabData->LR10KTensileData.SmoothedData.Size == stressStrainData.Size)
+        stressStrainData = tabData->LR10KTensileData.SmoothedData;
+
     // 2. Fetch constants safely (ensure A_0 and L_0 are not 0)
     StressStrainContext ctx;
-    ctx.RawData = tabData->LR10KTensileData.SmoothedData.Data; // Pointer to your raw array (but smoothed out)
+    ctx.RawData = stressStrainData.Data; // Pointer to your raw array (but smoothed out)
     ctx.Area0 = (tabData->area > 0) ? tabData->area : 1.0;
     ctx.Length0 = (tabData->length > 0) ? tabData->length : 1.0;
 
@@ -3016,6 +3030,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     ImGui::BeginGroup(); // Group to align vertically with the button
     ImGui::BeginDisabled(!g_Extensiometer.is_active || tabData->test_unfinished_test_started);
     ImGui::Checkbox("Use Optical Ext.", &LR10KAppGlobals::opticalSourceAsExtensiometer);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Use the optical extensiometer to track extension from sample.");
     ImGui::EndDisabled();
     ImGui::EndGroup();
 
@@ -3058,16 +3073,24 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
 
     ImGui::SameLine(0.0f, 20.0f);
 
+    // Set the width in pixels
+    ImGui::PushItemWidth(150.0f);
+
     // In your UI panel:
     // Use an odd number for the slider so there is always a true "center" point in the window
-    if (ImGui::SliderInt("Smoothing Level", &tabData->LR10KTensileData.SmoothedDataWindowIndex, 1, 51))
+    if (ImGui::SliderInt("Smoothing Level of graph (def. 5)", &tabData->LR10KTensileData.SmoothedDataWindowIndex, 1, 51))
     {
         // Then pass it to your function:
         ImVector<ImVec2> clean_point_data = SmoothTensileData(tabData->LR10KTensileData.Data, tabData->LR10KTensileData.SmoothedDataWindowIndex);
         tabData->LR10KTensileData.SmoothedData = clean_point_data;
 
+        // Snap the dots so they perfectly hug the new curve!
+        SnapCrucialPointsToSmoothedCurve(tabData->plot_dataPoints, tabData->LR10KTensileData.SmoothedData);
+
         tabData->MarkTabAsUnsaved();
     }
+
+    ImGui::PopItemWidth();
 
     ImGui::Spacing();
 
@@ -3151,13 +3174,13 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
 
         // Assuming your real-time data is stored in standard arrays/vectors inside tabData
         if (LR10KAppGlobals::showStressStrain) {
-            ImPlot::PlotLineG("Engineering stress", LR10KAppGlobals::NominalStressStrainGetter, &ctx, tabData->LR10KTensileData.SmoothedData.Size);
-            ImPlot::PlotLineG("True stress", LR10KAppGlobals::TrueStressStrainGetter, &ctx, tabData->LR10KTensileData.SmoothedData.Size);
+            ImPlot::PlotLineG("Engineering stress", LR10KAppGlobals::NominalStressStrainGetter, &ctx, stressStrainData.Size);
+            ImPlot::PlotLineG("True stress", LR10KAppGlobals::TrueStressStrainGetter, &ctx, stressStrainData.Size);
         }
         else {
             // Plot standard Load-Extension in real-time
             // ImPlot::PlotLine("Load/Extension", &tabData->LR10KTensileData.Data[0].x, ...);
-            if (tabData->LR10KTensileData.Data.Size > 0)
+            if (stressStrainData.Size > 0)
             {
                 ImGuiStyle& style = ImGui::GetStyle();
                 const ImVec4 lineColor = style.Colors[ImGuiCol_HeaderHovered];
@@ -3167,9 +3190,9 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
                 ImPlot::PushStyleColor(ImPlotCol_Fill, lineColor);
 
                 ImPlot::PlotLine(tabData->tension ? "Tension" : "Compression"
-                    , &tabData->LR10KTensileData.SmoothedData[0].x
-                    , &tabData->LR10KTensileData.SmoothedData[0].y
-                    , tabData->LR10KTensileData.SmoothedData.Size
+                    , &stressStrainData[0].x
+                    , &stressStrainData[0].y
+                    , stressStrainData.Size
                     , ImPlotLineFlags_Shaded, 0, 2 * sizeof(float));
 
                 ImPlot::PopStyleColor(2);

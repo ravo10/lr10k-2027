@@ -201,14 +201,14 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_C3E9A80FA63249BFAC21E9B65FC254AA"
-        "OwnerKey" = "8:_UNDEFINED"
+        "MsmKey" = "8:_C525EC38B29300B59AD9CA04791976D4"
+        "OwnerKey" = "8:_452657B327F7411A8DDD49E4A79FA22C"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_C525EC38B29300B59AD9CA04791976D4"
-        "OwnerKey" = "8:_452657B327F7411A8DDD49E4A79FA22C"
+        "MsmKey" = "8:_C6B47E9E4C2247E6848388416C3F79FC"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -951,26 +951,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C3E9A80FA63249BFAC21E9B65FC254AA"
-            {
-            "SourcePath" = "8:E:\\imgui_original.ini"
-            "TargetName" = "8:imgui_original.ini"
-            "Tag" = "8:"
-            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C525EC38B29300B59AD9CA04791976D4"
             {
             "SourcePath" = "8:api-ms-win-crt-runtime-l1-1-0.dll"
@@ -989,6 +969,26 @@
             "Register" = "3:1"
             "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C6B47E9E4C2247E6848388416C3F79FC"
+            {
+            "SourcePath" = "8:..\\LloydLR10KTensile\\imgui_original.ini"
+            "TargetName" = "8:imgui_original.ini"
+            "Tag" = "8:"
+            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D728ECF182E54782BB8FB4EDDF2162E8"
@@ -1286,7 +1286,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:LLOYD LR 10K Unofficial Control Software"
         "ProductCode" = "8:{9273F468-40FC-4B32-A6C0-3B229E818395}"
-        "PackageCode" = "8:{E894FA6C-B088-4E88-BF13-06E17C24CC05}"
+        "PackageCode" = "8:{4A90AB73-6B2A-468D-BE9D-7D0CD2366708}"
         "UpgradeCode" = "8:{686F73AC-8F49-4304-A938-A8A02E890844}"
         "AspNetVersion" = "8:2.0.50727.0"
         "RestartWWWService" = "11:FALSE"
