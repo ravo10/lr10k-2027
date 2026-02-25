@@ -513,55 +513,6 @@ void CreateInputFloatElement(TabControl::TabTestDataClass* tabData, const char* 
     ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
 }
 
-void DrawLegendChip(ImVec4 color, float indent = 8.0f) {
-    //ImVec4 col = ImPlot::GetColormapColor(index);
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + indent);
-    ImVec2 p = ImGui::GetCursorScreenPos();
-    // Draw a small 12x12 rounded square
-    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + 12, p.y + 12), ImGui::ColorConvertFloat4ToU32(color), 3.0f);
-    ImGui::Dummy(ImVec2(16, 12)); // Move cursor past the chip
-    ImGui::SameLine();
-}
-
-// The Core Helper (Does the actual drawing)
-void TextWithBackground_Core(ImVec4 textColor, ImColor bcolor, const char* fmt, va_list args) {
-    char buf[1024];
-    vsnprintf(buf, sizeof(buf), fmt, args);
-
-    ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    ImVec2 pos = ImGui::GetCursorScreenPos();
-    ImVec2 textSize = ImGui::CalcTextSize(buf);
-    ImVec2 padding = ImVec2(5.0f, 3.0f);
-
-    // Calculate Box Size
-    ImVec2 rect_max = ImVec2(pos.x + textSize.x + padding.x * 2.0f, pos.y + textSize.y + padding.y * 2.0f);
-
-    // Draw White Box
-    draw_list->AddRectFilled(pos, rect_max, bcolor, 4.0f);
-
-    // Draw Text (Shifted by padding)
-    ImGui::SetCursorScreenPos(ImVec2(pos.x + padding.x, pos.y + padding.y));
-    ImGui::TextColored(textColor, "%s", buf);
-
-    // Reset Cursor for the next UI element
-    ImGui::SetCursorScreenPos(ImVec2(pos.x, rect_max.y + ImGui::GetStyle().ItemSpacing.y));
-}
-
-// Explicit Background Color
-void TextWithBackground(ImVec4 textColor, ImColor bcolor, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    TextWithBackground_Core(textColor, bcolor, fmt, args);
-    va_end(args);
-}
-// Default White Background (Omits the bcolor parameter)
-void TextWithWhiteBackground(ImVec4 textColor, const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    TextWithBackground_Core(textColor, IM_COL32(255, 255, 255, 220), fmt, args);
-    va_end(args);
-}
-
 void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalculator, ImGuiWindowFlags extern_windowFlags)
 {
     if (tabData == nullptr) return;
@@ -793,9 +744,9 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             ImGui::Text("Different calculated stress underneath");
             ImGui::PopFont();
 
-            DrawLegendChip(IMPLOT_RED);
+            Extra::tools.DrawLegendChip(IMPLOT_RED);
             ImGui::Text("Engineering Stress");
-            DrawLegendChip(IMPLOT_BLUE);
+            Extra::tools.DrawLegendChip(IMPLOT_BLUE);
             ImGui::Text("True Stress");
 
             ImGui::Spacing();
@@ -826,13 +777,13 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::SeparatorText("Engineering stress (nominal stress)");
                     str1 = "Stress, σ_nom/σ_e: %0.3f ";
                     str1.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_PropLimit[1]);
-                    TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_PropLimit[0] * 100);
+                    Extra::tools.TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_PropLimit[1]);
+                    Extra::tools.TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_PropLimit[0] * 100);
                     ImGui::SeparatorText("True stress");
                     str3 = "Stress, σ_t: %0.3f ";
                     str3.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrain_PropLimit[1]);
-                    TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_PropLimit[0] * 100);
+                    Extra::tools.TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrain_PropLimit[1]);
+                    Extra::tools.TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_PropLimit[0] * 100);
 
                     ImGui::PopFont();
                     ImGui::EndTabItem();
@@ -846,11 +797,11 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::PopFont();
 
                     ImGui::SeparatorText("Engineering stress (nominal stress)");
-                    TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_yield[1]);
-                    TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_yield[0] * 100);
+                    Extra::tools.TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_yield[1]);
+                    Extra::tools.TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_yield[0] * 100);
                     ImGui::SeparatorText("True stress");
-                    TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrain_yield[1]);
-                    TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_yield[0] * 100);
+                    Extra::tools.TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrain_yield[1]);
+                    Extra::tools.TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_yield[0] * 100);
 
                     ImGui::PopFont();
                     ImGui::EndTabItem();
@@ -864,11 +815,11 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::PopFont();
 
                     ImGui::SeparatorText("Engineering stress (nominal stress)");
-                    TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrainUTS[1]);
-                    TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrainUTS[0] * 100);
+                    Extra::tools.TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrainUTS[1]);
+                    Extra::tools.TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrainUTS[0] * 100);
                     ImGui::SeparatorText("True stress");
-                    TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrainUTS[1]);
-                    TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrainUTS[0] * 100);
+                    Extra::tools.TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrainUTS[1]);
+                    Extra::tools.TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrainUTS[0] * 100);
 
                     ImGui::PopFont();
                     ImGui::EndTabItem();
@@ -882,11 +833,11 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::PopFont();
 
                     ImGui::SeparatorText("Engineering stress (nominal stress)");
-                    TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_fracture[1]);
-                    TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_fracture[0] * 100);
+                    Extra::tools.TextWithWhiteBackground(colorText_nom, str1.c_str(), tabData->calcPoint_NominalStressStrain_fracture[1]);
+                    Extra::tools.TextWithWhiteBackground(colorText_nom, "Strain, ε_nom/ε_e %%: %0.2f %%", tabData->calcPoint_NominalStressStrain_fracture[0] * 100);
                     ImGui::SeparatorText("True stress");
-                    TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrain_fracture[1]);
-                    TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_fracture[0] * 100);
+                    Extra::tools.TextWithWhiteBackground(colorText_true, str3.c_str(), tabData->calcPoint_TrueStressStrain_fracture[1]);
+                    Extra::tools.TextWithWhiteBackground(colorText_true, "Strain, ε_t %%: %0.2f %%", tabData->calcPoint_TrueStressStrain_fracture[0] * 100);
 
                     ImGui::PopFont();
                     ImGui::EndTabItem();
@@ -905,7 +856,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     ImGui::SeparatorText("UTS Bending");
                     str = "Ultimate Tensile Strength: %0.2f ";
                     str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    TextWithWhiteBackground(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
+                    Extra::tools.TextWithWhiteBackground(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
 
                     ImGui::PopFont();
                     ImGui::EndTabItem();
@@ -1156,7 +1107,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                         str2.append("GPa");
                     else
                         str2.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
-                    TextWithBackground(colorText2, IM_COL32(52, 52, 52, 250), str2.c_str(), (double)tabData->calcYoungsModulus);
+                    Extra::tools.TextWithBackground(colorText2, IM_COL32(52, 52, 52, 250), str2.c_str(), (double)tabData->calcYoungsModulus);
                     ImGui::Spacing();
 
                     ImGui::PopFont();
@@ -2104,10 +2055,11 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["gui_showExtensiometer"]  = g_WindowStates.show_extensiometer;
         settings["enableSound"]         = mainGUIGlobals::enableSound;
 
-		settings["ext_regionOfInterest"]	= g_Extensiometer.restrictive_area;
-		settings["ext_targetColor"]			= LR10KAppGlobals::opticalSourceExtensiometerTargetColor;
-		settings["ext_cameraActive"]		= g_Extensiometer.is_active;
-		settings["ext_useOpticalExt"]		= LR10KAppGlobals::opticalSourceAsExtensiometer;
+		settings["ext_regionOfInterest"]	    = g_Extensiometer.restrictive_area;
+		settings["ext_CAP_PROP_AUTO_EXPOSURE"]	= g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE;
+		settings["ext_targetColor"]			    = LR10KAppGlobals::opticalSourceExtensiometerTargetColor;
+		settings["ext_cameraActive"]		    = g_Extensiometer.is_active;
+		settings["ext_useOpticalExt"]		    = LR10KAppGlobals::opticalSourceAsExtensiometer;
 
         settings["fullScreen"]          = mainGUIGlobals::fullScreen;
         settings["enableDPIAwareness"]  = mainGUIGlobals::enableDPIAwareness;
@@ -2176,6 +2128,7 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["enableSound"]				= true;
 
 		settings["ext_regionOfInterest"]	= 0.2f;
+		settings["ext_CAP_PROP_AUTO_EXPOSURE"]	= 0.4f;
         settings["ext_targetColor"]			= { 0.286442f, 0.598039f, 0.228662f }; // Green color
 		settings["ext_cameraActive"]		= false;
 		settings["ext_useOpticalExt"]		= false;
@@ -2258,6 +2211,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     std::string_view gui_showExtensiometer                      = "gui_showExtensiometer";
     std::string_view enableSound                                = "enableSound";
     std::string_view ext_regionOfInterest						= "ext_regionOfInterest";
+    std::string_view ext_CAP_PROP_AUTO_EXPOSURE                 = "ext_CAP_PROP_AUTO_EXPOSURE";
 	std::string_view ext_targetColor							= "ext_targetColor";
 	std::string_view ext_cameraActive							= "ext_cameraActive";
 	std::string_view ext_useOpticalExt							= "ext_useOpticalExt";
@@ -2304,6 +2258,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
     if (!settings.contains(std::string{ gui_showExtensiometer                   })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ enableSound                             })) thereIsAnUnvalidKey = true;
     if (!settings.contains(std::string{ ext_regionOfInterest					})) thereIsAnUnvalidKey = true;
+    if (!settings.contains(std::string{ ext_CAP_PROP_AUTO_EXPOSURE              })) thereIsAnUnvalidKey = true;
 	if (!settings.contains(std::string{ ext_targetColor							})) thereIsAnUnvalidKey = true;
 	if (!settings.contains(std::string{ ext_cameraActive						})) thereIsAnUnvalidKey = true;
 	if (!settings.contains(std::string{ ext_useOpticalExt						})) thereIsAnUnvalidKey = true;
@@ -2380,6 +2335,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
         mainGUIGlobals::enableSound         = settings["enableSound"];
 
 		g_Extensiometer.restrictive_area							= settings["ext_regionOfInterest"];
+		g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE             = settings["ext_CAP_PROP_AUTO_EXPOSURE"];
 		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[0]	= settings["ext_targetColor"][0];
 		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[1]	= settings["ext_targetColor"][1];
 		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2]	= settings["ext_targetColor"][2];
@@ -3037,11 +2993,12 @@ void AppMainTabSystem::CreateTabMenuSystem(TabControl::TabTestDataClass* tabData
                 }
 
                 // Draw textual info
-                ImGui::Text("This is tensile test: %04d. You can save the data within the \"Graph\" panel as a .XLSX file, and as a loadable file in the menu.", tabTestId);
+                ImGui::Text("This is %s test: %04d. You can save the data within the \"Graph\" panel as a .XLSX file, and as a loadable file in the menu.", loopedTabData->tension ? "tensile" : "compression", tabTestId);
                 ImGui::Separator();
 
                 if (loopedTabData->test_finished)
                 {
+                    Extra::tools.TextWithWhiteBackground(ImVec4(0.894f, 0.102f, 0.110f, 1.0f), "Finished!");
                     ImGui::Text("This test is finished. It was completed: %s", loopedTabData->date.c_str());
                     if (!loopedTabData->loadedFromFileName.empty())
                         ImGui::Text("(Represents same data as in file: %s).", loopedTabData->loadedFromFileName.c_str());

@@ -35,7 +35,7 @@ if (appDataFolderPath.first)
 }*/
 // And insert: #include "..\init.h" in "imgui.h".
 // 
-static const char* LR10KAppVersion = "1.1.0 [20.02.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
+static const char* LR10KAppVersion = "1.1.1 [25.02.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
 
 
 // ###############################################--------------------------------------------------------------------------------------------------------------
@@ -183,6 +183,76 @@ struct Extra_Tools {
         // Execute the shell command
         std::system(command.c_str());
     }
+
+    /**
+        @brief Draw a legend chip
+        @param color -
+        @param indent -
+    **/
+    void DrawLegendChip(ImVec4 color, float indent = 8.0f) {
+        //ImVec4 col = ImPlot::GetColormapColor(index);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + indent);
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        // Draw a small 12x12 rounded square
+        ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + 12, p.y + 12), ImGui::ColorConvertFloat4ToU32(color), 3.0f);
+        ImGui::Dummy(ImVec2(16, 12)); // Move cursor past the chip
+        ImGui::SameLine();
+    }
+
+    /**
+        @brief The Core Helper (Does the actual drawing)
+        @param textColor -
+        @param bcolor -
+        @param fmt -
+        @param args -
+    **/
+    void TextWithBackground_Core(ImVec4 textColor, ImColor bcolor, const char* fmt, va_list args) {
+        char buf[1024];
+        vsnprintf(buf, sizeof(buf), fmt, args);
+
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImVec2 pos = ImGui::GetCursorScreenPos();
+        ImVec2 textSize = ImGui::CalcTextSize(buf);
+        ImVec2 padding = ImVec2(5.0f, 3.0f);
+
+        // Calculate Box Size
+        ImVec2 rect_max = ImVec2(pos.x + textSize.x + padding.x * 2.0f, pos.y + textSize.y + padding.y * 2.0f);
+
+        // Draw White Box
+        draw_list->AddRectFilled(pos, rect_max, bcolor, 4.0f);
+
+        // Draw Text (Shifted by padding)
+        ImGui::SetCursorScreenPos(ImVec2(pos.x + padding.x, pos.y + padding.y));
+        ImGui::TextColored(textColor, "%s", buf);
+
+        // Reset Cursor for the next UI element
+        ImGui::SetCursorScreenPos(ImVec2(pos.x, rect_max.y + ImGui::GetStyle().ItemSpacing.y));
+    }
+
+    /**
+        @brief Explicit Background Color
+        @param textColor -
+        @param bcolor -
+        @param fmt -
+    **/
+    void TextWithBackground(ImVec4 textColor, ImColor bcolor, const char* fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        TextWithBackground_Core(textColor, bcolor, fmt, args);
+        va_end(args);
+    }
+    
+    /**
+        @brief Default White Background (Omits the bcolor parameter)
+        @param textColor -
+        @param fmt -
+    **/
+    void TextWithWhiteBackground(ImVec4 textColor, const char* fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        TextWithBackground_Core(textColor, IM_COL32(255, 255, 255, 220), fmt, args);
+        va_end(args);
+    }
 };
 
 // -----------------------------------------------------------------------------
@@ -276,7 +346,7 @@ struct AppExtensiometer
     bool show_cvsettings = true;
     bool is_active = true; //!< Controls the camera ON/OFF state
 
-    int camera_index = 0;      //!< Current selected camera
+    int camera_index = 1;      //!< Current selected camera (starts at 0; 1 is external)
     bool request_cam_switch = false; //!< Flag to tell the thread to restart
     bool is_connected = false; //!< If a camera is connected
 
@@ -301,6 +371,7 @@ struct AppExtensiometer
         int h_min = 25; int h_max = 85;
         int s_min = 60; int s_max = 255;
         int v_min = 50; int v_max = 255;
+        float CAP_PROP_AUTO_EXPOSURE = 0.4f;
     } settings;
 
     //! \note Instance of results

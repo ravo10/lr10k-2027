@@ -1367,8 +1367,12 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
     // =========================================================
     // 1. SETUP CAMERA & OPTIMIZATIONS
     // =========================================================
-    cv::VideoCapture cap(1); // Try external first
-    if (!cap.isOpened()) cap.open(0); // Fallback to internal
+    cv::VideoCapture cap(g_Extensiometer.camera_index, cv::CAP_DSHOW); // Try external first cv::CAP_DSHOW is the "leagacy" doesn't support AI
+    if (!cap.isOpened())
+    {
+        g_Extensiometer.camera_index = 0;
+        cap.open(g_Extensiometer.camera_index, cv::CAP_DSHOW); // Fallback to internal
+    }
 
     if (cap.isOpened()) {
         // Optimization: Cap resolution to 800x600 to save CPU (Camera driver picks closest match)
@@ -1376,7 +1380,10 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
         cap.set(cv::CAP_PROP_FRAME_HEIGHT, 600);
 
         cap.set(cv::CAP_PROP_AUTOFOCUS, 0);
-        cap.set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25);
+        //cap.set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25); // 0.25 for not cv::CAP_DSHOW
+        cap.set(cv::CAP_PROP_AUTO_EXPOSURE, (double)g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE); // Turn off Auto
+        //cap.set(cv::CAP_PROP_EXPOSURE, -2);    // Adjust this number until it looks right
+        //cap.set(cv::CAP_PROP_GAIN, 100);
     }
 
     // Local variables for processing
@@ -1395,9 +1402,11 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
         if (g_Extensiometer.request_cam_switch)
         {
             cap.release();
-            std::this_thread::sleep_for(std::chrono::milliseconds(200)); // Brief pause for hardware
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Brief pause for hardware
 
-            cap.open(g_Extensiometer.camera_index);
+            cap.open(g_Extensiometer.camera_index, cv::CAP_DSHOW);
+            cap.set(cv::CAP_PROP_AUTO_EXPOSURE, (double)g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE);
+
             g_Extensiometer.request_cam_switch = false;
             g_Extensiometer.initialized = false; // Reset the gauge length for the new view
         }
@@ -1538,7 +1547,7 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
             cv::Point2f p1 = centers[0];
             cv::Point2f p2 = centers[1];
 
-            double currentRawDist = cv::norm(p1 - p2);
+            /*double currentRawDist = cv::norm(p1 - p2);
 
             if (!g_Extensiometer.initialized || g_Extensiometer.reset_requested) {
                 g_Extensiometer.initial_dist_px = currentRawDist;
@@ -1548,6 +1557,31 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
             }
             else {
                 g_Extensiometer.smooth_dist_px = (EMA_ALPHA * currentRawDist) + ((1.0 - EMA_ALPHA) * g_Extensiometer.smooth_dist_px);
+            }*/
+
+            // 1. Calculate Raw Distance
+            double currentRawDist = cv::norm(p1 - p2);
+
+            // 2. Initialize if first frame
+            if (!g_Extensiometer.initialized || g_Extensiometer.reset_requested) {
+                g_Extensiometer.initial_dist_px = currentRawDist;
+                g_Extensiometer.smooth_dist_px = currentRawDist;
+                g_Extensiometer.initialized = true;
+                g_Extensiometer.reset_requested = false;
+            }
+            else {
+                // --- NEW JITTER PREVENTION LOGIC ---
+
+                // A. The Deadband (Ignore micro-pixel noise when standing still)
+                double pixel_delta = std::abs(currentRawDist - g_Extensiometer.smooth_dist_px);
+
+                if (pixel_delta > 0.15) // If it moved less than 0.15 pixels, ignore it!
+                {
+                    // B. Heavier Smoothing (Decreased Alpha from 0.1 to 0.03)
+                    // This smooths the 30Hz camera steps into a nice continuous line for the 100Hz plot
+                    const double EMA_ALPHA = 0.03;
+                    g_Extensiometer.smooth_dist_px = (EMA_ALPHA * currentRawDist) + ((1.0 - EMA_ALPHA) * g_Extensiometer.smooth_dist_px);
+                }
             }
 
             const double PHYSICAL_L0_MM = LR10KAppGlobals::calc_length;
@@ -1618,6 +1652,35 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
     cap.release();
 }
 
+void SetExtensiometerTargetColor(float* color, bool reset = false)
+{
+    if (reset)
+    {
+        // Reset to the prototype defaults (Neon Green)
+        g_Extensiometer.settings.h_min = 25;
+        g_Extensiometer.settings.h_max = 85;
+        g_Extensiometer.settings.s_min = 60;
+        g_Extensiometer.settings.s_max = 255;
+        g_Extensiometer.settings.v_min = 50;
+        g_Extensiometer.settings.v_max = 255;
+    }
+
+    // Need to set it, since the color variable is static
+    float h_avg = (g_Extensiometer.settings.h_min + g_Extensiometer.settings.h_max) / 2.0f;
+    float s_avg = (g_Extensiometer.settings.s_min + g_Extensiometer.settings.s_max) / 2.0f;
+    float v_avg = (g_Extensiometer.settings.v_min + g_Extensiometer.settings.v_max) / 2.0f;
+
+    float r, g, b;
+    ImGui::ColorConvertHSVtoRGB(h_avg / 179.0f, s_avg / 255.0f, v_avg / 255.0f, r, g, b);
+    color[0] = r; color[1] = g; color[2] = b;
+
+    // Save settings immediately
+    LR10KAppGlobals::opticalSourceExtensiometerTargetColor[0] = color[0];
+    LR10KAppGlobals::opticalSourceExtensiometerTargetColor[1] = color[1];
+    LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2] = color[2];
+    DockingApps::mainFileSystem.SaveApplicationSettings();
+}
+
 void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open)
 {
     if (tabData == nullptr) return;
@@ -1626,6 +1689,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
     // 1. THREAD MANAGEMENT (Background Logic)
     //    Controlled by 'is_active', NOT window visibility
     // =========================================================
+    cv::VideoCapture cap;
     if (g_Extensiometer.is_active)
     {
         // Start Thread if not running
@@ -1733,6 +1797,10 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             ImGui::Checkbox("Use Optical Ext.", &LR10KAppGlobals::opticalSourceAsExtensiometer);
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Use the optical extensiometer to track extension from sample.");
             ImGui::EndDisabled();
+
+            ImGui::SameLine(0.0f, 20.0f);
+            if (ImGui::Button("Hide this window"))
+                g_WindowStates.show_extensiometer = false;
 
             ImGui::SameLine(0.0f, 40.0f);
 
@@ -1951,6 +2019,8 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                         if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
                             ImGui::Text("Gauge Length (L0) (ε_n, σ_t, ε_t):");
+                            Extra::tools.TextWithWhiteBackground(ImVec4(0.894f, 0.102f, 0.110f, 1.0f), "Needs to be as acurate as possible, for good measurement!");
+                            ImGui::Text("(...Move e.g. 5mm with a test piece, and adjust\naccordingly to calibrate)");
                             ImGui::InputFloat("##Gauge length 2", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
                             ImGui::Text("(More material properties in the calculator view.)");
                             ImGui::Spacing();
@@ -2008,16 +2078,24 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         ImGui::SeparatorText("Region of Interest");
 
                         // Slider from 0% to 47% (cutting 50% would leave 0 pixels)
-                        float prev_restrictive_area = g_Extensiometer.restrictive_area;
-
-                        ImGui::SliderFloat("##Restrict sides", &g_Extensiometer.restrictive_area, 0.0f, 0.47f, "%.2f");
+                        if (ImGui::SliderFloat("##Restrict sides", &g_Extensiometer.restrictive_area, 0.0f, 0.47f, "%.2f"))
+                        {
+                            DockingApps::mainFileSystem.SaveApplicationSettings();
+                        }
                         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Percentage of image width to ignore from left and right sides.");
                         ImGui::Text("Restrict sides");
 
-                        // Save settings
-                        if (prev_restrictive_area != g_Extensiometer.restrictive_area) DockingApps::mainFileSystem.SaveApplicationSettings();
-
                         ImGui::Spacing();
+                        ImGui::SeparatorText("Camera Properties");
+                        ImGui::PushItemWidth(150.0f);
+                        if (ImGui::SliderFloat("Auto Exposure", &g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE, 0.0f, 1.70f, "%.2f"))
+                        {
+                            g_Extensiometer.request_cam_switch = true;
+                            DockingApps::mainFileSystem.SaveApplicationSettings();
+                        }
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Too high of a value, could reset the exposure.");
+                        ImGui::PopItemWidth();
+
                         ImGui::SeparatorText("Color Segmentation (HSV)");
 
                         // =========================================================
@@ -2108,27 +2186,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         ImGui::SameLine();
                         if (ImGui::Button("Default"))
                         {
-                            // Reset to the prototype defaults (Neon Green)
-                            g_Extensiometer.settings.h_min = 25;
-                            g_Extensiometer.settings.h_max = 85;
-                            g_Extensiometer.settings.s_min = 60;
-                            g_Extensiometer.settings.s_max = 255;
-                            g_Extensiometer.settings.v_min = 50;
-                            g_Extensiometer.settings.v_max = 255;
-
-                            // Need to set it, since the color variable is static
-                            h_avg = (g_Extensiometer.settings.h_min + g_Extensiometer.settings.h_max) / 2.0f;
-                            s_avg = (g_Extensiometer.settings.s_min + g_Extensiometer.settings.s_max) / 2.0f;
-                            v_avg = (g_Extensiometer.settings.v_min + g_Extensiometer.settings.v_max) / 2.0f;
-
-                            ImGui::ColorConvertHSVtoRGB(h_avg / 179.0f, s_avg / 255.0f, v_avg / 255.0f, r, g, b);
-                            color[0] = r; color[1] = g; color[2] = b;
-
-                            // Save settings immediately
-                            LR10KAppGlobals::opticalSourceExtensiometerTargetColor[0] = color[0];
-                            LR10KAppGlobals::opticalSourceExtensiometerTargetColor[1] = color[1];
-                            LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2] = color[2];
-                            DockingApps::mainFileSystem.SaveApplicationSettings();
+                            SetExtensiometerTargetColor(color, true);
                         }
                         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Reset to default Green markers.");
                         // ---------------------------
@@ -2146,6 +2204,8 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         ImGui::SliderInt("Val Max", &g_Extensiometer.settings.v_max, 0, 255);
 
                         ImGui::Spacing();
+
+                        SetExtensiometerTargetColor(color);
                     }
                     ImGui::PopFont();
                     ImGui::EndChild();
@@ -3698,6 +3758,8 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
             // Dimensions look good!
             DockingApps::console.ExecCommand(tabData, "start");
         }
+
+        g_WindowStates.show_extensiometer = false;
     }
 
     // Dimensions Warning Popup
