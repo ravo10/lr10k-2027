@@ -4508,6 +4508,10 @@ bool LR10KControlSystem::EndTest(TabControl::TabTestDataClass* tabData)
         // Disable force on the the current tab
         TabControl::forcedTabIndexId = -1;
 
+        // Clear recording
+        g_Extensiometer.video_save_path = "";
+        g_Extensiometer.record_test = false;
+
         PlaySoundEffect("EndTest");
 
         const char* dt = getCurrentTimeString();

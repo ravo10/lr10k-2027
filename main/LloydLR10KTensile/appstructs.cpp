@@ -1436,11 +1436,19 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
             // Open RAW file with fast MJPG codec
             if (!g_Extensiometer.video_writer_raw.isOpened() && !g_Extensiometer.video_save_path_raw.empty())
             {
-                int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G'); // Much faster than XVID!
+                // Use H.264 Codec
+                int fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v'); // Much faster than XVID!
                 double fps = cap.get(cv::CAP_PROP_FPS);
-                if (fps < 1 || fps > 120) fps = 30.0;
+                if (fps < 1 || fps > 60) fps = 30.0;
+                //double fps = 30.0;
 
                 g_Extensiometer.video_writer_raw.open(g_Extensiometer.video_save_path_raw, fourcc, fps, frame.size(), true);
+
+                if (!g_Extensiometer.video_writer_raw.isOpened()) {
+                    // If you hit this, your Windows PC is missing the H.264 encoder backend.
+                    // Let's print an error to the console so we know!
+                    DockingApps::console.AddLog("[error] VideoWriter failed to open. Check codec and file extension!");
+                }
 
                 g_Extensiometer.recording_frame_count = 0;
                 g_Extensiometer.recording_start_time = ImGui::GetTime();
@@ -1612,14 +1620,22 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
         {
             if (!g_Extensiometer.video_writer_overlay.isOpened() && !g_Extensiometer.video_save_path.empty())
             {
-                int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
+                // H.264 Codec
+                int fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
                 double fps = cap.get(cv::CAP_PROP_FPS);
-                if (fps < 1 || fps > 120) fps = 30.0;
+                if (fps < 1 || fps > 60) fps = 30.0;
+                //double fps = 30.0;
                 g_Extensiometer.video_writer_overlay.open(g_Extensiometer.video_save_path, fourcc, fps, frame_display.size(), true);
             }
 
             if (g_Extensiometer.video_writer_overlay.isOpened()) {
                 g_Extensiometer.video_writer_overlay.write(frame_display);
+            }
+            else
+            {
+                // If you hit this, your Windows PC is missing the H.264 encoder backend.
+                // Let's print an error to the console so we know!
+                DockingApps::console.AddLog("[error] VideoWriter failed to open. Check codec and file extension!");
             }
         }
 
