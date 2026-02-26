@@ -219,21 +219,13 @@
     <Image Include="images\USN-symbol_lilla.png">
       <Filter>images</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <CopyFileToFolders Include="fonts\Inter_18pt-Regular.ttf">
-      <Filter>fonts</Filter>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="fonts\JetBrainsMono-Medium.ttf">
-      <Filter>fonts</Filter>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="icons\USN-symbol_lilla.ico">
-      <Filter>icons</Filter>
-    </CopyFileToFolders>
+    <Image Include="icons\USN-symbol_lilla.ico" />
   </ItemGroup>
   <ItemGroup>
     <Font Include="fonts\Inter_18pt-Medium.ttf">
       <Filter>fonts</Filter>
     </Font>
+    <Font Include="fonts\Inter_18pt-Regular.ttf" />
+    <Font Include="fonts\JetBrainsMono-Medium.ttf" />
   </ItemGroup>
 </Project>

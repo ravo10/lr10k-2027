@@ -412,6 +412,13 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
     // -----------------------------
     // SMOOTH OUT GRAPH LATER
     // -----------------------------
+    // Smoothed data
+    std::string_view windowIndex = "LR10KTensileData_SmoothedDataWindowIndex";
+    if (tabDataJson.contains(std::string{ windowIndex }))
+        tabData->LR10KTensileData.SmoothedDataWindowIndex = tabDataJson["LR10KTensileData_SmoothedDataWindowIndex"];
+    else
+        tabData->LR10KTensileData.SmoothedDataWindowIndex = 5;
+
     // 1. Pass by reference to the smoother
     // 2. The smoother returns a NEW vector (the copy) which is now 'clean'
     ImVector<ImVec2> clean_data = SmoothTensileData(tabData->LR10KTensileData.Data, tabData->LR10KTensileData.SmoothedDataWindowIndex);
@@ -423,13 +430,6 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
 		tabData->LR10KTensileData.SamplingRate = tabDataJson["LR10KTensileData_SamplingRate"];
 	else
 		tabData->LR10KTensileData.SamplingRate = 0.0;
-
-    // Smoothed data
-    std::string_view windowIndex = "LR10KTensileData_SmoothedDataWindowIndex";
-    if (tabDataJson.contains(std::string{ windowIndex }))
-        tabData->LR10KTensileData.SmoothedDataWindowIndex = tabDataJson["LR10KTensileData_SmoothedDataWindowIndex"];
-    else
-        tabData->LR10KTensileData.SmoothedDataWindowIndex = 5;
     
     // Crucial points
     for (int i = 0; i < tabDataJson["plot_dataPoints"].size(); i++)
@@ -3731,14 +3731,36 @@ void AppMainWidgets::DescriptionWindowDraw(TabControl::TabTestDataClass* tabData
     ImGui::Spacing();
     ImGui::Text("You can use Ctrl+Enter for newlines;\nmax 5 newlines.");
 
-    // Save it globally before saving it to a tab, so it can be manipulated outside function
-    static ImGuiInputTextFlags flags = ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_CtrlEnterForNewLine | ImGuiInputTextFlags_NoUndoRedo;
-    ImGui::InputTextMultiline("##description", TabControl::tempDescription, IM_ARRAYSIZE(TabControl::tempDescription), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 7), flags);
+    // 1. SYNC FROM TAB TO UI (File Load & Tab Switch Fix)
+    // Grab the unique ID of the input box we are about to draw
+    ImGuiID descID = ImGui::GetID("##description");
 
-    // Insert into tabData - but limit it to 87*5 chars (should be prevented above automatically)
-    std::string tempStr(TabControl::tempDescription);
-    if (tempStr.length() < (static_cast<unsigned long long>(87) * 5))
-        tabData->description = TabControl::tempDescription;
+    // If the user is NOT actively clicked into/typing in this specific box, 
+    // it is safe to load the saved description from the tab into the UI buffer!
+    if (ImGui::GetActiveID() != descID)
+    {
+        // Copy the tab's description into the global buffer safely
+        snprintf(TabControl::tempDescription, IM_ARRAYSIZE(TabControl::tempDescription), "%s", tabData->description.c_str());
+    }
+
+    // 2. DRAW THE WIDGET
+    static ImGuiInputTextFlags flags = ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_CtrlEnterForNewLine | ImGuiInputTextFlags_NoUndoRedo;
+
+    // InputTextMultiline returns 'true' on the exact frames that the user modifies the text
+    bool textChanged = ImGui::InputTextMultiline("##description", TabControl::tempDescription, IM_ARRAYSIZE(TabControl::tempDescription), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 7), flags);
+
+    // 3. SYNC FROM UI TO TAB
+    if (textChanged)
+    {
+        // Insert into tabData - but limit it to 87*5 chars
+        std::string tempStr(TabControl::tempDescription);
+        if (tempStr.length() < (static_cast<unsigned long long>(87) * 5))
+        {
+            tabData->description = tempStr;
+
+            tabData->MarkTabAsUnsaved();
+        }
+    }
 }
 
 void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass* tabData)
@@ -4109,6 +4131,15 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     if (ImGui::Button("Completing a test", { 200, 35 }))
         Extra::tools.PlayVideo("videos\\lr10k_completeatest.mp4");
     ImGui::SetItemTooltip("This will tell what the user needs to think about before clicking \"Start Test\".\nIt will also show how to handle test data when a test is finished to get a complete test.");
+    ImGui::PopStyleColor(3);
+    ImGui::SameLine();
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(IM_COL32(185, 18, 248, 204)));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(IM_COL32(185, 18, 248, 230)));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(IM_COL32(185, 18, 248, 217)));
+    if (ImGui::Button("Using an extensiometer", { 200, 35 }))
+        Extra::tools.PlayVideo("videos\\lr10k_usinganextensiometer.mp4");
+    ImGui::SetItemTooltip("This will walk a user through how to complete a test with the optical extensiometer.");
     ImGui::PopStyleColor(3);
 
     ImGui::Spacing();

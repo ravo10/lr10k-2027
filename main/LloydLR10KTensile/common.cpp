@@ -1638,6 +1638,11 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
     format_set_bold(fmt_bold_right);
     format_set_align(fmt_bold_right, LXW_ALIGN_RIGHT);
 
+    lxw_format* fmt_upper_right = workbook_add_format(workbook);
+    format_set_align(fmt_upper_right, LXW_ALIGN_VERTICAL_TOP);
+    format_set_border(fmt_upper_right, LXW_BORDER_MEDIUM);
+    format_set_italic(fmt_upper_right);
+
     lxw_format* fmt_decimal3 = workbook_add_format(workbook);
     format_set_num_format(fmt_decimal3, "0.000");
 
@@ -1654,8 +1659,8 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
         worksheet_set_column(ws_report, 3, 3, 32, NULL);
         worksheet_set_column(ws_report, 4, 5, 13, NULL);
 
-        worksheet_write_string(ws_report, 0, 0, "MATERIAL TESTING REPORT", fmt_header);
-        worksheet_merge_range(ws_report, 0, 0, 0, 5, "MATERIAL TESTING REPORT", fmt_header);
+        worksheet_write_string(ws_report, CELL("A1"), "MATERIAL TESTING REPORT", fmt_header);
+        worksheet_merge_range(ws_report, CELL("A1"), CELL("F1"), "MATERIAL TESTING REPORT", fmt_header);
         worksheet_write_string(ws_report, 1, 0, std::string("Test date: " + tabData.date).c_str(), fmt_bold_left);
 
         // Properties
@@ -1754,6 +1759,15 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
         worksheet_write_string(ws_report, CELL("D15"), label.c_str(), NULL);
         worksheet_write_number(ws_report, CELL("E15"), tabData.calcPoint_NominalStressStrain_fracture[strain]*100, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("F15"), unit_strain.c_str(), fmt_bold_left);
+
+        // ------------
+        // Description
+        // ------------
+        worksheet_write_string(ws_report, CELL("A17"), "Description", fmt_bold_left);
+        worksheet_merge_range(ws_report, CELL("A17"), CELL("C17"), "Description", fmt_bold_left);
+
+        worksheet_write_string(ws_report, CELL("A18"), tabData.description.c_str(), fmt_upper_right);
+        worksheet_merge_range(ws_report, CELL("A18"), CELL("C23"), tabData.description.c_str(), fmt_upper_right);
     }
 
     // ---------------------------------------------------------
@@ -1761,8 +1775,8 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
     // ---------------------------------------------------------
     lxw_worksheet* ws_setup = workbook_add_worksheet(workbook, "Setup");
     worksheet_set_column(ws_setup, 0, 3, 27, NULL); //27px
-    worksheet_write_string(ws_setup, 0, 0, "LR 10K SETTINGS", fmt_header);
-    worksheet_merge_range(ws_setup, 0, 0, 0, 2, "LR 10K SETTINGS", fmt_header);
+    worksheet_write_string(ws_setup, CELL("A1"), "LR 10K SETTINGS", fmt_header);
+    worksheet_merge_range(ws_setup, CELL("A1"), CELL("C1"), "LR 10K SETTINGS", fmt_header);
 
     // (Write your setup values here as before)
     label = "Crosshead speed (" + unit_speed + ")";

@@ -121,7 +121,8 @@
       <Command>xcopy /y /d /i "$(ProjectDir)fonts" "$(OutDir)fonts"
 xcopy /y /d /i "$(ProjectDir)images" "$(OutDir)images"
 xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
-xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"</Command>
+xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"
+xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -170,7 +171,8 @@ xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"</Command>
       <Command>xcopy /y /d /i "$(ProjectDir)fonts" "$(OutDir)fonts"
 xcopy /y /d /i "$(ProjectDir)images" "$(OutDir)images"
 xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
-xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"</Command>
+xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"
+xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -35,7 +35,7 @@ if (appDataFolderPath.first)
 }*/
 // And insert: #include "..\init.h" in "imgui.h".
 // 
-static const char* LR10KAppVersion = "1.1.1 [25.02.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
+static const char* LR10KAppVersion = "1.1.2 [26.02.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
 
 
 // ###############################################--------------------------------------------------------------------------------------------------------------
@@ -177,10 +177,18 @@ struct Extra_Tools {
         @param filename -
     **/
     void PlayVideo(const char* filename) {
-        // Construct a shell command to open the video file using the default player
-        std::string command = "start " + std::string(filename);
+        // 1. Convert the relative path into a full, absolute path
+        // If your app is running from "C:\MyLabApp\", this automatically 
+        // turns "videos\file.mp4" into "C:\MyLabApp\videos\file.mp4"
+        std::filesystem::path relativePath(filename);
+        std::filesystem::path absolutePath = std::filesystem::absolute(relativePath);
 
-        // Execute the shell command
+        // 2. Construct the shell command.
+        // We still use start "" "path" to ensure it works even if the 
+        // user put your whole app folder inside a folder with spaces (e.g. "C:\New Folder\")
+        std::string command = "start \"\" \"" + absolutePath.string() + "\"";
+
+        // 3. Execute the shell command
         std::system(command.c_str());
     }
 
