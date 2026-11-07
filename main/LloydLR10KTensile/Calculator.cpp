@@ -207,10 +207,20 @@ void AppCalculator::AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabDa
     // -------------------------------------------------------------------------
 
     const double currentLoadErrorGUI    = (double)LR10KAppGlobals::testing_speedAndPlotActual[2];
-    const double oldLoadErrorValue      = (double)tabData->oldLoadErrorValue;
+    const double oldLoadErrorValue      = (double)tabData->oldLoadErrorValue; // The load error the data is corrected for now
 
-    const double loadErrorDifference    = (double)(currentLoadErrorGUI - oldLoadErrorValue);
-    const double loadScalar             = loadErrorDifference >= 0 ? (1 + std::abs(loadErrorDifference) / 100) : (1 - std::abs(loadErrorDifference) / 100);
+    if (currentLoadErrorGUI == oldLoadErrorValue)
+        return; // Nothing to change
+
+    // Undo the old correction and apply the new one: (1 + new/100) / (1 + old/100).
+    // (The old "1 + (new - old)/100" drifted with every adjustment.) Tested in tests/material_calc_test.cpp.
+    const double loadScalar = MaterialCalc::LoadErrorRescaleFactor(oldLoadErrorValue, currentLoadErrorGUI);
+    if (loadScalar <= 0.0)
+    {
+        // -100 % or less would multiply every load by 0 (or flip the sign): impossible to undo
+        DockingApps::console.AddLog("[error] A load error of %.1f %% is not possible; the test data was not changed.", currentLoadErrorGUI);
+        return;
+    }
 
     // "Normal" plot data
     for (int i = 0; i < tabData->LR10KTensileData.Data.size(); i++)
@@ -232,6 +242,13 @@ void AppCalculator::AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabDa
 
     // Save new load error
     tabData->oldLoadErrorValue = currentLoadErrorGUI;
+    tabData->settings_speedAndPlot[2] = (float)currentLoadErrorGUI;
+
+    DockingApps::console.AddLog("Updated the finished test from %.1f %% to %.1f %% load error (loads x %.5f).", oldLoadErrorValue, currentLoadErrorGUI, loadScalar);
+
+    // Stress points and E-modulus depend on the loads, and the tab has to be saved again
+    tabData->NeedsRecalculation.markAsUnsaved = true;
+    tabData->NeedsRecalculation.recalculate = true;
 }
 
 void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData, bool playSound)

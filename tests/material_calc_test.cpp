@@ -132,6 +132,35 @@ static void test_fit_degenerate_cases()
     NEAR(FitLine(x3, y3, 0.0, 1.0).slope, 1000.0);    // NaN points are skipped
 }
 
+static void test_load_error_correction()
+{
+    // Live correction: +5 % load error -> measured loads x 1.05; -3 % -> x 0.97
+    NEAR(LoadErrorFactor(5.0), 1.05);
+    NEAR(LoadErrorFactor(-3.0), 0.97);
+    NEAR(LoadErrorFactor(0.0), 1.0);
+    NEAR(LoadErrorFactor(-100.0), 0.0); // rejected (would zero all loads)
+
+    // Re-adjusting a finished test 0 -> 5 -> 10 -> 0 % must end exactly at the original load
+    double load = 1000.0;
+    load *= LoadErrorRescaleFactor(0.0, 5.0);   // 1050
+    NEAR(load, 1050.0);
+    load *= LoadErrorRescaleFactor(5.0, 10.0);  // 1100 (the old formula gave 1102.5)
+    NEAR(load, 1100.0);
+    load *= LoadErrorRescaleFactor(10.0, 0.0);  // back to 1000 (the old formula gave 992.25)
+    NEAR(load, 1000.0);
+
+    // Same with negative values and many steps
+    load = 1234.5;
+    const double steps[] = { -2.0, 7.5, -10.0, 3.3, 0.0 };
+    double applied = 0.0;
+    for (double s : steps) { load *= LoadErrorRescaleFactor(applied, s); applied = s; }
+    NEAR(load, 1234.5);
+
+    NEAR(LoadErrorRescaleFactor(5.0, 5.0), 1.0);        // no change
+    NEAR(LoadErrorRescaleFactor(0.0, -100.0), 0.0);     // rejected
+    NEAR(LoadErrorRescaleFactor(-100.0, 0.0), 0.0);     // rejected
+}
+
 static void test_three_point_bending()
 {
     // Span L = 64 mm, width w = 10 mm, thickness t = 4 mm (ISO 178 style specimen)
@@ -169,6 +198,7 @@ int main()
     test_non_negative();
     test_youngs_modulus_fit();
     test_fit_degenerate_cases();
+    test_load_error_correction();
     test_three_point_bending();
     test_unit_factors();
 

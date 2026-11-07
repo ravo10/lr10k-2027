@@ -118,6 +118,33 @@ namespace MaterialCalc
     }
 
     // -------------------------------------------------------------------------
+    // Load cell error correction ("Load Error Adjustment" slider, in percent)
+    // -------------------------------------------------------------------------
+
+    /**
+        @brief  Factor applied to measured loads for a load error of @p percent: 1 + percent / 100.
+        @retval The factor, or 0 if it would not be positive (percent <= -100), which callers must reject.
+    **/
+    inline double LoadErrorFactor(double percent)
+    {
+        const double factor = 1.0 + percent / 100.0;
+        return factor > 0.0 ? factor : 0.0;
+    }
+
+    /**
+        @brief  Factor that turns loads corrected for @p fromPercent into loads corrected for @p toPercent.
+        @details (1 + to/100) / (1 + from/100). Changing 0 -> 5 -> 10 -> 0 % gives back exactly the
+                 original data (the old "1 + (to - from) / 100" did not).
+        @retval The factor, or 0 if either percentage is <= -100 % (not allowed: it would destroy the data).
+    **/
+    inline double LoadErrorRescaleFactor(double fromPercent, double toPercent)
+    {
+        const double from = LoadErrorFactor(fromPercent);
+        const double to = LoadErrorFactor(toPercent);
+        return (from > 0.0 && to > 0.0) ? to / from : 0.0;
+    }
+
+    // -------------------------------------------------------------------------
     // 3-point bending (support span L, width w, thickness/height t)
     // -------------------------------------------------------------------------
 

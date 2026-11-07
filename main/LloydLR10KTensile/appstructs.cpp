@@ -315,6 +315,9 @@ json AppMainFileSystem::CreateJSONDataFromCurrentTab(TabControl::TabTestDataClas
 
     // Settings for speed and plot load error
     tabDataJson["settings_speedAndPlot"] = tabData->settings_speedAndPlot;
+    // The load error the saved data is actually corrected for (can differ from the slider in settings_speedAndPlot[2]
+    // if the slider was moved after the test without pressing "Update finished test")
+    tabDataJson["appliedLoadError"] = tabData->oldLoadErrorValue;
 
     // Plot data
     for (int i = 0; i < tabData->LR10KTensileData.Data.Size; i++)
@@ -395,6 +398,8 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
     tabData->settings_speedAndPlot[1] = tabDataJson["settings_speedAndPlot"][1];
     tabData->settings_speedAndPlot[2] = tabDataJson["settings_speedAndPlot"][2];
     tabData->oldLoadErrorValue        = tabData->settings_speedAndPlot[2];
+    if (tabDataJson.contains("appliedLoadError"))
+        tabData->oldLoadErrorValue = tabDataJson["appliedLoadError"]; // Files saved before this was added: assume the slider value was applied
 
     // Plot data
     for (int i = 0; i < tabDataJson["LR10KTensileData"].size(); i++)
@@ -2384,14 +2389,21 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
             ImGui::BeginDisabled(!tabData->test_finished);
             if (ImGui::Button("Update finished test"))
             {
-                if (LR10KAppGlobals::testing_speedAndPlotMinValuesActual != 0)
-                {
-                    // Adjust for load error
-                    DockingApps::calculator.AdaptTabDataForLoadError(tabData);
-                }
+                // Adjust for load error
+                DockingApps::calculator.AdaptTabDataForLoadError(tabData);
             }
             ImGui::SetItemTooltip("This will update the load error.");
             ImGui::EndDisabled();
+            if (tabData->test_finished)
+            {
+                // Show which correction the data actually has, so a moved slider without "Update" is noticed
+                const bool pending = tabData->oldLoadErrorValue != LR10KAppGlobals::testing_speedAndPlotActual[2];
+                ImGui::SameLine();
+                if (pending)
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Applied: %.1f %% (press Update)", tabData->oldLoadErrorValue);
+                else
+                    ImGui::Text("Applied: %.1f %%", tabData->oldLoadErrorValue);
+            }
             ImGui::Spacing();
 
             ImGui::BeginGroup();
@@ -3058,9 +3070,10 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     // Check what distance is travelled, and if to do something about it
     TabControl::CheckIfDistanceTraveledToLimit(tabData, LR10KExtension);
 
-    // Adjust load if needed with input from GUI
-    if (LR10KAppGlobals::testing_speedAndPlotMinValuesActual != 0)
-        LR10KLoad *= 1 + LR10KAppGlobals::testing_speedAndPlotActual[2] / 100;
+    // Adjust load if needed with input from GUI ("Load Error Adjustment" slider, in %)
+    // (This compared an array with 0 before, which is always true; multiplying by 1 + 0 changes nothing anyway.)
+    if (LR10KAppGlobals::testing_speedAndPlotActual[2] != 0.0f)
+        LR10KLoad *= (float)MaterialCalc::LoadErrorFactor(LR10KAppGlobals::testing_speedAndPlotActual[2]);
 
     // -------------------------------------------------------------------------
     // ------------------ Add data points (if test is running) -----------------
