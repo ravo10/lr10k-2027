@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include "common.h"
 #include "LR10KBufferMessage.h"
+#include "LR10KSequences.h"
 /**
 
     @class   LR10KController
@@ -34,44 +35,7 @@ public:
     //!             Another thing noticed, is that the last write byte sent will be sent back from LR 10K until it response to a new byte.
     //!             If the new byte sent does not make the LR 10K respond with a new byte, the old one will be sent out until the LR 10K
     //!             does respond with a new byte. E.g. 0x00 & 0xB6 will be sent out unitl 0xB7 is sent and the new response is 0xBA.
-    const std::vector<std::pair<byte, bool>> Write_FirstSetup = {
-        /* std::make_pair(0xB6, false),  //!< SEND STATUS */ // This one can not be enabled.. Only for documentation. "AskAndWaitForLR10KForReadyToConnect" function will send this byte.
-        //    std::make_pair(0xB0, true),
-        //std::make_pair(0xB6, false),  //!< SEND STATUS
-        //   std::make_pair(0x0B, true),
-        //std::make_pair(0xB6, false),  //!< SEND STATUS
-            std::make_pair(0xB6, true),
-        std::make_pair(0xC1, false),
-            std::make_pair(0x00, true),
-        std::make_pair(0xBA, false),
-        std::make_pair(0xD6, false),
-        std::make_pair(0x0A, false),
-        std::make_pair(0xD5, false),
-        std::make_pair(0x11, false),
-        std::make_pair(0x00, false),
-        std::make_pair(0xCC, false),
-        std::make_pair(0xCA, false),
-        std::make_pair(0x81, false),
-        std::make_pair(0xB7, false),
-        std::make_pair(0xB0, false),
-            std::make_pair(0xBA, true),
-            // This is the last things the LR 10K sends out
-            std::make_pair(0xB2, true),
-            std::make_pair(0x00, true),
-            std::make_pair(0xB3, true),
-            std::make_pair(0x20, true),
-            std::make_pair(0xB1, true),
-            std::make_pair(0x03, true),
-            std::make_pair(0xB7, true),
-            std::make_pair(0x33, true),
-            std::make_pair(0x39, true),
-            std::make_pair(0x38, true),
-            std::make_pair(0x36, true),
-            std::make_pair(0x44, true),
-            std::make_pair(0x31, true),
-            std::make_pair(0x34, true),
-            std::make_pair(0x32, true) // Could only check this, but for documentation purposes and loading overview..
-    };
+    const std::vector<std::pair<byte, bool>> Write_FirstSetup = LR10KSequences::FirstSetup(); //!< The table is in LR10KSequences.h (shared with the tests)
 
     // Setup #2 (happens every time a user wants to change any settings for a test e.g. Test Speed 1, Jog Speed etc.)
     //! \details Needs to be sent before a new second setup is going to be sent.

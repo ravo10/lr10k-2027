@@ -1001,6 +1001,8 @@ namespace LR10KCOMSystem {
 
     //! \brief Send a message through the open COM port (the handle parameter is not used anymore).
     bool    SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE hSerial = INVALID_HANDLE_VALUE);
+    //! \brief Send bytes through the open COM port (logged, errors reported in the console).
+    bool    SendBytesToCom(const std::uint8_t* data, std::size_t size);
 
     //! \brief Start logging all serial traffic to a new file in Documents\LR10K serial logs (see SerialTrafficLog).
     bool    StartTrafficLog();

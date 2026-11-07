@@ -50,3 +50,8 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
             -I main/LloydLR10KTensile tests/serial_traffic_log_test.cpp -o serial_traffic_log_test
           ./serial_traffic_log_test
+      - name: Connect sequence replayed against a recorded LR 10K session (ThreadSanitizer)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
+            -I main/LloydLR10KTensile tests/connect_replay_test.cpp -o connect_replay_test
+          ./connect_replay_test

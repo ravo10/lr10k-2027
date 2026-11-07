@@ -9,13 +9,14 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | Part | File | What it does | Depends on |
 |---|---|---|---|
 | **Protocol** | `LR10KProtocol.h` | Framing of the byte stream into messages, decoding of the bytes the LR 10K sends (load, distance, extensometer, multiplier) and encoding of setup values | nothing (portable, tested) |
+| | `LR10KSequences.h` | The sniffed send/expect sequences (setup #1), shared with the tests | nothing (portable) |
 | | `LR10KController.h/.cpp` | The sniffed command sequences (setup 1/2, up/down, go, stop, ...) and sending them | serial I/O, globals |
 | | `LR10KBufferMessage.h/.cpp` | Builds the byte messages that are sent | `LR10KProtocol.h` (portable, tested) |
 | **Hardware I/O** | `RingBuffer.h/.cpp` | Thread-safe buffer between the COM reader thread and the decoder | nothing (portable, tested) |
 | | `SerialPort.h` | Abstract serial port (read a byte with timeout, write, discard, close) | nothing (portable) |
 | | `Win32SerialPort.h/.cpp` | The real COM port with the LR 10K settings (9600 8N1, CTS/DSR handshake, ~100 ms read timeout) | Windows API |
 | | `SerialReader.h` | Thread that copies the port into the ring buffer; detects a lost connection (3 failed reads in a row) | `SerialPort.h`, `RingBuffer.h` (portable, tested with a fake port) |
-| | `LR10KMachine.h` | One connection: owns the ring buffer, the reader thread and the interpreter thread, which frames bytes into messages (`LR10KProtocol::MessageParser`) and hands each to a handler | serial classes (portable, tested with a fake port) |
+| | `LR10KMachine.h` | One connection: owns the ring buffer, the reader thread and the interpreter thread, which frames bytes into messages (`LR10KProtocol::MessageParser`) and hands each to a handler. Also the protocol steps: the "ready to connect" handshake, waiting for a reply byte and running send/expect sequences | serial classes (portable, tested with a fake port and a recorded session) |
 | | `SerialTrafficLog.h` | Optional log of every byte sent/received with timestamps (menu: *Log serial traffic to file*); logs can be read back and replayed | nothing (portable, tested) |
 | | `SerialCom.cpp` | Connect/disconnect a COM port (using the classes above), sending messages, interpreter thread, turning decoded values into load/extension | serial classes, globals |
 | | `LR10KDecryption.h/.cpp` | Thread flags, `InterpretMessage()` (turns a message into load/extension/status globals), decoder wrappers | Windows API |
@@ -43,6 +44,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `protocol_test.cpp` | Known values from the sniffed setup messages, that decoding/encoding is identical to the original code for every possible input, and that message framing matches the original interpreter on random byte streams |
 | `machine_test.cpp` | Port to messages through both threads, sending, restarting the interpreter without losing or splitting bytes, stop flags, connection loss |
 | `serial_traffic_log_test.cpp` | Log format, grouping of received bytes, read back, and replaying a logged session through the machine |
+| `connect_replay_test.cpp` | The handshake and setup #1 against a recorded real session (`tests/data/`): same bytes sent as in the real session; the old "stuck at 6 %" behaviour; no answer at all; the whole recorded stream frames cleanly; recorded setup #2 values |
 | `serial_reader_test.cpp` | Reader thread against a fake port: byte order, connection loss after 3 failed reads, tolerated glitches, stopping (also with a full buffer), restarting |
 
 ## Still to do
@@ -50,7 +52,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 The parts above are separated into files, but most of them still share global state (`LR10KAppGlobals`, `TabControl`, `LR10KDataDeEncryptionSystem` in `common.h`). Next steps, roughly in this order:
 
 1. ~~**Serial port class.**~~ Done: `SerialPort` / `Win32SerialPort` / `SerialReader`. Some code still passes the old `m_hSerial` handle around; it is ignored now and goes away with the machine class.
-2. **Machine class.** Partly done: `LR10KMachine` owns the ring buffer and both threads, and messages are framed by a tested parser. Still to do: expose the machine state (load, extension, status, connected) and commands from it, instead of `InterpretMessage()` writing GUI globals. The GUI then reads state and calls commands, instead of hardware code writing GUI globals directly. With the `SerialPort` interface, the connect sequence can then be tested against a fake port that replays a recorded session (which would have caught the "stuck at 6 %" bug).
+2. **Machine class.** Partly done: `LR10KMachine` owns the ring buffer and both threads, messages are framed by a tested parser, and the handshake/setup #1 logic runs in it (tested against a recorded session). Still to do: expose the machine state (load, extension, status, connected) and commands from it, instead of `InterpretMessage()` writing GUI globals. The GUI then reads state and calls commands, instead of hardware code writing GUI globals directly. With the `SerialPort` interface, the connect sequence can then be tested against a fake port that replays a recorded session (which would have caught the "stuck at 6 %" bug).
 3. **Calculations on test data.** Pass the test's own dimensions and data to the calculations instead of reading the global calculator inputs (`LR10KAppGlobals::calc_*`). Today the app uses the global dimensions while the Excel export uses the ones saved with the test.
 4. **Excel export on plain data.** Give the export a plain struct with the data and results instead of the whole GUI tab object.
 5. **GUI.** What remains: drawing and user input only.

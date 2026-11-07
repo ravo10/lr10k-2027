@@ -28,6 +28,7 @@
 #include <functional>
 #include <thread>
 #include <utility>
+#include <vector>
 
 class LR10KMachine
 {
@@ -114,6 +115,185 @@ public:
     }
 
     bool IsInterpreting() const { return m_interpreterRunning.load(); }
+
+    // -------------------------------------------------------------------------
+    // Protocol steps (send something, wait for the LR 10K's answer in the buffer)
+    // -------------------------------------------------------------------------
+
+    //! Sends bytes; returns false if they could not (all) be sent. Lets the program log and report errors.
+    using SendFunction = std::function<bool(const std::uint8_t* data, std::size_t size)>;
+
+    //! Result of WaitForByte().
+    enum class WaitResult
+    {
+        Received,        //!< The expected byte arrived.
+        OtherBytesLimit, //!< maxOtherBytesWhileWaiting other bytes arrived first (counted as success, like the original code).
+        Timeout,         //!< Nothing matching within the timeout: the LR 10K did not answer.
+        Stopped          //!< keepRunning returned false while waiting.
+    };
+
+    //! The LR 10K repeats its last byte until it answers with a new one. After this many other bytes the wait counts as done.
+    static constexpr int maxOtherBytesWhileWaiting = 2000;
+
+    /**
+        @brief  Wait until @p expected arrives in the buffer, skipping other bytes.
+        @param  keepRunning - Checked about every 20 ms; the wait ends with Stopped when it returns false.
+    **/
+    WaitResult WaitForByte(std::uint8_t expected, std::chrono::milliseconds timeout, const std::function<bool()>& keepRunning = {})
+    {
+        int otherBytes = 0;
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
+        while (!keepRunning || keepRunning())
+        {
+            if (otherBytes >= maxOtherBytesWhileWaiting)
+                return WaitResult::OtherBytesLimit;
+
+            const auto now = std::chrono::steady_clock::now();
+            if (now >= deadline)
+                return WaitResult::Timeout;
+
+            const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
+            std::uint8_t byte = 0;
+            if (!m_buffer.TryRead(byte, remaining < interpreterWaitSlice ? remaining : interpreterWaitSlice))
+                continue;
+
+            if (byte == expected)
+                return WaitResult::Received;
+            otherBytes++;
+        }
+        return WaitResult::Stopped;
+    }
+
+    //! Result of AskReadyToConnect().
+    struct HandshakeResult
+    {
+        bool ready = false;          //!< The LR 10K answered 0xB6.
+        int requests = 0;            //!< How many requests were sent.
+        int bytesReceived = 0;       //!< All bytes seen while waiting (0 = nothing arrives at all).
+        std::uint8_t lastByte = 0;   //!< The last byte seen.
+    };
+
+    /**
+        @brief  The "ready to connect?" handshake: send 0xB6 until the LR 10K answers 0xB6.
+        @details Clears the buffer first, then up to @p maxRequests times: send 0xB6, look at every byte
+                 arriving within @p answerWindow, then pause (also after the answer, like the original code).
+                 The bytes after the 0xB6 answer (e.g. the 0x00 of "B6 00") stay in the buffer.
+    **/
+    HandshakeResult AskReadyToConnect(const SendFunction& send, int maxRequests = 31,
+        std::chrono::milliseconds answerWindow = std::chrono::milliseconds(100),
+        std::chrono::milliseconds pause = std::chrono::milliseconds(30))
+    {
+        HandshakeResult result;
+        m_buffer.ClearAllData(); // Only fresh answers count (e.g. not live data from an earlier session)
+
+        const std::uint8_t request = LR10KProtocol::MsgStatus;
+        while (!result.ready)
+        {
+            send(&request, 1);
+            result.requests++;
+
+            const auto until = std::chrono::steady_clock::now() + answerWindow;
+            while (!result.ready)
+            {
+                const auto now = std::chrono::steady_clock::now();
+                if (now >= until)
+                    break;
+                std::uint8_t byte = 0;
+                if (!m_buffer.TryRead(byte, std::chrono::duration_cast<std::chrono::milliseconds>(until - now)))
+                    break;
+                result.bytesReceived++;
+                result.lastByte = byte;
+                result.ready = byte == LR10KProtocol::MsgStatus;
+            }
+
+            if (result.requests >= maxRequests)
+                break;
+            std::this_thread::sleep_for(pause);
+        }
+        return result;
+    }
+
+    //! How RunSequence() ended.
+    enum class SequenceOutcome
+    {
+        Completed,           //!< Every expected reply arrived and the rest was sent.
+        StoppedBeforeStep,   //!< keepRunning returned false between steps (e.g. the port was closed).
+        NoReply,             //!< The LR 10K did not send an expected byte within the timeout.
+        StoppedWhileWaiting, //!< keepRunning returned false while waiting for a reply.
+        FinalSendFailed      //!< All replies arrived, but the last message could not be sent.
+    };
+
+    //! Result of RunSequence().
+    struct SequenceResult
+    {
+        SequenceOutcome outcome = SequenceOutcome::Completed;
+        int repliesExpected = 0;
+        int repliesReceived = 0;
+        std::uint8_t waitingFor = 0; //!< The byte that did not arrive (NoReply / StoppedWhileWaiting).
+        bool Ok() const { return outcome == SequenceOutcome::Completed; }
+    };
+
+    /**
+        @brief  Run a send/expect sequence such as LR10KSequences::FirstSetup().
+        @details Exactly like the original LR10KController::SendHEXWriteReadSequenceToLR10K:
+                 - (byte, false): add the byte to the message. The first byte after a reply starts a new message.
+                 - (byte, true): wait @p preSendDelay, send the message built so far (again, if nothing was added
+                   since the last reply), then wait for the byte. A failed send is not an error by itself.
+                 - At the end, the message is sent once more if it is not empty.
+        @param  onProgress - Called before waiting for each reply with (reply number, replies in total).
+    **/
+    SequenceResult RunSequence(const std::vector<std::pair<std::uint8_t, bool>>& sequence, const SendFunction& send,
+        std::chrono::milliseconds replyTimeout, const std::function<bool()>& keepRunning = {},
+        const std::function<void(int, int)>& onProgress = {},
+        std::chrono::milliseconds preSendDelay = std::chrono::milliseconds(6))
+    {
+        SequenceResult result;
+        for (const auto& step : sequence)
+            if (step.second)
+                result.repliesExpected++;
+
+        std::vector<std::uint8_t> message;
+        bool newMessageOnNextByte = false;
+
+        for (const auto& step : sequence)
+        {
+            if (keepRunning && !keepRunning())
+            {
+                result.outcome = SequenceOutcome::StoppedBeforeStep;
+                return result;
+            }
+
+            if (!step.second)
+            {
+                if (newMessageOnNextByte)
+                    message.clear();
+                message.push_back(step.first);
+                newMessageOnNextByte = false;
+                continue;
+            }
+
+            if (onProgress)
+                onProgress(result.repliesReceived + 1, result.repliesExpected);
+
+            std::this_thread::sleep_for(preSendDelay);
+            if (!message.empty())
+                send(message.data(), message.size());
+
+            const WaitResult wait = WaitForByte(step.first, replyTimeout, keepRunning);
+            if (wait == WaitResult::Timeout || wait == WaitResult::Stopped)
+            {
+                result.outcome = wait == WaitResult::Timeout ? SequenceOutcome::NoReply : SequenceOutcome::StoppedWhileWaiting;
+                result.waitingFor = step.first;
+                return result;
+            }
+            result.repliesReceived++;
+            newMessageOnNextByte = true;
+        }
+
+        if (!message.empty() && !send(message.data(), message.size()))
+            result.outcome = SequenceOutcome::FinalSendFailed;
+        return result;
+    }
 
 private:
     void InterpreterLoop(MessageHandler onMessage, std::function<bool()> keepRunning, std::function<void()> onExit)

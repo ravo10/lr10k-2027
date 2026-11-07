@@ -182,29 +182,30 @@ bool LR10KCOMSystem::CheckIfCOMIsConnected()
 **/
 bool LR10KCOMSystem::SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE /*hSerial: unused, the open port is used*/)
 {
-    const std::uint8_t* data;
-    std::size_t expectedBytes;
-
     if (bufferMessage.isBuffSingle())
-    {
-        data = &bufferMessage.message_single;
-        expectedBytes = 1;
-    }
-    else
-    {
-        data = bufferMessage.message;
-        expectedBytes = bufferMessage.size_of_message;
-        if (expectedBytes == 0)
-            return true; // Nothing to send
-    }
+        return LR10KCOMSystem::SendBytesToCom(&bufferMessage.message_single, 1);
+
+    if (bufferMessage.size_of_message == 0)
+        return true; // Nothing to send
+    return LR10KCOMSystem::SendBytesToCom(bufferMessage.message, bufferMessage.size_of_message);
+}
+/**
+    @brief  Send bytes to the LR 10K through the open COM port. Logs them ("Log serial traffic to file")
+            and reports failed or incomplete writes in the console.
+    @retval false if not all bytes could be sent.
+**/
+bool LR10KCOMSystem::SendBytesToCom(const std::uint8_t* data, std::size_t size)
+{
+    if (size == 0)
+        return true;
 
     std::uint32_t error = 0;
-    const std::size_t written = LR10KDataDeEncryptionSystem::comPort.Write(data, expectedBytes, error);
+    const std::size_t written = LR10KDataDeEncryptionSystem::comPort.Write(data, size, error);
 
     // "Log serial traffic to file": what was actually sent, and a note if not everything was
     LR10KDataDeEncryptionSystem::trafficLog.LogSent(data, written);
-    if (written < expectedBytes)
-        LR10KDataDeEncryptionSystem::trafficLog.LogNote("Write incomplete: " + std::to_string(written) + " of " + std::to_string(expectedBytes) + " bytes sent (error " + std::to_string(error) + ")");
+    if (written < size)
+        LR10KDataDeEncryptionSystem::trafficLog.LogNote("Write incomplete: " + std::to_string(written) + " of " + std::to_string(size) + " bytes sent (error " + std::to_string(error) + ")");
 
     // If it fails to send data from COM
     if (written == 0)
@@ -212,10 +213,10 @@ bool LR10KCOMSystem::SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE /*hS
         DockingApps::console.AddLog("[error] Failed to send data to COM (error %lu)... Check connection!", (unsigned long)error);
         return false;
     }
-    if (written < expectedBytes)
+    if (written < size)
     {
         // Write timed out part way (e.g. the LR 10K is holding CTS/DSR low)
-        DockingApps::console.AddLog("[error] Only %lu of %lu bytes were sent to COM... Check connection!", (unsigned long)written, (unsigned long)expectedBytes);
+        DockingApps::console.AddLog("[error] Only %lu of %lu bytes were sent to COM... Check connection!", (unsigned long)written, (unsigned long)size);
         return false;
     }
 
@@ -307,40 +308,16 @@ void LR10KCOMSystem::OpenTrafficLogFolder()
 **/
 bool LR10KCOMSystem::WaitAndReadFromCOM(byte hexdecimalData, std::chrono::milliseconds timeout)
 {
-    byte rec{ 0 }; // Used to record packages of HEX data read from the serial buffer.
+    // The waiting itself is LR10KMachine::WaitForByte (tested in tests/machine_test.cpp / connect_replay_test.cpp)
+    const auto result = LR10KDataDeEncryptionSystem::machine.WaitForByte(hexdecimalData, timeout,
+        []() { return !LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag.load(); });
 
-    // Try and read data
-    int numberOfTries = 0;
-    const auto start = std::chrono::steady_clock::now();
-    const auto deadline = std::chrono::steady_clock::now() + timeout;
-    while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(1, start))
-    {
-        // The LR 10K repeats its last byte until it answers with a new one. After this many
-        // other bytes, continue anyway (same behaviour as before).
-        if (numberOfTries >= 2000)
-            return true;
+    if (result == LR10KMachine::WaitResult::Timeout)
+        DockingApps::console.AddLog("[error] LR 10K did not answer (waited %lld ms for 0x%02X). Check the cable and that \"Remote control\" is on.",
+            (long long)timeout.count(), hexdecimalData);
 
-        // No byte at all from the LR 10K for too long: it is not answering
-        const auto now = std::chrono::steady_clock::now();
-        if (now >= deadline)
-        {
-            DockingApps::console.AddLog("[error] LR 10K did not answer (waited %lld ms for 0x%02X). Check the cable and that \"Remote control\" is on.",
-                (long long)timeout.count(), hexdecimalData);
-            return false;
-        }
-
-        const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
-        if (!LR10KDataDeEncryptionSystem::m_SerialBuffer.TryRead(rec, (std::min)(remaining, std::chrono::milliseconds(20))))
-            continue;
-
-        printf("Leser av COM: %02x\n", rec);
-        if (rec == hexdecimalData)
-            return true;
-
-        numberOfTries++;
-    }
-
-    return false; // COM thread was stopped (disconnected) while waiting
+    // Received, or the LR 10K kept repeating other bytes (counted as done, like before)
+    return result == LR10KMachine::WaitResult::Received || result == LR10KMachine::WaitResult::OtherBytesLimit;
 }
 
 // -----------------------------------------------------------------------------
