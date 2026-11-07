@@ -495,6 +495,10 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
             tabData->area = area;
     }
 
+    // Tests started before the dimensions were stored at test start may still have the 0.01 placeholders
+    if (tabData->length <= 0.0101)
+        DockingApps::console.AddLog("[warning] This test has no real gauge length saved (%.2f). Enter the specimen dimensions in the Calculator and press \"Set local values\", then save.", tabData->length);
+
     tabData->date = tabDataJson["date"];
     tabData->tension = tabDataJson["tension"];
     tabData->unitsConvertionIndex = tabDataJson["unitsConvertionIndex"];

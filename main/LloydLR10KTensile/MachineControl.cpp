@@ -474,6 +474,15 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
 
             tabData->tension = LR10KAppGlobals::tensionTesting;
 
+            // Store the specimen dimensions from the calculator (checked above) in this test. Without this,
+            // a new tab kept its 0.01 mm placeholders unless "use global values on new tests" was on, so the
+            // graph, the live readout and the Excel export divided by a 0.01 mm gauge length
+            // (e.g. 4.7 mm travel shown as 47 000 % strain) while the calculated points looked right.
+            DockingApps::calculator.SetLocalMaterialProperties(tabData, LR10KAppGlobals::areaOptionPicked,
+                LR10KAppGlobals::calc_thickness, LR10KAppGlobals::calc_width, LR10KAppGlobals::calc_length, LR10KAppGlobals::calc_diameter);
+            DockingApps::console.AddLog("Specimen for this test: gauge length %.3f, area %.3f (%s).", tabData->length, tabData->area,
+                LR10KAppGlobals::GetUnitOption<const char*>(0));
+
             tabData->test_running_test = true;
             tabData->test_unfinished_test_started = true;
 
