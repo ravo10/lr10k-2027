@@ -11,6 +11,7 @@
 
 #include "common.h"
 #include "MaterialCalc.h"
+#include "TestCalc.h"
 
 #include "LR10KController.h"
 
@@ -405,6 +406,29 @@ bool LR10KControlSystem::SetZeroPoint(TabControl::TabTestDataClass* tabData)
     return false;
 }
 /**
+    @brief  The specimen dimensions a test on @p tabData starts with: the test's own values if they were entered,
+            otherwise (or with "Always load from global values") the calculator's global values.
+**/
+static TestCalc::Specimen SpecimenForStartingTest(const TabControl::TabTestDataClass* tabData)
+{
+    TestCalc::Specimen local;
+    local.crossSection = tabData->areaOptionPicked;
+    local.thickness = tabData->thickness;
+    local.width = tabData->width;
+    local.length = tabData->length;
+    local.diameter = tabData->diameter;
+
+    TestCalc::Specimen global;
+    global.crossSection = LR10KAppGlobals::areaOptionPicked;
+    global.thickness = LR10KAppGlobals::calc_thickness;
+    global.width = LR10KAppGlobals::calc_width;
+    global.length = LR10KAppGlobals::calc_length;
+    global.diameter = LR10KAppGlobals::calc_diameter;
+
+    return TestCalc::SpecimenForNewTest(LR10KAppGlobals::useGlobalValuesOnNewTests, local, global);
+}
+
+/**
     @brief  Start a tensile test.
     @retval  -
 **/
@@ -435,12 +459,12 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
 
             tabData->tension = LR10KAppGlobals::tensionTesting;
 
-            // Store the specimen dimensions from the calculator (checked above) in this test. Without this,
-            // a new tab kept its 0.01 mm placeholders unless "use global values on new tests" was on, so the
-            // graph, the live readout and the Excel export divided by a 0.01 mm gauge length
-            // (e.g. 4.7 mm travel shown as 47 000 % strain) while the calculated points looked right.
-            DockingApps::calculator.SetLocalMaterialProperties(tabData, LR10KAppGlobals::areaOptionPicked,
-                LR10KAppGlobals::calc_thickness, LR10KAppGlobals::calc_width, LR10KAppGlobals::calc_length, LR10KAppGlobals::calc_diameter);
+            // Store the specimen dimensions (checked above) in this test: the test's own values if entered,
+            // otherwise the global ones. Without this, a new tab kept its 0.01 mm placeholders, so the graph,
+            // the live readout and the Excel export divided by a 0.01 mm gauge length (47 000 % strain).
+            const TestCalc::Specimen specimen = SpecimenForStartingTest(tabData);
+            DockingApps::calculator.SetLocalMaterialProperties(tabData, specimen.crossSection,
+                specimen.thickness, specimen.width, specimen.length, specimen.diameter);
             DockingApps::console.AddLog("Specimen for this test: gauge length %.3f, area %.3f (%s).", tabData->length, tabData->area,
                 LR10KAppGlobals::GetUnitOption<const char*>(0));
 
@@ -471,9 +495,8 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
     if (tabData == nullptr) return false;
 
     // Check if user has added gauge length, gauge thickness etc. for test
-    bool userHasNotAddedDimensions = LR10KAppGlobals::calc_length == 0
-        || (LR10KAppGlobals::areaOptionPicked == 0 && (LR10KAppGlobals::calc_width == 0 || LR10KAppGlobals::calc_thickness == 0))
-        || (LR10KAppGlobals::areaOptionPicked == 1 && LR10KAppGlobals::calc_diameter == 0);
+    // (the values the test will be started with, see SpecimenForStartingTest)
+    bool userHasNotAddedDimensions = !TestCalc::HasDimensions(SpecimenForStartingTest(tabData));
 
     // Show a message
     if (userHasNotAddedDimensions)

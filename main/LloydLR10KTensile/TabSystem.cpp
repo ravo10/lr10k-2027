@@ -274,9 +274,12 @@ void TabControl::CalculateDataFromTest(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
 
-    if (LR10KAppGlobals::useGlobalValuesOnNewTests)
+    // A new, empty test shows the global values it will be started with. (This used to run for every tab,
+    // so switching to a loaded test silently replaced its saved dimensions with the global ones. Editing
+    // the global values in the calculator still updates the current test; see AppCalculator::Draw.)
+    if (LR10KAppGlobals::useGlobalValuesOnNewTests && !tabData->test_unfinished_test_started && !tabData->test_finished
+        && tabData->LR10KTensileData.Data.Size == 0)
     {
-        // Update the local material properties in the calculator for the current tab
         DockingApps::calculator.SetLocalMaterialProperties(tabData, LR10KAppGlobals::areaOptionPicked, LR10KAppGlobals::calc_thickness, LR10KAppGlobals::calc_width, LR10KAppGlobals::calc_length, LR10KAppGlobals::calc_diameter);
     }
 
@@ -285,6 +288,10 @@ void TabControl::CalculateDataFromTest(TabControl::TabTestDataClass* tabData)
     bool condition2 = !tabData->tension && 1 == tabData->compressionOptionPicked; // 3-point compression
 
     if (tabData->NeedsRecalculation.recalculate) {
+        // Keep A_0 (used by the graph and the Excel report) in step with the test's dimensions after an edit
+        // or a unit change
+        tabData->area = MaterialCalc::CrossSectionArea(tabData->areaOptionPicked, tabData->thickness, tabData->width, tabData->diameter);
+
         if (condition1)
         {
             // Calculate stresses

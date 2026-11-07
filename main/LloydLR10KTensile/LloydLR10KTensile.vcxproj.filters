@@ -165,6 +165,7 @@
     <ClInclude Include="LR10KDecryption.h" />
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="MaterialCalc.h" />
+    <ClInclude Include="TestCalc.h" />
     <ClInclude Include="LR10KProtocol.h" />
     <ClInclude Include="SerialPort.h" />
     <ClInclude Include="SerialReader.h" />

@@ -1643,7 +1643,8 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
                 }
             }
 
-            const double PHYSICAL_L0_MM = LR10KAppGlobals::calc_length;
+            // The running test's own gauge length (the global value before a test is started)
+            const double PHYSICAL_L0_MM = tabData->test_unfinished_test_started ? tabData->length : LR10KAppGlobals::calc_length;
 
             if (g_Extensiometer.initial_dist_px > 0) {
                 double elongationPx = g_Extensiometer.smooth_dist_px - g_Extensiometer.initial_dist_px;

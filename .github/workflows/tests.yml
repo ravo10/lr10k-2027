@@ -60,3 +60,8 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -pthread \
             -I main/LloydLR10KTensile tests/measurement_test.cpp -o measurement_test
           ./measurement_test
+      - name: Calculations for one test (same results as the old calculator)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/test_calc_test.cpp -o test_calc_test
+          ./test_calc_test

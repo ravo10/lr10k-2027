@@ -11,6 +11,7 @@
 
 #include "common.h"
 #include "MaterialCalc.h"
+#include "TestCalc.h"
 
 #include "LR10KController.h"
 
@@ -59,35 +60,6 @@ double LR10KAppGlobals::CalcEpsilon_t(double epsilon_e)
 {
     return MaterialCalc::TrueStrain(epsilon_e);
 }
-/**
-    @brief  Youngs Modulus. Change the signature to accept limits.
-    @param  strainData -
-    @param  stressData -
-    @param  lower_limit -
-    @param  upper_limit -
-    @retval            -
-**/
-double CalculateYoungsModulus(const std::vector<double>& strainData, const std::vector<double>& stressData, double lower_limit, double upper_limit)
-{
-    // Least-squares slope of the points inside the window (limits may be given in either order).
-    // Tested in tests/material_calc_test.cpp.
-    const MaterialCalc::LinearFit fit = MaterialCalc::FitLine(strainData, stressData, lower_limit, upper_limit);
-    if (!fit.valid)
-    {
-        DockingApps::console.AddLog("[warning] E-Modulus: only %d data point(s) between the limits; move the limits further apart.", fit.points);
-        return 0.0;
-    }
-
-    double e_module = fit.slope; // N/mm^2 (MPa) per strain, or psi with imperial units
-
-    // SI Units
-    if (LR10KAppGlobals::unitsConvertionIndex == 0)
-        // Convert MPa to GPa
-        e_module /= 1000;
-
-    return e_module;
-}
-
 // -----------------------------------------------------------------------------
 // --------------------------------- Convertion --------------------------------
 // -----------------------------------------------------------------------------
@@ -251,169 +223,111 @@ void AppCalculator::AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabDa
     tabData->NeedsRecalculation.recalculate = true;
 }
 
-void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData, bool playSound)
+// -----------------------------------------------------------------------------
+// The test's own data for TestCalc.h (the calculations never read the calculator's global inputs)
+// -----------------------------------------------------------------------------
+
+static TestCalc::Specimen SpecimenOf(const TabControl::TabTestDataClass* tabData)
 {
-    // -------------------------------------------------------------------------
-    // 1. Calculate the initial Area (A_0) safely based on user shape settings
-    // -------------------------------------------------------------------------
-    const double T_0 = LR10KAppGlobals::calc_thickness;
-    const double W_0 = LR10KAppGlobals::calc_width;
-    const double L_0 = LR10KAppGlobals::calc_length > 0 ? LR10KAppGlobals::calc_length : 1.0;
-    const double D_0 = LR10KAppGlobals::calc_diameter;
+    TestCalc::Specimen specimen;
+    specimen.crossSection = tabData->areaOptionPicked;
+    specimen.thickness = tabData->thickness;
+    specimen.width = tabData->width;
+    specimen.length = tabData->length;
+    specimen.diameter = tabData->diameter;
+    return specimen;
+}
 
-    double A_0 = MaterialCalc::CrossSectionArea(LR10KAppGlobals::areaOptionPicked, T_0, W_0, D_0);
-    if (A_0 <= 0.0)
-        A_0 = 1.0; // Default safe denominator (dimensions not entered yet)
+static std::vector<TestCalc::Sample> SamplesOf(const TabControl::TabTestDataClass* tabData)
+{
+    std::vector<TestCalc::Sample> samples;
+    samples.reserve(tabData->LR10KTensileData.Data.Size);
+    for (int i = 0; i < tabData->LR10KTensileData.Data.Size; i++)
+        samples.push_back({ (double)tabData->LR10KTensileData.Data[i].x, (double)tabData->LR10KTensileData.Data[i].y });
+    return samples;
+}
 
-    // -------------------------------------------------------------------------
-    // 2. Map the UI arrays to a manageable list so we can loop through them
-    //    Indices match standard IDs: 0=Prop, 1=Yield, 2=UTS, 3=Frac
-    // -------------------------------------------------------------------------
-    double* nom_arrays[4] = { tabData->calcPoint_NominalStressStrain_PropLimit, tabData->calcPoint_NominalStressStrain_yield, tabData->calcPoint_NominalStressStrainUTS, tabData->calcPoint_NominalStressStrain_fracture };
-    double* true_arrays[4] = { tabData->calcPoint_TrueStressStrain_PropLimit, tabData->calcPoint_TrueStressStrain_yield, tabData->calcPoint_TrueStressStrainUTS, tabData->calcPoint_TrueStressStrain_fracture };
-    const char* point_names[4] = { "Proportional limit", "Yielding", "Ultimate Tensile Strength", "Fracture" };
-
-    // Reset all arrays to 0.0 quickly
-    for (int i = 0; i < 4; i++) {
-        nom_arrays[i][0] = 0.0; nom_arrays[i][1] = 0.0;
-        true_arrays[i][0] = 0.0; true_arrays[i][1] = 0.0;
-    }
-
-    // -------------------------------------------------------------------------
-    // 3. Process the crucial points (if they exist)
-    // -------------------------------------------------------------------------
+static std::vector<TestCalc::MarkedPoint> MarkedPointsOf(const TabControl::TabTestDataClass* tabData)
+{
+    std::vector<TestCalc::MarkedPoint> points;
+    points.reserve(tabData->plot_dataPoints.size());
     for (const auto& point_tuple : tabData->plot_dataPoints)
     {
-        ImPlotPoint dataPoint = std::get<0>(point_tuple);
-        int propID = std::get<1>(point_tuple);
-
-        // Only process valid standard points (0 to 3)
-        if (propID >= 0 && propID <= 3)
-        {
-            DockingApps::console.AddLog("Found a %s point! Calculating...", point_names[propID]);
-
-            // Nominal / Engineering Math
-            nom_arrays[propID][0] = LR10KAppGlobals::CalcEpsilon_e(dataPoint.x - tabData->LR10OffsetZeroPointExtensionAxis, L_0);
-            nom_arrays[propID][1] = LR10KAppGlobals::CalcSigma_e(dataPoint.y, A_0);
-
-            // True Math
-            true_arrays[propID][0] = LR10KAppGlobals::CalcEpsilon_t(nom_arrays[propID][0]);
-            true_arrays[propID][1] = LR10KAppGlobals::CalcSigma_t(nom_arrays[propID][0], nom_arrays[propID][1]);
-        }
+        const ImPlotPoint& p = std::get<0>(point_tuple);
+        points.push_back({ std::get<1>(point_tuple), { p.x, p.y } });
     }
+    return points;
+}
 
-    // -------------------------------------------------------------------------
-    // 4. Calculate Young's Modulus using linear regression on ALL raw data
-    // -------------------------------------------------------------------------
-    if (tabData->LR10KTensileData.Data.Size > 10) // Only if we have enough test data
+void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData, bool playSound)
+{
+    // Stress/strain at the crucial points and the E-modulus, from this test's own dimensions and data.
+    // (Used to read the global calculator inputs, so a loaded or older test was calculated with whatever
+    // dimensions were typed in last, while the graph and the Excel export used the test's own.)
+    const TestCalc::Specimen specimen = SpecimenOf(tabData);
+    const TestCalc::TensileResults results = TestCalc::CalculateTensile(specimen, SamplesOf(tabData), MarkedPointsOf(tabData), tabData->LR10OffsetZeroPointExtensionAxis);
+
+    // Indices match the point IDs: 0=Prop, 1=Yield, 2=UTS, 3=Frac
+    double* nom_arrays[TestCalc::TensileResults::kPoints] = { tabData->calcPoint_NominalStressStrain_PropLimit, tabData->calcPoint_NominalStressStrain_yield, tabData->calcPoint_NominalStressStrainUTS, tabData->calcPoint_NominalStressStrain_fracture };
+    double* true_arrays[TestCalc::TensileResults::kPoints] = { tabData->calcPoint_TrueStressStrain_PropLimit, tabData->calcPoint_TrueStressStrain_yield, tabData->calcPoint_TrueStressStrainUTS, tabData->calcPoint_TrueStressStrain_fracture };
+    const char* point_names[TestCalc::TensileResults::kPoints] = { "Proportional limit", "Yielding", "Ultimate Tensile Strength", "Fracture" };
+
+    for (int i = 0; i < TestCalc::TensileResults::kPoints; i++)
     {
-        // Default limits (0.05% to 0.25%)
-        double e_lower = 0.0005;
-        double e_upper = 0.0025;
-
-        // See if the user has added custom draggable bounds (ID 5 and 6)
-        for (const auto& point_tuple : tabData->plot_dataPoints) {
-            if (std::get<1>(point_tuple) == 5) e_lower = LR10KAppGlobals::CalcEpsilon_e(std::get<0>(point_tuple).x - tabData->LR10OffsetZeroPointExtensionAxis, L_0);
-            if (std::get<1>(point_tuple) == 6) e_upper = LR10KAppGlobals::CalcEpsilon_e(std::get<0>(point_tuple).x - tabData->LR10OffsetZeroPointExtensionAxis, L_0);
-        }
-
-        // We need temporary vectors to feed your regression function
-        std::vector<double> strainData, stressData;
-        strainData.reserve(tabData->LR10KTensileData.Data.Size);
-        stressData.reserve(tabData->LR10KTensileData.Data.Size);
-
-        for (int i = 0; i < tabData->LR10KTensileData.Data.Size; i++) {
-            double strainDataWithOffset = (double)(tabData->LR10KTensileData.Data[i].x - tabData->LR10OffsetZeroPointExtensionAxis);
-            strainDataWithOffset = (strainDataWithOffset > 0 ? strainDataWithOffset : 0.0);
-            double sigmaValue = strainDataWithOffset == 0 ? 0.0 : tabData->LR10KTensileData.Data[i].y;
-
-            strainData.push_back(LR10KAppGlobals::CalcEpsilon_e(strainDataWithOffset, L_0));
-            stressData.push_back(LR10KAppGlobals::CalcSigma_e(sigmaValue, A_0));
-        }
-
-        tabData->calcYoungsModulus = CalculateYoungsModulus(strainData, stressData, e_lower, e_upper);
-        DockingApps::console.AddLog("Calculated the E-Modulus! Lower limit: %f %% and upper limit: %f %%.\nThis resulted in the E-Modulus to be: %f GPa", e_lower * 100, e_upper * 100, tabData->calcYoungsModulus);
+        if (results.found[i])
+            DockingApps::console.AddLog("Found a %s point! Calculating...", point_names[i]);
+        nom_arrays[i][0] = results.nominal[i].strain;
+        nom_arrays[i][1] = results.nominal[i].stress;
+        true_arrays[i][0] = results.truePoint[i].strain;
+        true_arrays[i][1] = results.truePoint[i].stress;
     }
 
-    // -------------------------------------------------------------------------
-    // 5. Finalize state
-    // -------------------------------------------------------------------------
+    if (results.modulusCalculated)
+    {
+        double e_module = 0.0;
+        if (results.modulusFit.valid)
+        {
+            e_module = results.modulusFit.slope; // N/mm^2 (MPa) or psi
+            if (LR10KAppGlobals::unitsConvertionIndex == 0)
+                e_module /= 1000; // Shown as GPa with SI units
+        }
+        else
+            DockingApps::console.AddLog("[warning] E-Modulus: only %d data point(s) between the limits; move the limits further apart.", results.modulusFit.points);
+
+        tabData->calcYoungsModulus = (float)e_module;
+        DockingApps::console.AddLog("Calculated the E-Modulus! Lower limit: %f %% and upper limit: %f %%.\nThis resulted in the E-Modulus to be: %f GPa", results.modulusLowerStrain * 100, results.modulusUpperStrain * 100, tabData->calcYoungsModulus);
+    }
+
     if (playSound)       PlaySoundEffect("buttonClick1");
 }
 
 void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound)
 {
-    // 1. Setup dimensions safely (Prevent Divide by Zero later)
-    const double T_0 = LR10KAppGlobals::calc_thickness > 0 ? LR10KAppGlobals::calc_thickness : 1.0;
-    const double W_0 = LR10KAppGlobals::calc_width > 0 ? LR10KAppGlobals::calc_width : 1.0;
-    const double L_0 = LR10KAppGlobals::calc_length > 0 ? LR10KAppGlobals::calc_length : 1.0;
-    double A_0 = T_0 * W_0;
+    // 3-point bending from this test's own dimensions (span = gauge length). This used to read the global
+    // calculator inputs and overwrite the test's saved dimensions with them.
+    const ImPlotPoint UTS = tabData->GetUTS();
+    const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8); // Default fit window: 0.5 .. 2.0 mm of travel
 
-    tabData->thickness = T_0;
-    tabData->width = W_0;
-    tabData->length = L_0;
+    const TestCalc::BendingResults results = TestCalc::CalculateBending3Point(SpecimenOf(tabData), SamplesOf(tabData), MarkedPointsOf(tabData),
+        tabData->LR10OffsetZeroPointExtensionAxis, { UTS.x, UTS.y }, 0.5 * unitConv_dist, 2.0 * unitConv_dist);
 
-    ImPlotPoint UTS = tabData->GetUTS();
+    tabData->calcData_Compression[0] = results.maxLoad;         // Load             (max y)
+    tabData->calcData_Compression[1] = results.maxTravel;       // Travel distance  (max x)
+    tabData->calcData_Compression[2] = results.bendingMoment;   // M = F L / 4
+    tabData->calcData_Compression[3] = results.flexuralStress;  // sigma_f = 3 F L / (2 w t^2)
 
-    tabData->calcData_Compression[0] = UTS.y;                                                // Load             (max y)
-    tabData->calcData_Compression[1] = UTS.x - tabData->LR10OffsetZeroPointExtensionAxis;    // Travel distance  (max x)
-
-    // -------------------------------------------------------------------------
-    // STANDARD 3-POINT BENDING FORMULAS
-    // -------------------------------------------------------------------------
-    // Max bending moment: M = (F * L) / 4 (Uses Span Length, NOT Travel!)
-    tabData->calcData_Compression[2] = MaterialCalc::BendingMoment3Point(tabData->calcData_Compression[0], L_0);
-
-    // Flexural Strength (UTS): Sigma = (3 * F * L) / (2 * w * t^2)
-    tabData->calcData_Compression[3] = MaterialCalc::FlexuralStress3Point(tabData->calcData_Compression[0], L_0, W_0, T_0);
-
-    // -------------------------------------------------------------------------
-    // 3-Point Bending Flexural Modulus (E-Modulus) using Linear Regression
-    // -------------------------------------------------------------------------
-    if (tabData->LR10KTensileData.Data.Size > 10)
+    if (results.modulusCalculated)
     {
-        // 1. Default limits for the linear region (0.5 mm .. 2.0 mm of travel, in the current length unit)
-        const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8);
-        double ext_lower = 0.5 * unitConv_dist;
-        double ext_upper = 2.0 * unitConv_dist;
-
-        // 2. See if the user has added custom draggable bounds (ID 5 and 6)
-        for (const auto& point_tuple : tabData->plot_dataPoints) {
-            // Because we are in bending mode, the graph is just Load/Extension. 
-            // So we grab the raw X (Extension) directly!
-            if (std::get<1>(point_tuple) == 5) ext_lower = std::get<0>(point_tuple).x;
-            if (std::get<1>(point_tuple) == 6) ext_upper = std::get<0>(point_tuple).x;
-        }
-
-        // 3. Extract raw Load and Extension arrays for regression
-        std::vector<double> extensionData, loadData;
-        extensionData.reserve(tabData->LR10KTensileData.Data.Size);
-        loadData.reserve(tabData->LR10KTensileData.Data.Size);
-
-        for (int i = 0; i < tabData->LR10KTensileData.Data.Size; i++) {
-            extensionData.push_back(tabData->LR10KTensileData.Data[i].x); // Travel
-            loadData.push_back(tabData->LR10KTensileData.Data[i].y);      // Load
-        }
-
-        // 4. Slope of the load-deflection line (m = F / dL) in the chosen window
-        const MaterialCalc::LinearFit fit = MaterialCalc::FitLine(extensionData, loadData, ext_lower, ext_upper);
-
-        // 5. 3-point bending formula: E = (slope * L^3) / (4 * w * t^3), in N/mm^2 (MPa) or psi
-        // (Re-using the safe L_0, W_0, and T_0 variables from the top of the function)
-        double flexuralModulus = fit.valid ? MaterialCalc::FlexuralModulus3Point(fit.slope, L_0, W_0, T_0) : 0.0;
-        if (!fit.valid)
-            DockingApps::console.AddLog("[warning] Flexural modulus: only %d data point(s) between the limits; move the limits further apart.", fit.points);
+        if (!results.loadPerTravel.valid)
+            DockingApps::console.AddLog("[warning] Flexural modulus: only %d data point(s) between the limits; move the limits further apart.", results.loadPerTravel.points);
 
         // Shown as GPa with SI units (same as for tension), psi with imperial units
+        double flexuralModulus = results.flexuralModulus;
         if (LR10KAppGlobals::unitsConvertionIndex == 0)
             flexuralModulus /= 1000.0;
-
-        tabData->calcYoungsModulus = flexuralModulus;
+        tabData->calcYoungsModulus = (float)flexuralModulus;
     }
 
-    // -------------------------------------------------------------------------
-    // ------------------ Save any calculations to current tab -----------------
-    // -------------------------------------------------------------------------
     if (playSound)
         PlaySoundEffect("buttonClick1");
 }
@@ -481,6 +395,8 @@ void CreateInputDoubleElement(TabControl::TabTestDataClass* tabData, const char 
     ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
 }
 
+// For the global values: the calculations only use the test's own values, so with "Always load from global
+// values" on (local inputs disabled) an edited global value is copied into the current test.
 void CreateInputFloatElement(TabControl::TabTestDataClass* tabData, const char* label, float* v, float min_val, float max_val)
 {
     if (ImGui::InputFloat(label, v, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(*v), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(*v), ImGuiInputTextFlags_CharsScientific))
@@ -489,8 +405,12 @@ void CreateInputFloatElement(TabControl::TabTestDataClass* tabData, const char* 
         if (*v < min_val) *v = min_val;
         if (*v > max_val) *v = max_val;
 
-        tabData->NeedsRecalculation.markAsUnsaved = true;
-        tabData->NeedsRecalculation.recalculate = true;
+        if (LR10KAppGlobals::useGlobalValuesOnNewTests && !tabData->test_unfinished_test_started)
+        {
+            DockingApps::calculator.SetLocalMaterialProperties(tabData, LR10KAppGlobals::areaOptionPicked, LR10KAppGlobals::calc_thickness, LR10KAppGlobals::calc_width, LR10KAppGlobals::calc_length, LR10KAppGlobals::calc_diameter);
+            tabData->NeedsRecalculation.markAsUnsaved = true;
+            tabData->NeedsRecalculation.recalculate = true;
+        }
     }
     ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
 }
@@ -624,7 +544,9 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                 if (tabData->areaOptionPicked != LR10KAppGlobals::areaOptionPicked)
                 {
                     tabData->areaOptionPicked = LR10KAppGlobals::areaOptionPicked;
+                    tabData->area = MaterialCalc::CrossSectionArea(tabData->areaOptionPicked, tabData->thickness, tabData->width, tabData->diameter);
                     tabData->MarkTabAsUnsaved();
+                    tabData->NeedsRecalculation.recalculate = true;
                 }
                 DockingApps::mainFileSystem.SaveApplicationSettings();
             }
@@ -635,7 +557,9 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                 if (tabData->areaOptionPicked != LR10KAppGlobals::areaOptionPicked)
                 {
                     tabData->areaOptionPicked = LR10KAppGlobals::areaOptionPicked;
+                    tabData->area = MaterialCalc::CrossSectionArea(tabData->areaOptionPicked, tabData->thickness, tabData->width, tabData->diameter);
                     tabData->MarkTabAsUnsaved();
+                    tabData->NeedsRecalculation.recalculate = true;
                 }
                 DockingApps::mainFileSystem.SaveApplicationSettings();
             }
