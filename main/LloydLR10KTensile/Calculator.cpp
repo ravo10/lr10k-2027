@@ -751,16 +751,17 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
                 // ------------------------------ Compression
 
-                if (condition2 && ImGui::BeginTabItem("UTS"))
+                if (condition2 && ImGui::BeginTabItem("Flexural Strength"))
                 {
                     ImGui::PushFont(Extra::fonts.jetbrainsFont);
                     ImGui::PushFont(NULL, style.FontSizeBase* scaling);
-                    ImGui::Text("Ultimate Tensile Strength (UTS)");
+                    ImGui::Text("Flexural Strength (3-point bending)");
                     ImGui::Separator();
                     ImGui::PopFont();
 
-                    ImGui::SeparatorText("UTS Bending");
-                    str = "Ultimate Tensile Strength: %0.2f ";
+                    // σ_f = 3 F L / (2 w t²) at the maximum load (was labelled "Ultimate Tensile Strength")
+                    ImGui::SeparatorText("Maximum stress at the outer fibre");
+                    str = "Flexural strength: %0.2f ";
                     str.append(LR10KAppGlobals::GetUnitOption<const char*>(7));
                     Extra::tools.TextWithWhiteBackground(colorText_nom, str.c_str(), tabData->calcData_Compression[3]);
 
@@ -777,7 +778,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
 
                     ImGui::SeparatorText("Bending Moment");
                     str = "Max. Moment (Force*Arm): %0.2f ";
-                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1)).append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // Nmm or lbf * in
+                    str.append(LR10KAppGlobals::GetUnitOption<const char*>(1)).append("*").append(LR10KAppGlobals::GetUnitOption<const char*>(0)); // N*mm or lbf*in (was "Nmm"/"lbfin")
                     ImGui::TextColored(colorText, str.c_str(), tabData->calcData_Compression[2]);
 
                     ImGui::PopFont();
@@ -1030,7 +1031,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
         // --------------------
         if (ImGui::BeginTabItem("Filters"))
         {
-            ImGui::SeparatorText("Filter out extension from start (without extensiometer)");
+            ImGui::SeparatorText("Filter out extension from start (without extensometer)");
 
             ImGui::PushFont(Extra::fonts.jetbrainsFont);
             // Have the option to move the starting strain point (x-axis) an offset distance from zero point

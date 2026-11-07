@@ -717,24 +717,13 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
         }
         };
 
-    bool disableSaveToExcel = true;
-    if (tabData != nullptr && !mainGUIGlobals::useDemoMode)
-    {
-        disableSaveToExcel = !tabData->test_finished
-            ||
-            ((!tabData->tension && 1 == tabData->compressionOptionPicked) && (
-                (tabData->calcData_Compression[3] == 0 || tabData->calcData_Compression[3] == INFINITY)
-                ))
-            ||
-            ((tabData->tension || (!tabData->tension && 0 == tabData->compressionOptionPicked)) && (
-                ((tabData->calcPoint_NominalStressStrainUTS[0] == 0 || tabData->calcPoint_NominalStressStrainUTS[0] == INFINITY) && (tabData->calcPoint_NominalStressStrain_yield[0] == 0 || tabData->calcPoint_NominalStressStrain_yield[0] == INFINITY))
-                || ((tabData->calcPoint_NominalStressStrainUTS[1] == 0 || tabData->calcPoint_NominalStressStrainUTS[1] == INFINITY) && (tabData->calcPoint_NominalStressStrain_yield[1] == 0 || tabData->calcPoint_NominalStressStrain_yield[1] == INFINITY))
-                ));
-    }
-    else if (mainGUIGlobals::useDemoMode)
-    {
-        disableSaveToExcel = false;
-    }
+    // Excel export: any test with data that is not running (a finished test, or one opened from a .lr10k file).
+    // (Used to need a UTS or yield point, but only in the menu: Ctrl+Alt+E and Ctrl+S exported anyway. The
+    // report now shows "-" for points that are not placed. The menu item was also greyed out for an opened
+    // test without unsaved changes, so an opened .lr10k file could not be exported to Excel.)
+    const bool canExportExcel = tabData != nullptr
+        && tabData->LR10KTensileData.Data.Size > 0
+        && (tabData->test_finished || !tabData->test_unfinished_test_started);
 
     // Load application data with shortcut
     if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_O))
@@ -752,14 +741,10 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
     }
 
     // Save as excel data with shortcut
-    if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyAlt && ImGui::IsKeyPressed(ImGuiKey_E) && tabData != nullptr)
+    if (ImGui::GetIO().KeyCtrl && ImGui::GetIO().KeyAlt && ImGui::IsKeyPressed(ImGuiKey_E) && canExportExcel)
     {
-        // Save data from the current test GUI to a text file (if a test is not started or test has started and is finished)
-        if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
-        {
-            PlaySoundEffect("buttonClick0");
-            fileBrowserSaveXlsx.Open();
-        }
+        PlaySoundEffect("buttonClick0");
+        fileBrowserSaveXlsx.Open();
     }
 
     // Save application data with shortcut
@@ -918,7 +903,8 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
                 ImGui::Separator();
 
-                ImGui::BeginDisabled(!tabData->unsavedThingsInTab || defaultValuesGUI::invalidStressDataNotUpdated);
+                // Save As: any test with data that is not running, also without unsaved changes (a copy under a new name)
+                ImGui::BeginDisabled(tabData->LR10KTensileData.Data.Size == 0 || (tabData->test_unfinished_test_started && !tabData->test_finished));
                 if (ImGui::MenuItem("Save File As...", "Ctrl+Alt+S"))
                 {
                     // Save data from the current test GUI to a text file (if a test is not started or test has started and is finished)
@@ -929,13 +915,14 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                     }
                 }
 
-                // Save results as a .XLSX file
-                if (ImGui::MenuItem("Save Excel Book As...", "Ctrl+Alt+E", false, (!disableSaveToExcel && !defaultValuesGUI::invalidStressDataNotUpdated)))
+                ImGui::EndDisabled();
+
+                // Save results as a .XLSX file (also without unsaved changes, e.g. a test opened from a file)
+                if (ImGui::MenuItem("Save Excel Book As...", "Ctrl+Alt+E", false, canExportExcel))
                 {
                     PlaySoundEffect("buttonClick0");
                     fileBrowserSaveXlsx.Open();
                 }
-                ImGui::EndDisabled();
 
                 ImGui::Separator();
 
@@ -976,7 +963,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 // Toggle the booleans inside the struct
                 ImGui::MenuItem("Settings", NULL, &g_WindowStates.show_settings);
                 ImGui::MenuItem("Calculator", NULL, &g_WindowStates.show_calculator);
-                ImGui::MenuItem("Extensiometer", NULL, &g_WindowStates.show_extensiometer);
+                ImGui::MenuItem("Extensometer", NULL, &g_WindowStates.show_extensiometer);
                 ImGui::MenuItem("Console", NULL, &g_WindowStates.show_console);
                 ImGui::SeparatorText("Side Panel");
                 ImGui::EndMenu();
@@ -1794,7 +1781,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 	if (ImGui::BeginPopup(mainGUIGlobals::popUpID_ExtensiometerLostMarkerUnderTest))
 	{
 		ImGui::Text("The test got paused! Lost tracking of the two markers on the test piece...");
-		ImGui::Text("Open the extensiometer view to check if the tracking of\n the two markers can be regained.");
+		ImGui::Text("Open the extensometer view to check if the tracking of\n the two markers can be regained.");
 
 		if (ImGui::Button("Abort", ImVec2(120, 0)))
 		{
@@ -1842,7 +1829,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
         ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(1300, 715), ImGuiCond_Once);
 
-        if (ImGui::Begin("Computer Vision Extensiometer", p_open, window_flags))
+        if (ImGui::Begin("Computer Vision Extensometer###Computer Vision Extensiometer", p_open, window_flags))
         {
             ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
 
@@ -1863,7 +1850,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             ImGui::SameLine(0.0f, 20.0f);
             ImGui::BeginDisabled(!g_Extensiometer.is_active || tabData->test_unfinished_test_started);
             ImGui::Checkbox("Use Optical Ext.", &LR10KAppGlobals::opticalSourceAsExtensiometer);
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Use the optical extensiometer to track extension from sample.");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Use the optical extensometer to track extension from the specimen.");
             ImGui::EndDisabled();
 
             ImGui::SameLine(0.0f, 20.0f);
@@ -2028,7 +2015,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                                 // Draw Overlay Text
                                 ImGui::Spacing();
-                                ImGui::Text("Normal behavior: Extension and strain\nmight jump unexpectedly after fracture,\nand loose tracking.");
+                                ImGui::Text("Normal behavior: Extension and strain\nmight jump unexpectedly after fracture,\nand lose tracking.");
                             }
                             else {
                                 ImGui::Text("Waiting for camera feed...");
@@ -2283,7 +2270,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             {
                 ImGui::Text("Camera is not active. Check the box above to start the camera and see the feed here.");
                 ImGui::Spacing();
-                ImGui::Text("This Extensiometer is developed together with Gemini AI,\nusing the OpenCV library for computer vision.");
+                ImGui::Text("This extensometer is developed together with Gemini AI,\nusing the OpenCV library for computer vision.");
             }
 
             ImGui::EndDisabled();
@@ -2562,7 +2549,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
         // --------------------
         // ZERO P. & SAFTEY
         // --------------------
-        if (ImGui::BeginTabItem("Zero Point & Saftey"))
+        if (ImGui::BeginTabItem("Zero Point & Safety###Zero Point & Saftey"))
         {
             ImGui::BeginDisabled(disableTestSettingsAdjustments);
 
@@ -2571,7 +2558,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
             ImGui::Checkbox("Set new on Start Test", &LR10KAppGlobals::setZeroPointOnStarTest);
             ImGui::SetItemTooltip("Is useful if one has to force down the crosshead\nat start, and it results in a disturbance of the load.");
 
-            ImGui::SeparatorText("Saftey");
+            ImGui::SeparatorText("Safety");
             ImGui::Text("Not saved in settings.\nApplies only to software.");
             ImGui::Checkbox("Translation load blocker", &LR10KAppGlobals::stopTranslationOfCrossheadSaftey);
             ImGui::SetItemTooltip("Will stop the crosshead from translating when the\nload limit exceeds 50 N and no test is started.");
@@ -3156,7 +3143,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         g_WindowStates.show_calculator = !g_WindowStates.show_calculator;
 
     ImGui::SameLine();
-    if (ImGui::Button(g_WindowStates.show_extensiometer ? "Hide Extensiometer" : "View Extensiometer"))
+    if (ImGui::Button(g_WindowStates.show_extensiometer ? "Hide Extensometer" : "View Extensometer"))
         g_WindowStates.show_extensiometer = !g_WindowStates.show_extensiometer;
 
     // --- NEW: Optical Source Checkbox ---
@@ -3166,7 +3153,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     ImGui::BeginGroup(); // Group to align vertically with the button
     ImGui::BeginDisabled(!g_Extensiometer.is_active || tabData->test_unfinished_test_started);
     ImGui::Checkbox("Use Optical Ext.", &LR10KAppGlobals::opticalSourceAsExtensiometer);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Use the optical extensiometer to track extension from sample.");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Use the optical extensometer to track extension from the specimen.");
     ImGui::EndDisabled();
     ImGui::EndGroup();
 
@@ -3177,12 +3164,12 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         LR10KAppGlobals::opticalSourceAsExtensiometer = false;
 
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Open up the extensiometer view settings to activate the camera.");
+            ImGui::SetTooltip("Open the extensometer view to activate the camera.");
     }
     else
     {
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Use the camera-based extensiometer for Extension (X-Axis) instead of the machine encoder.\nEnsure the Extensiometer is calibrated!");
+            ImGui::SetTooltip("Use the camera-based extensometer for Extension (X-Axis) instead of the machine encoder.\nMake sure the extensometer is calibrated!");
     }
 
     // -------------------------------------
@@ -4167,7 +4154,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         return;
     }
 
-    ImGui::Text("Video training tutorials:\n(\"Setup\" and \"Completing a test\" are mandatory to complete for saftey reasons!)");
+    ImGui::Text("Video training tutorials:\n(\"Setup\" and \"Completing a test\" are mandatory to complete for safety reasons!)");
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.051f, 0.815f, 0.931f, 0.8f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.051f, 0.815f, 0.931f, 0.9f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.051f, 0.815f, 0.931f, 0.85f));
@@ -4198,9 +4185,9 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(IM_COL32(185, 18, 248, 204)));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(IM_COL32(185, 18, 248, 230)));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(IM_COL32(185, 18, 248, 217)));
-    if (ImGui::Button("Using an extensiometer", { 200, 35 }))
+    if (ImGui::Button("Using an extensometer", { 200, 35 }))
         Extra::tools.PlayVideo("videos\\lr10k_usinganextensiometer.mp4");
-    ImGui::SetItemTooltip("This will walk a user through how to complete a test with the optical extensiometer.");
+    ImGui::SetItemTooltip("This will walk a user through how to complete a test with the optical extensometer.");
     ImGui::PopStyleColor(3);
 
     ImGui::Spacing();
@@ -4271,7 +4258,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         ImGui::BulletText("Add crucial points during or after a test is finished");
         ImGui::BulletText("Undo crucial point by clicking Ctrl+Z");
         ImGui::BulletText("Click above the graph line in the plot area, to more easily snap a point onto the graph");
-        ImGui::BulletText("Crucial points that is not assigned a property, will not be included in the Excel Book plot");
+        ImGui::BulletText("All crucial points are shown in the Excel graphs; the report lists the proportional limit, yield, UTS and fracture");
         ImGui::BulletText("Save files after a test is finished as either .lr10k or .xlsx");
         ImGui::BulletText("Open .lr10k files to a new tab in the Menu");
         ImGui::BulletText("A sound effect will play when a file is saved/opened successfully");
@@ -4281,10 +4268,10 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         ImGui::BulletText("Is the plot/graph not looking like you want in Excel? Adjust it in the software before saving");
         ImGui::BulletText("Use Ctrl+ScrollWheel to scale up/down the font size");
         ImGui::BulletText("You can use scientific symbols in input fields. I.e.: 1e3 or 1E3 = 1000");
-        ImGui::BulletText("You need to add atleast one crucial/important point for the test to be eligible for saving as an Excel Book");
+        ImGui::BulletText("Crucial points you have not placed show \"-\" in the Excel report");
         ImGui::BulletText("You can reset the GUI interface and settings in the Menu");
         ImGui::BulletText("If you want to manually manipulate the settings files, they are located in the hidden local AppData folder");
-        ImGui::BulletText("If you go over 50 N while translating downards, the machine will stop.\nThis is for saftey reasons");
+        ImGui::BulletText("If you go over 50 N while translating downwards, the machine will stop.\nThis is for safety reasons");
         ImGui::Spacing();
     }
 
@@ -4297,18 +4284,23 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
 
         ImGui::BulletText("True Stress, σ_t :: σ_e * ( 1 + ε_n )");
         ImGui::BulletText("True Strain, ε_t :: ln( 1 + ε_n )");
+        ImGui::BulletText("E-Modulus :: slope of the least-squares line through the stress-strain data between the E-bounds");
+
+        ImGui::Spacing();
+        ImGui::Text("3-point bending (span L, width w, thickness t, slope m of the load-deflection line):");
+        ImGui::BulletText("Max. bending moment, M :: F * L / 4");
+        ImGui::BulletText("Flexural strength, σ_f :: 3 * F * L / ( 2 * w * t² )");
+        ImGui::BulletText("Flexural modulus, E_f :: m * L³ / ( 4 * w * t³ )");
 
         ImGui::NewLine();
-        ImGui::Text("Convertion from base SI units to other units:");
+        ImGui::Text("Conversion from base SI units to other units:");
         ImGui::Spacing();
-        ImGui::Text("This happens with the software only, and is therefor just a convertion");
-        ImGui::Text("happening in the GUI at the output, expect; all of the data and points and points.");
-        ImGui::Text("These are converted back and fourth to handle data - when sending settings to LR 10K and saving the .lr10k file.");
-        ImGui::Text("That means that the information and .lr10k file are always in base SI units.");
+        ImGui::Text("Only what the software shows is converted (data, points, dimensions and results).");
+        ImGui::Text("The .lr10k file and the settings sent to the LR 10K are always in base SI units (N, mm).");
     }
 
     // Documentation of the meaning for different HEX values
-    if (ImGui::CollapsingHeader("Interpeting HEX values"))
+    if (ImGui::CollapsingHeader("Interpreting HEX values"))
     {
         ImGui::Spacing();
         ImGui::Text("More detailed documentation is on GitHub.");
@@ -4352,21 +4344,21 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         ImGui::BulletText("0x87 = Fast down");
 
         ImGui::NewLine();
-        ImGui::Text("(Read) Interpetation of LR 10K status (0xB6):");
+        ImGui::Text("(Read) Interpretation of LR 10K status (0xB6):");
         ImGui::BulletText("0x00 = Ready (stop)");
         ImGui::BulletText("0x41 = Going up");
         ImGui::BulletText("0x61 = Going down");
         ImGui::BulletText("0x40 = Stop fast movement");
 
         ImGui::NewLine();
-        ImGui::Text("(Read) Interpetation of LR 10K warning status (0xBF):");
+        ImGui::Text("(Read) Interpretation of LR 10K warning status (0xBF):");
         ImGui::BulletText("0x00 = OK");
         ImGui::BulletText("0x02 = Tension overload stop. Go DOWN only");
         ImGui::BulletText("0x06 = Compression overload stop. Go UP only");
         ImGui::BulletText("0x0C = Extension range exceeded (error 12)");
 
         ImGui::NewLine();
-        ImGui::Text("(Read) Interpetation of LR 10K overflow message (0xB1):");
+        ImGui::Text("(Read) Interpretation of LR 10K overflow message (0xB1):");
         ImGui::BulletText("Multiplier status ...");
     }
 
@@ -4384,7 +4376,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         ImGui::BulletText("imgui-filebrowser (june 26, 2023) | File browser for saving and loading files");
         ImGui::BulletText("ImThemes v0.2.6 | Ready made theme styling + Custom for the GUI");
         ImGui::BulletText("Unifont by St. GIGAFONT Typefaces | Custom free font");
-        ImGui::BulletText("OpenCV 4.12.0 | Used with Extensiometer (2026) (developed together with Gemini AI)");
+        ImGui::BulletText("OpenCV 4.12.0 | Used with the extensometer (2026) (developed together with Gemini AI)");
         ImGui::Spacing();
     }
 

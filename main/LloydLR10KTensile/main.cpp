@@ -222,7 +222,7 @@ int main(int argc, char** argv)
     // Boot up a message box with some information about the software, and the responsible for it. This is to make sure the user gets some information about the software before using it, and to give credit to the responsible for it.
     std::string messageStringStartup = "- Documentation videos (+PDF) in application 'Help' menu.\n";
     messageStringStartup.append("- .lr10k files are associated by software. Supports drag/drop on window.\n");
-    messageStringStartup.append("- Extensiometer is experimental, but have been tested for accuracy, and is working.\n");
+    messageStringStartup.append("- The optical extensometer is experimental, but has been tested for accuracy and works.\n");
     messageStringStartup.append("- Fullscreen and High DPI (screens) are supported under the 'GUI Settings' menu.\n\n");
 
     messageStringStartup.append("Responsible for software: Rasmus Ullestad Relling (GitHub: ravo10)\n");

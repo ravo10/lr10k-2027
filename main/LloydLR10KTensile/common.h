@@ -328,7 +328,7 @@ namespace mainGUIGlobals {
     static const char* popUpID_SomethingUnexpectedHappend = "Something unexpeced happend";  //!< Pop Up ID for the Something unexpeced happend.
     static const char* popUpID_ConnectionLost = "Connection lost";                          //!< Pop Up ID for when the COM port stops working (e.g. cable/USB adapter unplugged).
     static const char* popUpID_LR10KNotResponding = "LR 10K not responding";            //!< Pop Up ID for when the watchdog gets no answer from the LR 10K.
-    static const char* popUpID_ExtensiometerLostMarkerUnderTest = "Extensiometer lost tracking markers";  //!< Pop Up ID for if the extensiometer lost tracking points under testing.
+    static const char* popUpID_ExtensiometerLostMarkerUnderTest = "Extensometer lost tracking markers";  //!< Pop Up ID for if the extensiometer lost tracking points under testing.
 
     /**
         @brief The pop-up window to warn about adding dimensions.
