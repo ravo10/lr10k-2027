@@ -19,6 +19,10 @@ powershell -ExecutionPolicy Bypass -File scripts\fetch-videos.ps1
 
 The script uses the [GitHub CLI](https://cli.github.com) (`gh auth login` first) because the repository is private. If a video is missing, the Help button opens the release page instead.
 
+### Building
+
+See [BUILDING.md](BUILDING.md) for the tools to install, how to build, and how to package the app for a lab PC without Visual Studio.
+
 ### How it works
 
 Uses the ImGui open source package with C++ for the application, where the binary codes sent to the machine was found by "sniffing" the machine's in/out commands and response. The software is also multi-threaded and uses independent threads that run hooks for handling the data flow and circular buffer. More information on how the software works can be found in the docs above.

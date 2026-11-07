@@ -23,6 +23,12 @@
     <RootNamespace>example_win32_directx9</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>Lloyd LR10K Tensile Machine Control Software</ProjectName>
+    <!-- Prebuilt OpenCV 4.12.0 (opencv-4.12.0-windows.exe). Override with an environment variable or /p:OpenCVDir=... if installed elsewhere. See BUILDING.md -->
+    <OpenCVDir Condition="'$(OpenCVDir)' == ''">C:\opencv\build</OpenCVDir>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <!-- Install libxlsxwriter from vcpkg.json (repository root) automatically on build. See BUILDING.md -->
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -105,7 +111,7 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>C:\opencv\build\include;..\..;..\..\backends;%(AdditionalIncludeDirectories);$(DXSDK_DIR)Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OpenCVDir)\include;..\..;..\..\backends;%(AdditionalIncludeDirectories);$(DXSDK_DIR)Include</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <CompileAsWinRT>
@@ -113,7 +119,7 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(DXSDK_DIR)/Lib/x64;C:\opencv\build\x64\vc16\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DXSDK_DIR)/Lib/x64;$(OpenCVDir)\x64\vc16\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>d3d12.lib;d3dcompiler.lib;dxgi.lib;Winmm.lib;OneCore.lib;opencv_world4120d.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
@@ -122,6 +128,9 @@
 xcopy /y /d /i "$(ProjectDir)images" "$(OutDir)images"
 xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
 xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"
+if exist "$(OpenCVDir)\x64\vc16\bin\opencv_world4120d.dll" (xcopy /y /d "$(OpenCVDir)\x64\vc16\bin\opencv_world4120d.dll" "$(OutDir)") else (echo OpenCV DLL not found: $(OpenCVDir)\x64\vc16\bin\opencv_world4120d.dll)
+if exist "$(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll" (xcopy /y /d "$(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll" "$(OutDir)") else (echo OpenCV DLL not found: $(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll)
+xcopy /y /d "$(ProjectDir)imgui_original.ini" "$(OutDir)"
 if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos") else (echo Tutorial videos not found, skipping. Run scripts\fetch-videos.ps1 to download them.)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -151,7 +160,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>C:\opencv\build\include;..\..;..\..\backends;%(AdditionalIncludeDirectories);$(DXSDK_DIR)Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OpenCVDir)\include;..\..;..\..\backends;%(AdditionalIncludeDirectories);$(DXSDK_DIR)Include</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -162,7 +171,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(DXSDK_DIR)/Lib/x64;C:\opencv\build\x64\vc16\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DXSDK_DIR)/Lib/x64;$(OpenCVDir)\x64\vc16\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>d3d12.lib;d3dcompiler.lib;dxgi.lib;Winmm.lib;OneCore.lib;opencv_world4120.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
@@ -172,6 +181,9 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
 xcopy /y /d /i "$(ProjectDir)images" "$(OutDir)images"
 xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
 xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"
+if exist "$(OpenCVDir)\x64\vc16\bin\opencv_world4120.dll" (xcopy /y /d "$(OpenCVDir)\x64\vc16\bin\opencv_world4120.dll" "$(OutDir)") else (echo OpenCV DLL not found: $(OpenCVDir)\x64\vc16\bin\opencv_world4120.dll)
+if exist "$(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll" (xcopy /y /d "$(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll" "$(OutDir)") else (echo OpenCV DLL not found: $(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll)
+xcopy /y /d "$(ProjectDir)imgui_original.ini" "$(OutDir)"
 if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos") else (echo Tutorial videos not found, skipping. Run scripts\fetch-videos.ps1 to download them.)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

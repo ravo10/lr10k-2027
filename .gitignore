@@ -83,3 +83,6 @@ main/LloydLR10KTensile/videos/*.mp4
 docs/html/
 docs/latex/
 docs/html.zip
+
+## Packaged release output (scripts/package-release.ps1)
+dist/

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "lr10k-control-software",
+  "version-string": "1.1.2",
+  "description": "Unofficial LR 10K control software. Libraries installed by vcpkg (manifest mode). OpenCV is installed separately, see BUILDING.md.",
+  "dependencies": [
+    "libxlsxwriter"
+  ],
+  "builtin-baseline": "469a0504e4a6ebf6173d1c0f51a7fa34c382fd43"
+}
