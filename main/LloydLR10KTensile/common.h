@@ -540,29 +540,14 @@ namespace LR10KAppGlobals {
 
    inline extern std::string pendingFileToLoad = "";
 
-    //! \note Used in GUI control
-    inline extern int   connectedComPortNumber = -1;       //!< \details Displays the current connected COM port number/id.
-    //! \note Used for "Reconnect"
-    inline extern int   lastConnectedComPortNumber = -1;   //!< \details The last COM port that was connected successfully.
-    //! \note Used in GUI control
-    inline extern bool  readyToConnectToLR10K = false;    //!< \details This will true when COM is connected.
-    //! \note Used in GUI control
-    inline extern bool  configurationDone = false;    //!< \details This will be true when COM is connected and LR10K Tensile Machine is connected.
+    //! Connection state and status texts of the LR 10K (COM port, connected, live data, zero point, status/warning
+    //! texts). Thread safe: written by the connect/setup/reconnect and interpreter threads, read by the GUI.
+    //! (Replaces configurationDone, connectedComPortNumber, lastConnectedComPortNumber, readyToConnectToLR10K,
+    //! sendingLiveDataFromLR10K, zeroPointIsSet and the current*StatusMessage texts.)
+    inline LR10KStatus& MachineStatus() { return LR10KDataDeEncryptionSystem::machineStatus; }
+
     //! \note Security toogle for stopping LR 10K crosshead when translating down.
     inline extern bool  shutLR10KDownIfLoadToHigh = true;
-
-    //! \note Feedback from LR 10K
-    inline extern std::atomic<const char*> currentLiveStatusMessage("N/A");      //!< Always a string literal: written by worker threads, read by the GUI (a std::string here was a data race).
-    //!< \details Current live status, if LR 10K Tensile Machine is sending out live data.
-    //! \note Feedback from LR 10K
-    inline extern std::atomic<char*> currentStatusMessage(const_cast<char*>("N/A"));     //!< \details Current status message coming from LR 10K Tensile Machine.
-    //! \note Feedback from LR 10K
-    inline extern std::atomic<const char*> currentWarnErrorStatusMessage("N/A"); //!< Always a string literal: written by the interpreter thread, read by the GUI (a std::string here was a data race).
-    //!< \details Current warning/error message coming from LR 10K Tensile Machine.
-    //! \note Feedback from LR 10K
-    inline extern bool sendingLiveDataFromLR10K = false;    //!< \details Will be true when live data is being sent from LR 10K Tensile Machine.
-
-    inline extern bool zeroPointIsSet = false;    //!< \details Will be true when zero point is set.
 
     //! \note Settings related to Real Time testing
     inline extern bool tensionTesting = true; //!< false = compression testing.
@@ -683,30 +668,8 @@ struct MutexControl {
     //! \details Mutex to protect important point when loading a file.
     std::mutex importantPointsProtector;
 
-    //! \details Mutex to protect currentStatusMessage.
-    std::mutex currentStatusMessageMutex;
-
-    // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
-
-    //! \details Synchronize access to "currentStatusMessage".
-    std::condition_variable currentStatusMessageStatusChanged;
-
-    // -------------------------------------------------------------------------
-
-    /**
-        @brief Status message change.
-    **/
-    void StatusMessage()
-    {
-        std::unique_lock<std::mutex> lock(currentStatusMessageMutex);
-        currentStatusMessageStatusChanged.wait(
-            lock, [] {
-                return
-                    LR10KAppGlobals::currentStatusMessage.load() != nullptr
-                    && strlen(LR10KAppGlobals::currentStatusMessage.load()) > 1;
-            });
-    }
+    // (The status text used to be guarded by a mutex + condition variable that the GUI thread waited on every
+    // frame; it is now LR10KAppGlobals::MachineStatus(), see LR10KStatus.h.)
 };
 
 /**

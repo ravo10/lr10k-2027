@@ -103,7 +103,7 @@ void TabControl::CrucialPointsUndoPoint(TabControl::TabTestDataClass* tabData)
 **/
 void TabControl::PreventExtremeLimitsLR10K(TabControl::TabTestDataClass* tabData)
 {
-    if (!LR10KAppGlobals::configurationDone) return;
+    if (!LR10KAppGlobals::MachineStatus().IsMachineConnected()) return;
 
     float LR10KConvertedLoad        = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad();
     // float LR10KConvertedDistance    = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
@@ -145,7 +145,7 @@ void TabControl::PreventExtremeLimitsLR10K(TabControl::TabTestDataClass* tabData
 **/
 void TabControl::PreventUserLimitsLR10K(TabControl::TabTestDataClass* tabData)
 {
-    if (!LR10KAppGlobals::configurationDone) return;
+    if (!LR10KAppGlobals::MachineStatus().IsMachineConnected()) return;
 
     float LR10KConvertedLoad        = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad();
     // float LR10KConvertedDistance    = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
@@ -212,11 +212,10 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
             if (!tabData->test_finished)
             {
                 // Check if there is a physical crash or not to stop the machine
-                DockingApps::mutexControl.StatusMessage();
                 if (
                     !tabData->test_unfinished_test_started
                     && LR10KAppGlobals::shutLR10KDownIfLoadToHigh
-                    && strcmp(LR10KAppGlobals::currentStatusMessage.load(), "Ready") != 0 // Compare the text, not the pointer (pointer equality only held when the compiler merged identical string literals)
+                    && strcmp(LR10KAppGlobals::MachineStatus().Status(), "Ready") != 0 // Compare the text, not the pointer (pointer equality only held when the compiler merged identical string literals)
                     && LR10KAppGlobals::stopTranslationOfCrossheadSaftey)
                 {
                     // See if the load is over 50 N, and stop the translation

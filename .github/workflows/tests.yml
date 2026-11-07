@@ -70,3 +70,8 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/excel_report_test.cpp -o excel_report_test
           ./excel_report_test
+      - name: Machine status for the GUI (ThreadSanitizer)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
+            -I main/LloydLR10KTensile tests/status_test.cpp -o status_test
+          ./status_test

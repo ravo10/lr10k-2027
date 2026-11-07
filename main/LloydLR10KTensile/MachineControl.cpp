@@ -68,15 +68,12 @@ bool LR10KControlSystem::TryConnectingToLR10K()
     LR10KControlSystem::WatchdogReset();
 
     // Update the GUI if everything is successful
-    LR10KAppGlobals::configurationDone              = true;
-    LR10KAppGlobals::currentLiveStatusMessage       = "No";
-    LR10KAppGlobals::currentWarnErrorStatusMessage  = "OK";
+    LR10KAppGlobals::MachineStatus().OnMachineConnected(); // Connected, live data "No", warning "OK"
 
     PlaySoundEffect("buttonClick1");
 
     DockingApps::console.AddLog("Connected PC to LR 10K successfully!");
-    LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>("Applying settings ..."));
-    DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+    LR10KAppGlobals::MachineStatus().SetStatus("Applying settings ...");
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -97,7 +94,7 @@ bool LR10KControlSystem::TryConnectingToLR10K()
 **/
 bool LR10KControlSystem::TryDisconnectFromLR10K()
 {
-    if (LR10KAppGlobals::configurationDone && LR10KCOMSystem::CheckIfCOMIsConnected())
+    if (LR10KAppGlobals::MachineStatus().IsMachineConnected() && LR10KCOMSystem::CheckIfCOMIsConnected())
     {
         LR10KControlSystem::TellLR10KToStopSendingData(); // !! Important !!
         Sleep(300); // !! Important !!
@@ -106,15 +103,9 @@ bool LR10KControlSystem::TryDisconnectFromLR10K()
     }
 
     // Reset GUI variabels
-    LR10KAppGlobals::configurationDone              = false;
+    LR10KAppGlobals::MachineStatus().OnMachineDisconnected(); // Not connected, no live data, texts N/A
     LR10KDataDeEncryptionSystem::lr10kNotResponding.store(false);
     LR10KDataDeEncryptionSystem::watchdogProbeReplyPending.store(false);
-
-    LR10KAppGlobals::sendingLiveDataFromLR10K       = false;
-    LR10KAppGlobals::currentLiveStatusMessage       = "N/A";
-    LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>("N/A"));
-    DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
-    LR10KAppGlobals::currentWarnErrorStatusMessage  = "N/A";
 
     // Zero point: forgotten; after reconnecting the first data package is the load zero, the distance starts at 0
     LR10KDataDeEncryptionSystem::machine.ResetDistance();
@@ -132,8 +123,7 @@ bool LR10KControlSystem::TryDisconnectFromLR10K()
 
     // Clear all data
     LR10KDataDeEncryptionSystem::m_SerialBuffer.ClearAllData();
-    LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>("N/A"));
-    DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+    LR10KAppGlobals::MachineStatus().SetStatus("N/A");
 
     DockingApps::console.AddLog("Disconnected PC from LR 10K successfully!");
 
@@ -180,7 +170,7 @@ void LR10KControlSystem::SendTestSetupToLR10K()
 **/
 void LR10KControlSystem::TellLR10KToSendData()
 {
-    if (LR10KAppGlobals::configurationDone)
+    if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
     {
         LR10KBufferMessage bufferMessage;
         bufferMessage.DataSetSingleBufferMessage(0xC0);
@@ -189,8 +179,7 @@ void LR10KControlSystem::TellLR10KToSendData()
         LR10KCOMSystem::SendDataToCom(bufferMessage, LR10KDataDeEncryptionSystem::m_hSerial);
         DockingApps::console.AddLog("... From GUI.");
 
-        LR10KAppGlobals::sendingLiveDataFromLR10K = true;
-        LR10KAppGlobals::currentLiveStatusMessage = "Yes";
+        LR10KAppGlobals::MachineStatus().SetLiveData(true);
 
         PlaySoundEffect("buttonClick1");
     }
@@ -200,7 +189,7 @@ void LR10KControlSystem::TellLR10KToSendData()
 **/
 void LR10KControlSystem::TellLR10KToStopSendingData()
 {
-    if (LR10KAppGlobals::configurationDone)
+    if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
     {
         LR10KBufferMessage bufferMessage;
         bufferMessage.DataSetSingleBufferMessage(0xC1);
@@ -209,8 +198,7 @@ void LR10KControlSystem::TellLR10KToStopSendingData()
         LR10KCOMSystem::SendDataToCom(bufferMessage, LR10KDataDeEncryptionSystem::m_hSerial);
         DockingApps::console.AddLog("... From GUI.");
 
-        LR10KAppGlobals::sendingLiveDataFromLR10K = false;
-        LR10KAppGlobals::currentLiveStatusMessage = "No";
+        LR10KAppGlobals::MachineStatus().SetLiveData(false);
     }
 }
 /**
@@ -218,7 +206,7 @@ void LR10KControlSystem::TellLR10KToStopSendingData()
 **/
 void LR10KControlSystem::GetCurrReportFromLR10K()
 {
-    if (LR10KAppGlobals::configurationDone)
+    if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
     {
         LR10KBufferMessage bufferMessage;
         bufferMessage.DataSetSingleBufferMessage(0xB6);
@@ -248,8 +236,7 @@ namespace {
     {
         LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.store(true);
         DockingApps::console.AddLog("Reconnecting to LR 10K on COM%d ...", comPort);
-        LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>("Reconnecting ..."));
-        DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+        LR10KAppGlobals::MachineStatus().SetStatus("Reconnecting ...");
 
         // Close everything first. (Safe to call when parts are already closed, e.g. after "Connection lost".)
         LR10KControlSystem::TryDisconnectFromLR10K();
@@ -259,8 +246,7 @@ namespace {
         if (!LR10KCOMSystem::TryConnectingToCOMPort(comPort))
         {
             DockingApps::console.AddLog("[error] Reconnect failed: COM%d could not be opened. Is the cable/adapter plugged in?", comPort);
-            LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>("Reconnect failed"));
-            DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+            LR10KAppGlobals::MachineStatus().SetStatus("Reconnect failed");
             LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.store(false);
             LR10KDataDeEncryptionSystem::reconnectInProgress.store(false);
             return;
@@ -269,7 +255,7 @@ namespace {
         // Same as "Connect PC" in the menu (shows the timeout pop up itself if the LR 10K does not answer)
         LR10KDataDeEncryptionSystem::ConnectingToLR10K();
 
-        if (LR10KAppGlobals::configurationDone)
+        if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             DockingApps::console.AddLog("Reconnected to LR 10K on COM%d.", comPort);
         else
             DockingApps::console.AddLog("[error] Reconnect failed: COM%d opened, but the LR 10K did not answer.", comPort);
@@ -306,7 +292,7 @@ void LR10KControlSystem::WatchdogTick()
 
     // Only watch a connected machine that is not busy with connect/setup/reconnect
     if (mainGUIGlobals::useDemoMode
-        || !LR10KAppGlobals::configurationDone
+        || !LR10KAppGlobals::MachineStatus().IsMachineConnected()
         || !LR10KCOMSystem::CheckIfCOMIsConnected()
         || m_pThreadLR10KIsLoading_isLoading.load()
         || reconnectInProgress.load())
@@ -340,8 +326,7 @@ void LR10KControlSystem::WatchdogTick()
 
     watchdogProbeReplyPending.store(false);
     DockingApps::console.AddLog("[error] LR 10K has not answered for %lld s (status requested %d times).", silence / 1000, watchdogProbesSent);
-    LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>("Not responding"));
-    DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+    LR10KAppGlobals::MachineStatus().SetStatus("Not responding");
     lr10kNotResponding.store(true);
 }
 /**
@@ -349,7 +334,7 @@ void LR10KControlSystem::WatchdogTick()
 **/
 bool LR10KControlSystem::CanReconnect()
 {
-    return LR10KAppGlobals::lastConnectedComPortNumber > -1
+    return LR10KAppGlobals::MachineStatus().LastComPort() > -1
         && !mainGUIGlobals::useDemoMode
         && !LR10KDataDeEncryptionSystem::reconnectInProgress.load()
         && !LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load();
@@ -366,7 +351,7 @@ bool LR10KControlSystem::StartReconnect()
     LR10KDataDeEncryptionSystem::reconnectInProgress.store(true);
     LR10KDataDeEncryptionSystem::lr10kNotResponding.store(false);
 
-    const int comPort = LR10KAppGlobals::lastConnectedComPortNumber;
+    const int comPort = LR10KAppGlobals::MachineStatus().LastComPort();
     LR10KDataDeEncryptionSystem::m_pThreadReconnecting = std::make_unique<std::thread>(ReconnectWorker, comPort);
     LR10KDataDeEncryptionSystem::m_pThreadReconnecting->detach();
 
@@ -379,9 +364,9 @@ bool LR10KControlSystem::StartReconnect()
 **/
 bool LR10KControlSystem::SetZeroPoint(TabControl::TabTestDataClass* tabData)
 {
-    if ((LR10KAppGlobals::configurationDone || mainGUIGlobals::useDemoMode) && (tabData == nullptr || !tabData->test_unfinished_test_started && !tabData->test_finished))
+    if ((LR10KAppGlobals::MachineStatus().IsMachineConnected() || mainGUIGlobals::useDemoMode) && (tabData == nullptr || !tabData->test_unfinished_test_started && !tabData->test_finished))
     {
-        if (LR10KAppGlobals::configurationDone)
+        if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             _LR10KController.w_SetZero();
 
         DockingApps::console.AddLog("... From GUI.");
@@ -396,7 +381,7 @@ bool LR10KControlSystem::SetZeroPoint(TabControl::TabTestDataClass* tabData)
             TabControl::LR10KOffsetExtension = 0.0f;
         }
 
-        LR10KAppGlobals::zeroPointIsSet = true;
+        LR10KAppGlobals::MachineStatus().SetZeroPointSet(true);
 
         DockingApps::console.AddLog("PC: Zero point is set");
 
@@ -435,7 +420,7 @@ static TestCalc::Specimen SpecimenForStartingTest(const TabControl::TabTestDataC
 bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
 {
     auto executeTest = [tabData]() {
-        if ((LR10KAppGlobals::configurationDone || mainGUIGlobals::useDemoMode) && !tabData->test_finished && !tabData->test_unfinished_test_started && !tabData->test_running_test)
+        if ((LR10KAppGlobals::MachineStatus().IsMachineConnected() || mainGUIGlobals::useDemoMode) && !tabData->test_finished && !tabData->test_unfinished_test_started && !tabData->test_running_test)
         {
             tabData->current_temp_preSaveLocation_StarTestNow = false;
 
@@ -448,7 +433,7 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
             // A real test will never start when demo mode is activated
             if (mainGUIGlobals::useDemoMode && LR10KAppGlobals::setZeroPointOnStarTest)
                 SetZeroPoint(tabData);
-            else if (LR10KAppGlobals::configurationDone)
+            else if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             {
                 LR10KControlSystem::SendTestSetupToLR10K();
                 _LR10KController.w_Go();
@@ -535,7 +520,7 @@ bool LR10KControlSystem::EndTest(TabControl::TabTestDataClass* tabData)
 
     if (tabData->test_unfinished_test_started && !tabData->test_finished)
     {
-        if (LR10KAppGlobals::configurationDone)
+        if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
         {
             _LR10KController.w_EndTest();
         }
@@ -551,7 +536,7 @@ bool LR10KControlSystem::EndTest(TabControl::TabTestDataClass* tabData)
         tabData->LR10KTensileData.StartTimeTest = TimePoint();
 
         g_Extensiometer.is_recording = false;
-        //LR10KAppGlobals::zeroPointIsSet = false;
+        //LR10KAppGlobals::MachineStatus().SetZeroPointSet(false);
 
         tabData->test_finished = true;
         tabData->test_unfinished_test_started = false;
@@ -592,7 +577,7 @@ bool LR10KControlSystem::PauseTest(TabControl::TabTestDataClass* tabData)
 
     if (tabData->test_running_test && tabData->test_unfinished_test_started)
     {
-        if (LR10KAppGlobals::configurationDone)
+        if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             _LR10KController.w_PauseTest();
 
         tabData->test_running_test = false;
@@ -614,7 +599,7 @@ bool LR10KControlSystem::ContinueTest(TabControl::TabTestDataClass* tabData)
 
     if (!tabData->test_running_test && tabData->test_unfinished_test_started)
     {
-        if (LR10KAppGlobals::configurationDone)
+        if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             _LR10KController.w_ContinueTest();
 
         tabData->test_running_test = true;
@@ -636,7 +621,7 @@ bool LR10KControlSystem::ReturnToZeroPoint(TabControl::TabTestDataClass* tabData
 
     if (!tabData->test_unfinished_test_started || tabData->test_finished)
     {
-        if ((LR10KAppGlobals::configurationDone && !mainGUIGlobals::useDemoMode) || (LR10KAppGlobals::configurationDone && mainGUIGlobals::useDemoModeLiveExtension))
+        if ((LR10KAppGlobals::MachineStatus().IsMachineConnected() && !mainGUIGlobals::useDemoMode) || (LR10KAppGlobals::MachineStatus().IsMachineConnected() && mainGUIGlobals::useDemoModeLiveExtension))
             _LR10KController.w_ReturnZero();
         DockingApps::console.AddLog("... From GUI.");
 
@@ -658,7 +643,7 @@ bool LR10KControlSystem::Translation_STOP(TabControl::TabTestDataClass* tabData)
 
     if ((mainGUIGlobals::useDemoMode && mainGUIGlobals::useDemoModeLiveExtension) || !tabData->test_unfinished_test_started)
     {
-        if (LR10KAppGlobals::configurationDone)
+        if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             _LR10KController.w_Stop();
         DockingApps::console.AddLog("... From GUI.");
 
@@ -679,7 +664,7 @@ bool LR10KControlSystem::Translation_UP(TabControl::TabTestDataClass* tabData, f
 
     if ((mainGUIGlobals::useDemoMode && mainGUIGlobals::useDemoModeLiveExtension) || !tabData->test_unfinished_test_started)
     {
-        if (LR10KAppGlobals::configurationDone)
+        if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             _LR10KController.w_Up();
         DockingApps::console.AddLog("... From GUI.");
 
@@ -700,7 +685,7 @@ bool LR10KControlSystem::Translation_DOWN(TabControl::TabTestDataClass* tabData,
 
     if ((mainGUIGlobals::useDemoMode && mainGUIGlobals::useDemoModeLiveExtension) || !tabData->test_unfinished_test_started)
     {
-        if (LR10KAppGlobals::configurationDone)
+        if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             _LR10KController.w_Down();
         DockingApps::console.AddLog("... From GUI.");
 
@@ -720,7 +705,7 @@ bool LR10KControlSystem::Translation_FASTUP_press(TabControl::TabTestDataClass* 
 
     if ((mainGUIGlobals::useDemoMode && mainGUIGlobals::useDemoModeLiveExtension) || !tabData->test_unfinished_test_started)
     {
-        if (LR10KAppGlobals::configurationDone)
+        if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             _LR10KController.w_FastUpPress();
         DockingApps::console.AddLog("... From GUI.");
 
@@ -735,7 +720,7 @@ bool LR10KControlSystem::Translation_FASTUP_press(TabControl::TabTestDataClass* 
 **/
 bool LR10KControlSystem::Translation_FASTUP_release()
 {
-    if (LR10KAppGlobals::configurationDone)
+    if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
         _LR10KController.w_FastUpRelease();
     DockingApps::console.AddLog("... From GUI.");
 
@@ -752,7 +737,7 @@ bool LR10KControlSystem::Translation_FASTDOWN_press(TabControl::TabTestDataClass
 
     if ((mainGUIGlobals::useDemoMode && mainGUIGlobals::useDemoModeLiveExtension) || !tabData->test_unfinished_test_started)
     {
-        if (LR10KAppGlobals::configurationDone)
+        if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             _LR10KController.w_FastDownPress();
         DockingApps::console.AddLog("... From GUI.");
 
@@ -767,7 +752,7 @@ bool LR10KControlSystem::Translation_FASTDOWN_press(TabControl::TabTestDataClass
 **/
 bool LR10KControlSystem::Translation_FASTDOWN_release()
 {
-    if (LR10KAppGlobals::configurationDone)
+    if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
         _LR10KController.w_FastDownRelease();
     DockingApps::console.AddLog("... From GUI.");
 

@@ -175,6 +175,7 @@
     <ClInclude Include="SerialTrafficLog.h" />
     <ClInclude Include="LR10KSequences.h" />
     <ClInclude Include="LR10KMeasurement.h" />
+    <ClInclude Include="LR10KStatus.h" />
     <ClInclude Include="..\..\stb_image.h" />
     <ClInclude Include="LR10KController.h" />
     <ClInclude Include="..\..\backends\imgui_ImageLoader_dx12.h">

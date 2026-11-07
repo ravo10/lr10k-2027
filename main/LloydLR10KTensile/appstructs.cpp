@@ -1005,7 +1005,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                         std::string name = "COM";
                         name.append(std::to_string(comPort));
 
-                        if (ImGui::MenuItem(name.c_str(), nullptr, (LR10KAppGlobals::connectedComPortNumber == comPort)))
+                        if (ImGui::MenuItem(name.c_str(), nullptr, (LR10KAppGlobals::MachineStatus().ComPort() == comPort)))
                         {
                             DockingApps::console.AddLog("Trying to set or switch to COM%d port...", comPort);
                             LR10KCOMSystem::TryConnectingToCOMPort(comPort);
@@ -1018,21 +1018,21 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                     ImGui::Spacing();
 
                     // If the user pulls out a USB cable, then this will disconnect automatically
-                    if (LR10KAppGlobals::readyToConnectToLR10K && LR10KCOMSystem::CheckIfCOMIsConnected())
+                    if (LR10KAppGlobals::MachineStatus().IsPortOpen() && LR10KCOMSystem::CheckIfCOMIsConnected())
                     {
                         LR10KCOMSystem::TryDisconnectingFromCurrCOMPort();
                         LR10KControlSystem::TryDisconnectFromLR10K();
                     }
                 }
                 ImGui::Separator();
-                if (ImGui::MenuItem("Disconnect COM", nullptr, nullptr, LR10KAppGlobals::readyToConnectToLR10K && LR10KCOMSystem::CheckIfCOMIsConnected()))
+                if (ImGui::MenuItem("Disconnect COM", nullptr, nullptr, LR10KAppGlobals::MachineStatus().IsPortOpen() && LR10KCOMSystem::CheckIfCOMIsConnected()))
                 {
                     LR10KCOMSystem::TryDisconnectingFromCurrCOMPort();
                 }
 
                 // Connect to LR 10K
                 ImGui::SeparatorText("LLOYD LR 10K Tensile Machine");
-                if (ImGui::MenuItem("Connect PC", nullptr, LR10KAppGlobals::configurationDone, (LR10KAppGlobals::readyToConnectToLR10K && !LR10KAppGlobals::configurationDone && !LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load() && LR10KCOMSystem::CheckIfCOMIsConnected())))
+                if (ImGui::MenuItem("Connect PC", nullptr, LR10KAppGlobals::MachineStatus().IsMachineConnected(), (LR10KAppGlobals::MachineStatus().IsPortOpen() && !LR10KAppGlobals::MachineStatus().IsMachineConnected() && !LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load() && LR10KCOMSystem::CheckIfCOMIsConnected())))
                 {
                     // -------------------------------------------------------------------------
                     // --------------------- Start connecting to the LR 10K --------------------
@@ -1048,8 +1048,8 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 // re-plugged, or the LR 10K stopped answering)
                 {
                     std::string reconnectLabel = "Reconnect";
-                    if (LR10KAppGlobals::lastConnectedComPortNumber > -1)
-                        reconnectLabel += " (COM" + std::to_string(LR10KAppGlobals::lastConnectedComPortNumber) + ")";
+                    if (LR10KAppGlobals::MachineStatus().LastComPort() > -1)
+                        reconnectLabel += " (COM" + std::to_string(LR10KAppGlobals::MachineStatus().LastComPort()) + ")";
                     if (ImGui::MenuItem(reconnectLabel.c_str(), nullptr, nullptr, LR10KControlSystem::CanReconnect()))
                         LR10KControlSystem::StartReconnect();
                     ImGui::SetItemTooltip("Disconnect, open the last used COM port again and connect to the LR 10K.");
@@ -1080,20 +1080,20 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                     ImGui::EndPopup();
                 }
 
-                if (ImGui::MenuItem("Disconnect PC", nullptr, nullptr, LR10KAppGlobals::configurationDone && !LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load() && LR10KCOMSystem::CheckIfCOMIsConnected()))
+                if (ImGui::MenuItem("Disconnect PC", nullptr, nullptr, LR10KAppGlobals::MachineStatus().IsMachineConnected() && !LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load() && LR10KCOMSystem::CheckIfCOMIsConnected()))
                 {
                     LR10KControlSystem::TryDisconnectFromLR10K();
                 }
 
                 ImGui::Separator();
-                if (ImGui::MenuItem("Send live data to PC (def.)", nullptr, LR10KAppGlobals::sendingLiveDataFromLR10K, LR10KAppGlobals::configurationDone && LR10KCOMSystem::CheckIfCOMIsConnected()))
+                if (ImGui::MenuItem("Send live data to PC (def.)", nullptr, LR10KAppGlobals::MachineStatus().IsLiveData(), LR10KAppGlobals::MachineStatus().IsMachineConnected() && LR10KCOMSystem::CheckIfCOMIsConnected()))
                 {
-                    if (!LR10KAppGlobals::sendingLiveDataFromLR10K)
+                    if (!LR10KAppGlobals::MachineStatus().IsLiveData())
                         LR10KControlSystem::TellLR10KToSendData();
                     else
                         LR10KControlSystem::TellLR10KToStopSendingData();
                 }
-                if (ImGui::MenuItem("Get status from LR 10K (log)", nullptr, nullptr, LR10KAppGlobals::configurationDone && LR10KCOMSystem::CheckIfCOMIsConnected()))
+                if (ImGui::MenuItem("Get status from LR 10K (log)", nullptr, nullptr, LR10KAppGlobals::MachineStatus().IsMachineConnected() && LR10KCOMSystem::CheckIfCOMIsConnected()))
                 {
                     LR10KControlSystem::GetCurrReportFromLR10K();
                 }
@@ -1250,9 +1250,9 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 {
                     if (ImGui::MenuItem("Activate", nullptr, mainGUIGlobals::useDemoMode))
                         mainGUIGlobals::useDemoMode = !mainGUIGlobals::useDemoMode;
-                    if (ImGui::MenuItem("Live load", nullptr, mainGUIGlobals::useDemoModeLiveLoad, LR10KAppGlobals::configurationDone))
+                    if (ImGui::MenuItem("Live load", nullptr, mainGUIGlobals::useDemoModeLiveLoad, LR10KAppGlobals::MachineStatus().IsMachineConnected()))
                         mainGUIGlobals::useDemoModeLiveLoad = !mainGUIGlobals::useDemoModeLiveLoad;
-                    if (ImGui::MenuItem("Live extension", nullptr, mainGUIGlobals::useDemoModeLiveExtension, LR10KAppGlobals::configurationDone))
+                    if (ImGui::MenuItem("Live extension", nullptr, mainGUIGlobals::useDemoModeLiveExtension, LR10KAppGlobals::MachineStatus().IsMachineConnected()))
                         mainGUIGlobals::useDemoModeLiveExtension = !mainGUIGlobals::useDemoModeLiveExtension;
 
                     ImGui::EndMenu();
@@ -1280,14 +1280,14 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
             // Calc text size
             std::string strL2 = strL;
-            strL2.append(LR10KAppGlobals::currentLiveStatusMessage.load());
+            strL2.append(LR10KAppGlobals::MachineStatus().Get().LiveText());
             ImVec2 stLSize = ImGui::CalcTextSize(strL2.c_str());
 
             // Float right
             ImGui::SameLine(ImGui::GetWindowWidth() - 20 - stLSize.x);
             ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), strL.c_str());
             ImGui::SameLine(0, 0);
-            ImGui::Text(LR10KAppGlobals::currentLiveStatusMessage.load());
+            ImGui::Text(LR10KAppGlobals::MachineStatus().Get().LiveText());
 
             // ------------------------
             // View the LR 10K status
@@ -1304,9 +1304,9 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 return true; // All characters are valid
             };
 
-            DockingApps::mutexControl.StatusMessage();
-            char* m = LR10KAppGlobals::currentStatusMessage.load();
-            char* statusText = areCharactersValid(m, ' ', '~') ? m : (char*)"...";
+            // (The GUI thread used to wait on a condition variable here every frame)
+            const char* m = LR10KAppGlobals::MachineStatus().Status();
+            const char* statusText = areCharactersValid(m, ' ', '~') ? m : "...";
 
             // Calc text size
             std::string strS2 = strS;
@@ -1326,14 +1326,14 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
             // Calc text size
             std::string strWE2 = strWE;
-            strWE2.append(LR10KAppGlobals::currentWarnErrorStatusMessage.load());
+            strWE2.append(LR10KAppGlobals::MachineStatus().WarnError());
             ImVec2 strWESize = ImGui::CalcTextSize(strWE2.c_str());
 
             // Float right
             ImGui::SameLine(ImGui::GetWindowWidth() - 20 - stLSize.x - strSSize.x - 25 - strWESize.x - 25);
             ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), strWE.c_str());
             ImGui::SameLine(0, 0);
-            ImGui::Text(LR10KAppGlobals::currentWarnErrorStatusMessage.load());
+            ImGui::Text(LR10KAppGlobals::MachineStatus().WarnError());
 
             // ------------------------
             // View the COM status
@@ -1342,14 +1342,14 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
             // Calc text size
             std::string strC2 = strC;
-            if (LR10KAppGlobals::connectedComPortNumber == -1)
+            if (LR10KAppGlobals::MachineStatus().ComPort() == -1)
             {
                 strC2.append("Not connected");
             }
             else
             {
                 strC2.append("COM");
-                strC2.append(std::to_string(LR10KAppGlobals::connectedComPortNumber));
+                strC2.append(std::to_string(LR10KAppGlobals::MachineStatus().ComPort()));
             }
             ImVec2 strCSize = ImGui::CalcTextSize(strC2.c_str());
 
@@ -1357,10 +1357,10 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
             ImGui::SameLine(ImGui::GetWindowWidth() - 20 - stLSize.x - strSSize.x - 25 - strWESize.x - 25 - strCSize.x - 25);
             ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), strC.c_str());
             ImGui::SameLine(0, 0);
-            if (LR10KAppGlobals::connectedComPortNumber == -1)
+            if (LR10KAppGlobals::MachineStatus().ComPort() == -1)
                 ImGui::Text("Not connected");
             else
-                ImGui::Text("COM%d", LR10KAppGlobals::connectedComPortNumber);
+                ImGui::Text("COM%d", LR10KAppGlobals::MachineStatus().ComPort());
 
             ImGui::EndMainMenuBar();
         }
@@ -1873,7 +1873,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             ImGui::SameLine(0.0f, 40.0f);
 
             ImGui::BeginDisabled(
-                !LR10KAppGlobals::configurationDone
+                !LR10KAppGlobals::MachineStatus().IsMachineConnected()
                 || tabData->test_finished
                 || tabData->test_unfinished_test_started
                 || tabData->test_running_test);
@@ -1901,7 +1901,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 tabData->test_finished
                 || tabData->test_unfinished_test_started
                 || tabData->test_running_test
-                || (!LR10KAppGlobals::zeroPointIsSet && !mainGUIGlobals::useDemoMode));
+                || (!LR10KAppGlobals::MachineStatus().IsZeroPointSet() && !mainGUIGlobals::useDemoMode));
             ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.23f, 0.72f, 0.57f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.23f, 0.8f, 0.7f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.23f, 0.9f, 0.8f));
@@ -2332,7 +2332,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
     ImGui::BeginDisabled(disableMainThings);
 
     ImGui::Spacing();
-    ImGui::BeginDisabled(disableTestSettingsAdjustments || !LR10KAppGlobals::configurationDone || LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load());
+    ImGui::BeginDisabled(disableTestSettingsAdjustments || !LR10KAppGlobals::MachineStatus().IsMachineConnected() || LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load());
     ImGui::PushID("##Apply to LR 10K");
     ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.447f, 0.5f, 0.6f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.447f, 0.6f, 0.7f));
@@ -3832,14 +3832,14 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     float sizeWidth = 180.0f;
     float sizeHeight = 47.0f + 13.0f;
 
-    ImGui::BeginDisabled(!LR10KAppGlobals::configurationDone && !mainGUIGlobals::useDemoMode);
+    ImGui::BeginDisabled(!LR10KAppGlobals::MachineStatus().IsMachineConnected() && !mainGUIGlobals::useDemoMode);
 
     // When starting a test
     ImGui::BeginDisabled(
         tabData->test_finished
         || tabData->test_unfinished_test_started
         || tabData->test_running_test
-        || (!LR10KAppGlobals::zeroPointIsSet && !mainGUIGlobals::useDemoMode)
+        || (!LR10KAppGlobals::MachineStatus().IsZeroPointSet() && !mainGUIGlobals::useDemoMode)
     );
     std::string buttonType1Text = "Set Storage Folder";
     if (tabData->current_temp_preSaveLocation != "")
@@ -3922,7 +3922,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::Spacing();
     ImGui::PopStyleVar();
 
-    ImGui::BeginDisabled(!LR10KAppGlobals::configurationDone || tabData->test_finished);
+    ImGui::BeginDisabled(!LR10KAppGlobals::MachineStatus().IsMachineConnected() || tabData->test_finished);
     if (Extra::widgets.widgetCreate_ButtonType1("Set zero point", { sizeWidth, sizeHeight }, 0.11f)) // Beige
     {
         if (LR10KControlSystem::SetZeroPoint(tabData))
@@ -3934,7 +3934,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::EndDisabled();
 
     ImGui::SameLine();
-    ImGui::BeginDisabled(mainGUIGlobals::useDemoMode || !LR10KAppGlobals::configurationDone || tabData->test_running_test);
+    ImGui::BeginDisabled(mainGUIGlobals::useDemoMode || !LR10KAppGlobals::MachineStatus().IsMachineConnected() || tabData->test_running_test);
     if (Extra::widgets.widgetCreate_ButtonType2("Return to zero point", { sizeWidth, sizeHeight }, 0.6f)) // Light gray
         DockingApps::console.ExecCommand(tabData, "rezero");
     ImGui::EndDisabled();
@@ -4078,7 +4078,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
 
     ImGui::BeginDisabled(
         (!mainGUIGlobals::useDemoMode || !mainGUIGlobals::useDemoModeLiveExtension)
-        && (!LR10KAppGlobals::configurationDone
+        && (!LR10KAppGlobals::MachineStatus().IsMachineConnected()
             || (tabData->test_unfinished_test_started))
     );
 

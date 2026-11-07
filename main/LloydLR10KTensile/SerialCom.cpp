@@ -119,15 +119,11 @@ bool LR10KCOMSystem::TryConnectingToCOMPort(int iPortNumber)
         callbacks);
 
     // Everything OK
-    LR10KAppGlobals::connectedComPortNumber = portNumber; // (the "first available" search used to store -1 here)
-    LR10KAppGlobals::lastConnectedComPortNumber = portNumber;
-
-    // Update the GUI if everything is successful
-    LR10KAppGlobals::readyToConnectToLR10K = true;
+    LR10KAppGlobals::MachineStatus().OnPortOpened(portNumber); // Also the port "Reconnect" uses
 
     PlaySoundEffect("buttonClick1");
 
-    DockingApps::console.AddLog("COM%d port connected!", LR10KAppGlobals::connectedComPortNumber);
+    DockingApps::console.AddLog("COM%d port connected!", portNumber);
     trafficLog.LogNote("COM" + std::to_string(portNumber) + " opened (9600 baud 8N1)");
 
     return true;
@@ -150,10 +146,10 @@ bool LR10KCOMSystem::TryDisconnectingFromCurrCOMPort()
         m_pThreadReadCom_stopFlag.store(true);
         machine.StopReading();
 
-        const int portNumber = LR10KAppGlobals::connectedComPortNumber;
+        const int portNumber = LR10KAppGlobals::MachineStatus().ComPort();
         const bool closed = comPort.Close();
         m_hSerial = INVALID_HANDLE_VALUE;
-        LR10KAppGlobals::connectedComPortNumber = -1;
+        LR10KAppGlobals::MachineStatus().OnPortClosed();
 
         trafficLog.LogNote("COM" + std::to_string(portNumber) + " closed");
         if (closed)
@@ -172,7 +168,7 @@ bool LR10KCOMSystem::TryDisconnectingFromCurrCOMPort()
 **/
 bool LR10KCOMSystem::CheckIfCOMIsConnected()
 {
-    return LR10KAppGlobals::connectedComPortNumber > -1;
+    return LR10KAppGlobals::MachineStatus().ComPort() > -1;
 }
 /**
     @brief  Send data from GUI to LR 10K Tensile Machine.
@@ -269,7 +265,7 @@ bool LR10KCOMSystem::StartTrafficLog()
     const std::filesystem::path file = folder / ("serial_" + LocalTimeString("%Y-%m-%d_%H-%M-%S") + ".log");
     std::string description = "Started " + LocalTimeString("%Y-%m-%d %H:%M:%S") + ", app version " + LR10KAppVersion;
     if (LR10KCOMSystem::CheckIfCOMIsConnected())
-        description += ", COM" + std::to_string(LR10KAppGlobals::connectedComPortNumber) + " 9600 baud 8N1";
+        description += ", COM" + std::to_string(LR10KAppGlobals::MachineStatus().ComPort()) + " 9600 baud 8N1";
     else
         description += ", no COM port open yet";
 
@@ -460,8 +456,7 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_status(
         const char* quietStatus = LR10KProtocol::StatusText((byte)lParam); // nullptr if unknown: keep the current text
         if (quietStatus != nullptr)
         {
-            LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>(quietStatus));
-            DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+            LR10KAppGlobals::MachineStatus().SetStatus(quietStatus);
         }
         return;
     }
@@ -472,23 +467,22 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_status(
         // If this is sent by LR 10K and it is because it is ready after return to zero point,
         // accept this position as valid if it is 0 for load and extension
         if (LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad() <= 0.005f && LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension() <= 0.005f)
-            LR10KAppGlobals::zeroPointIsSet = true;
+            LR10KAppGlobals::MachineStatus().SetZeroPointSet(true);
     }
 
     // Texts are in LR10KProtocol::StatusText (tested in tests/protocol_test.cpp)
     if (const char* text = LR10KProtocol::StatusText((byte)lParam))
     {
         DockingApps::console.AddLog("Input, LR 10K: Status - %s", text);
-        LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>(text));
+        LR10KAppGlobals::MachineStatus().SetStatus(text);
     }
     else
     {
         printf("Input, LR 10K: Status - Unknown = %02x\n", (byte)lParam);
         DockingApps::console.AddLog("Input, LR 10K: Status - Unknown = %02x", (byte)lParam);
-        LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>("Unknown - Look in console"));
+        LR10KAppGlobals::MachineStatus().SetStatus("Unknown - Look in console");
     }
 
-    DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
 }
 /**
     @brief Current warning/error status the LR 10K Tensile Machine has.
@@ -501,13 +495,13 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_warnErr
     if (const char* text = LR10KProtocol::WarnErrorText((byte)lParam))
     {
         DockingApps::console.AddLog("Input, LR 10K: Warn/Error Status - %s", text);
-        LR10KAppGlobals::currentWarnErrorStatusMessage = text;
+        LR10KAppGlobals::MachineStatus().SetWarnError(text);
     }
     else
     {
         printf("Input, LR 10K: Warn/Error Status - Unknown = %02x\n", (byte)lParam);
         DockingApps::console.AddLog("Input, LR 10K: Warn/Error Status - Unknown = %02x", (byte)lParam);
-        LR10KAppGlobals::currentWarnErrorStatusMessage = "Unknown - Look in console";
+        LR10KAppGlobals::MachineStatus().SetWarnError("Unknown - Look in console");
     }
 }
 /**

@@ -579,7 +579,7 @@ int main(int argc, char** argv)
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndDisabled();
-            ImGui::SetItemTooltip("Open COM%d again and connect to the LR 10K.", LR10KAppGlobals::lastConnectedComPortNumber);
+            ImGui::SetItemTooltip("Open COM%d again and connect to the LR 10K.", LR10KAppGlobals::MachineStatus().LastComPort());
             ImGui::SameLine();
             if (ImGui::Button("OK", ImVec2(120, 0)))
                 ImGui::CloseCurrentPopup();
@@ -617,7 +617,7 @@ int main(int argc, char** argv)
                 close = true;
             }
             ImGui::EndDisabled();
-            ImGui::SetItemTooltip("Disconnect, open COM%d again and connect to the LR 10K.", LR10KAppGlobals::lastConnectedComPortNumber);
+            ImGui::SetItemTooltip("Disconnect, open COM%d again and connect to the LR 10K.", LR10KAppGlobals::MachineStatus().LastComPort());
             ImGui::SameLine();
             if (ImGui::Button("Disconnect", ImVec2(120, 0)))
             {

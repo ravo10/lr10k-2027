@@ -40,7 +40,7 @@ bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte
         return const_cast<char*>(percentageTexts[index].c_str());
     };
 
-    LR10KAppGlobals::currentStatusMessage.store(getPercentageFinsished(0.0, 1.0));
+    LR10KAppGlobals::MachineStatus().SetStatus(getPercentageFinsished(0.0, 1.0));
 
     // -------------------------------------------------------------------------
     // ------------------------- Start processing bytes ------------------------
@@ -54,9 +54,9 @@ bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte
         // Wait at most this long for each answer
         std::chrono::milliseconds(15000),
         // Keep going while the port is open and the COM reader runs
-        []() { return LR10KAppGlobals::connectedComPortNumber != -1 && !LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag.load(); },
+        []() { return LR10KAppGlobals::MachineStatus().ComPort() != -1 && !LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag.load(); },
         // Progress in the status text ("45 %")
-        [&](int reply, int replies) { LR10KAppGlobals::currentStatusMessage.store(getPercentageFinsished(reply, replies)); });
+        [&](int reply, int replies) { LR10KAppGlobals::MachineStatus().SetStatus(getPercentageFinsished(reply, replies)); });
 
     switch (result.outcome)
     {
@@ -64,23 +64,17 @@ bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte
         return true;
 
     case LR10KMachine::SequenceOutcome::StoppedBeforeStep:
-        if (LR10KAppGlobals::connectedComPortNumber == -1)
+        if (LR10KAppGlobals::MachineStatus().ComPort() == -1)
         {
             if (!mainGUIGlobals::useDemoMode)
             {
-                LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>("NA"));
+                LR10KAppGlobals::MachineStatus().SetStatus("NA");
                 LR10KControlSystem::TryDisconnectFromLR10K();
             }
             else
             {
                 // Reset GUI variabels
-                LR10KAppGlobals::configurationDone = false;
-
-                LR10KAppGlobals::sendingLiveDataFromLR10K = false;
-                LR10KAppGlobals::currentLiveStatusMessage = "N/A";
-                LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>("N/A"));
-                DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
-                LR10KAppGlobals::currentWarnErrorStatusMessage = "N/A";
+                LR10KAppGlobals::MachineStatus().OnMachineDisconnected();
 
                 LR10KDataDeEncryptionSystem::machine.ResetDistance();
                 LR10KDataDeEncryptionSystem::Measurement().RequestLoadZero(LR10KDataDeEncryptionSystem::machine.Readings());
@@ -97,8 +91,7 @@ bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte
             result.waitingFor, result.repliesReceived + 1, result.repliesExpected);
         [[fallthrough]];
     case LR10KMachine::SequenceOutcome::StoppedWhileWaiting:
-        LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>("No response"));
-        DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+        LR10KAppGlobals::MachineStatus().SetStatus("No response");
         return false;
 
     case LR10KMachine::SequenceOutcome::FinalSendFailed:
@@ -120,9 +113,9 @@ bool LR10KController::AskAndWaitForLR10KForReadyToConnect()
     if (result.ready)
         DockingApps::console.AddLog("LR 10K answered the connect request (after %d tries).", result.requests);
     else if (result.bytesReceived == 0)
-        DockingApps::console.AddLog("[error] No data at all from COM%d during %d connect requests. Check the port number, the cable, that the LR 10K is on and that \"Remote control\" is pressed.", LR10KAppGlobals::connectedComPortNumber, result.requests);
+        DockingApps::console.AddLog("[error] No data at all from COM%d during %d connect requests. Check the port number, the cable, that the LR 10K is on and that \"Remote control\" is pressed.", LR10KAppGlobals::MachineStatus().ComPort(), result.requests);
     else
-        DockingApps::console.AddLog("[error] Received %d bytes from COM%d but no answer (0xB6) to the connect request; last byte was 0x%02X. Try restarting the LR 10K.", result.bytesReceived, LR10KAppGlobals::connectedComPortNumber, result.lastByte);
+        DockingApps::console.AddLog("[error] Received %d bytes from COM%d but no answer (0xB6) to the connect request; last byte was 0x%02X. Try restarting the LR 10K.", result.bytesReceived, LR10KAppGlobals::MachineStatus().ComPort(), result.lastByte);
 
     return result.ready;
 }
