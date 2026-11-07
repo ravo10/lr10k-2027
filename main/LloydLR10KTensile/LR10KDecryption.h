@@ -48,6 +48,8 @@ inline uint64_t getCurrentTime()
 }
 
 #include "RingBuffer.h" //!< CRingBuffer (portable, unit tested in tests/ring_buffer_test.cpp)
+#include "SerialReader.h" //!< Reader thread (portable, unit tested in tests/serial_reader_test.cpp)
+#include "Win32SerialPort.h" //!< The COM port
 
 /**
     @namespace LR10KDataDeEncryptionSystem
@@ -56,6 +58,9 @@ inline uint64_t getCurrentTime()
 **/
 namespace LR10KDataDeEncryptionSystem {
     //! \note Used for reading data from LR10K to buffer, and often includes a "m_SerialBuffer" pointer to written to as a paramter. Contains COM connection information.
+    inline extern Win32SerialPort comPort{};       //!< The COM port connected to the LR 10K.
+    inline extern SerialReader comReader{};        //!< Reads comPort into m_SerialBuffer on its own thread.
+    //! \note The handle of comPort, kept for code that still uses it (INVALID_HANDLE_VALUE when closed).
     inline extern HANDLE m_hSerial = INVALID_HANDLE_VALUE;
 #if UNICODE
     //! \note Show the connected COM port as a world string. E.g. COM1.
@@ -94,7 +99,6 @@ namespace LR10KDataDeEncryptionSystem {
     inline extern std::atomic<bool> lr10kNotResponding(false);          //!< Set by the watchdog when the LR 10K stops answering. Shows a pop up.
     inline extern std::atomic<bool> watchdogProbeReplyPending(false);   //!< The next status message is the answer to a watchdog probe: update the status quietly.
 
-    inline extern std::atomic<bool> m_pThreadReadCom_running(false);    //!< True while the COM reader thread function is executing.
     inline extern std::atomic<bool> m_pThreadReadLR10K_running(false);  //!< True while the interpreter thread function is executing.
 
     /**
@@ -119,7 +123,6 @@ namespace LR10KDataDeEncryptionSystem {
     // ---------------------- Runs on seperate threads => ----------------------
     // -------------------------------------------------------------------------
 
-    UINT __cdecl    ReadFromLR10KAndWriteToRingBuffer(HANDLE m_hSerial, CRingBuffer* m_SerialBuffer);
     UINT __cdecl    ConnectingToLR10K();
     UINT __cdecl    SendSetupToLR10K();
     UINT __cdecl    InterpetWrittenRingBufferData(HANDLE m_hSerial, CRingBuffer* m_SerialBuffer);

@@ -205,6 +205,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClCompile Include="FileSystem.cpp" />
     <ClCompile Include="TabSystem.cpp" />
     <ClCompile Include="SerialCom.cpp" />
+    <ClCompile Include="Win32SerialPort.cpp" />
     <ClCompile Include="MachineControl.cpp" />
     <ClCompile Include="Console.cpp" />
     <ClCompile Include="appstructs.cpp" />
@@ -238,6 +239,9 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="MaterialCalc.h" />
     <ClInclude Include="LR10KProtocol.h" />
+    <ClInclude Include="SerialPort.h" />
+    <ClInclude Include="SerialReader.h" />
+    <ClInclude Include="Win32SerialPort.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="styles.h" />
   </ItemGroup>

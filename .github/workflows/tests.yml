@@ -35,3 +35,8 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/protocol_test.cpp main/LloydLR10KTensile/LR10KBufferMessage.cpp -o protocol_test
           ./protocol_test
+      - name: Serial reader thread with a fake port (ThreadSanitizer)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
+            -I main/LloydLR10KTensile tests/serial_reader_test.cpp -o serial_reader_test
+          ./serial_reader_test

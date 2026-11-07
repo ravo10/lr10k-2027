@@ -64,6 +64,9 @@
     <ClCompile Include="SerialCom.cpp">
       <Filter>sources</Filter>
     </ClCompile>
+    <ClCompile Include="Win32SerialPort.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
     <ClCompile Include="MachineControl.cpp">
       <Filter>sources</Filter>
     </ClCompile>
@@ -163,6 +166,9 @@
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="MaterialCalc.h" />
     <ClInclude Include="LR10KProtocol.h" />
+    <ClInclude Include="SerialPort.h" />
+    <ClInclude Include="SerialReader.h" />
+    <ClInclude Include="Win32SerialPort.h" />
     <ClInclude Include="..\..\stb_image.h" />
     <ClInclude Include="LR10KController.h" />
     <ClInclude Include="..\..\backends\imgui_ImageLoader_dx12.h">

@@ -999,10 +999,8 @@ namespace LR10KCOMSystem {
     bool                        TryDisconnectingFromCurrCOMPort();
     bool                        CheckIfCOMIsConnected();
 
-    BOOL    PeekDataFromCom(HANDLE hSerial, byte& uInfo);
-    bool    ReadByteFromCom(HANDLE hSerial, byte& uInfo, DWORD& error);
-    byte    GetDataFromCom(HANDLE hSerial);
-    bool    SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE hSerial);
+    //! \brief Send a message through the open COM port (the handle parameter is not used anymore).
+    bool    SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE hSerial = INVALID_HANDLE_VALUE);
 
     //! \brief Wait for a specific byte from the LR 10K. Returns false if it does not answer within the timeout.
     bool    WaitAndReadFromCOM(byte hexdecimalData, std::chrono::milliseconds timeout = std::chrono::milliseconds(15000));
