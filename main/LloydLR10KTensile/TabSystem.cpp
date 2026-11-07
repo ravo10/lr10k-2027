@@ -528,10 +528,16 @@ ImPlotPoint TabControl::TabTestDataClass::GetUTS()
 {
     ImPlotPoint biggestLoadPoint;
 
+    // Use the curve that is drawn: the smoothed data when it exists (same as the graph), otherwise the raw data.
+    // Taking the maximum of the raw data put the point on a noise peak above the drawn (smoothed) curve,
+    // e.g. 16.71 instead of 16.51 N/mm^2, because the point was added after the points were snapped.
+    const bool useSmoothed = LR10KTensileData.SmoothedData.Size > 0 && LR10KTensileData.SmoothedData.Size == LR10KTensileData.Data.Size;
+    const ImVector<ImVec2>& curve = useSmoothed ? LR10KTensileData.SmoothedData : LR10KTensileData.Data;
+
     // Find maximum
-    for (int i = 0; i < LR10KTensileData.Data.Size; i++)
+    for (int i = 0; i < curve.Size; i++)
     {
-        ImVec2 dataPoint = LR10KTensileData.Data[i];
+        ImVec2 dataPoint = curve[i];
 
         if (dataPoint.y > biggestLoadPoint.y)
         {
@@ -612,6 +618,10 @@ void TabControl::TabTestDataClass::AssignPoint_UltimateTensileStrength(TabContro
     // Only assign if point x and y is not NaN, which can happen when using Demo mode...
     if ((!std::isnan(UTSPoint.x) && !std::isnan(UTSPoint.y) && UTSPoint.y > 0 && UTSPoint.x > 0))
     {
+        // Replace an existing UTS point instead of adding a second one ("Find UTS" pressed again)
+        plot_dataPoints.erase(std::remove_if(plot_dataPoints.begin(), plot_dataPoints.end(),
+            [](const auto& dataTuple) { return std::get<1>(dataTuple) == 2; }), plot_dataPoints.end());
+
         plot_dataPoints.push_back({ UTSPoint, 2 });
         DockingApps::console.AddLog("Automatically added a Ultimate Tensile Strength point. (just an assumtion)");
         tabData->MarkTabAsUnsaved();
