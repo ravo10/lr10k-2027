@@ -65,6 +65,11 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/test_calc_test.cpp -o test_calc_test
           ./test_calc_test
+      - name: Test data (smoothing, snapping, UTS, point list, travel limit)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/test_data_test.cpp -o test_data_test
+          ./test_data_test
       - name: Excel export numbers (same as the old export)
         run: |
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \

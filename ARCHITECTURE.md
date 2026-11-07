@@ -26,6 +26,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `MachineControl.cpp` | High-level machine commands (connect, setup, start/pause/end test, movement), watchdog, reconnect | serial I/O, GUI state |
 | **Calculations** | `MaterialCalc.h` | Formulas: area, engineering/true stress and strain, line fit (E-modulus), 3-point bending | nothing (portable, tested) |
 | | `TestCalc.h` | The calculations for one test on plain data: stress/strain at the crucial points, E-modulus, 3-point bending, and which dimensions a new test starts with | `MaterialCalc.h` (portable, tested) |
+| | `TestData.h` | Operations on a test's curve and crucial points: moving average (smoothing), closest point and snapping, maximum load (UTS), which readings are added, the travel limit, the point list (find/remove/first of each ID) | nothing (portable, tested) |
 | | `Calculator.cpp` | Passes a test's own dimensions and data to `TestCalc.h`, stores the results in the test, and draws the calculator window | `TestCalc.h`, GUI |
 | **Excel export** | `ExcelReport.h` | Everything the export writes as a plain `Report` struct: the report and setup sheet lines, the crucial points table and the rows of each graph sheet (zero offset, stress/strain, crucial points) | `TestCalc.h` (portable, tested) |
 | | `ExcelWriter.h/.cpp` | Writes a `Report` to .xlsx (layout, formats, charts); no GUI code | `ExcelReport.h`, libxlsxwriter (checked on GitHub with sample files) |
@@ -35,7 +36,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `appstructs.cpp` (`ExtensiometerWorkerThread`) | Camera thread: OpenCV marker detection, recording, images for the window; shares only atomics/mutex-protected data with the GUI | OpenCV |
 | **GUI** | `main.cpp` | Window, DirectX 12, main loop, pop ups | everything |
 | | `appstructs.h/.cpp` | Docking windows, menus, settings, .lr10k JSON save/load | everything |
-| | `TabSystem.cpp` | Test tabs: live plot data, limits, unit conversion, crucial points | globals |
+| | `TabSystem.cpp` | Test tabs: live plot data, limits, unit conversion (one `ScaleTabUnits()` for all data of a test), crucial points (through `TestData.h`) | globals, `TestData.h` |
 | | `FileSystem.cpp` | File dialogs, saving/loading tests and application settings | globals |
 | | `Console.cpp` | The in-app log window; also keeps the last 200 lines for a crash report | ImGui, `CrashReport.h` |
 | **Crash reports** | `CrashReport.h` | The text of a crash report (exception names, call stack, last console lines) and the thread-safe copy of the last console lines | nothing (portable, tested) |
@@ -53,6 +54,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `ring_buffer_test.cpp` | FIFO order, full/empty, timeouts, two threads (with ThreadSanitizer) |
 | `material_calc_test.cpp` | Every formula against hand-calculated values, unit conversion (1 MPa = 145.04 psi), clamping at 0 |
 | `test_calc_test.cpp` | Crucial points, zero offset, E-modulus and 3-point bending against hand-calculated values; identical results to the old calculator code on 2 000 random tests; which dimensions a new test starts with |
+| `test_data_test.cpp` | Smoothing keeps a constant load with every window 1..51 (the old code: +50 % at 2), odd windows give exactly the old values, edges and short curves; closest point, snapping, UTS, accepted readings, the travel limit, the point list |
 | `excel_report_test.cpp` | Load-extension, engineering and true stress sheets, crucial points (with the zero offset, unknown IDs, points not on a sample), circular specimens, area; same numbers as the old export on 500 random tests |
 | `excel_writer_check.cpp` + `check_excel_reports.py` | Writes sample .xlsx files (tension rectangular/circular, 3-point bending, no dimensions, no data) with the real libxlsxwriter and checks sheets, cells and charts with openpyxl; the files are uploaded as the *excel-sample-reports* artifact of each run |
 | `protocol_test.cpp` | Known values from the sniffed setup messages, that decoding/encoding is identical to the original code for every possible input, and that message framing matches the original interpreter on random byte streams |

@@ -12,6 +12,7 @@
 #include "common.h"
 #include "MaterialCalc.h"
 #include "TestCalc.h"
+#include "TestData.h"
 
 #include "LR10KController.h"
 
@@ -66,72 +67,18 @@ double LR10KAppGlobals::CalcEpsilon_t(double epsilon_e)
 
 int FindClosestRawDataIndex(const ImVector<ImVec2>& rawData, double target_x)
 {
-	if (rawData.empty()) return -1;
-
-	int best_idx = 0;
-	double min_distance = DBL_MAX;
-
-	// Loop through raw data ONCE (O(N) efficiency)
-	for (int i = 0; i < rawData.Size; i++)
-	{
-		double distance = std::abs(rawData[i].x - target_x);
-		if (distance < min_distance)
-		{
-			min_distance = distance;
-			best_idx = i;
-		}
-	}
-	return best_idx;
+    return TestData::ClosestIndexByX(rawData, target_x);
 }
 
 ImVector<ImVec2> SmoothTensileData(const ImVector<ImVec2>& raw_data, int window_size)
 {
-	// If we don't have enough data to fill the window, just return the raw data
-	if (raw_data.size() < window_size || window_size < 2) return raw_data;
-
-	ImVector<ImVec2> smoothed_data = raw_data;
-	int half_window = window_size / 2;
-
-	// Slide the window across the data array
-	for (int i = half_window; i < raw_data.size() - half_window; ++i)
-	{
-		double sum_y = 0.0;
-
-		// Add up all the Y (Load) values inside the current window
-		for (int j = -half_window; j <= half_window; ++j) {
-			sum_y += raw_data[i + j].y;
-		}
-
-		// Calculate the average and overwrite the Y value in our copy
-		smoothed_data[i].y = sum_y / window_size;
-	}
-
-	return smoothed_data;
+    // Moving average of the load (TestData.h; an even window no longer makes every load too high)
+    return TestData::MovingAverageY(raw_data, window_size);
 }
 
 void SnapCrucialPointsToSmoothedCurve(std::vector<std::tuple<ImPlotPoint, int>>& plot_dataPoints, ImVector<ImVec2>& smoothed_data)
 {
-    // If there is no graph data to snap to, exit safely
-    if (smoothed_data.empty()) return;
-
-    // Loop through every crucial marker
-    for (auto& ptTuple : plot_dataPoints)
-    {
-        // Get a reference to the ImPlotPoint so we can modify it permanently
-        ImPlotPoint& pt = std::get<0>(ptTuple);
-
-        // Find the index in the smoothed graph that matches the marker's X value (Strain)
-        // (Reusing the FindClosestRawDataIndex function you already have!)
-        int snap_idx = FindClosestRawDataIndex(smoothed_data, pt.x);
-
-        if (snap_idx != -1)
-        {
-            // Update the marker to sit exactly on the new smoothed curve
-            // We update both X and Y just to prevent any floating-point drift
-            pt.x = smoothed_data[snap_idx].x;
-            pt.y = smoothed_data[snap_idx].y;
-        }
-    }
+    TestData::SnapToCurve(plot_dataPoints, smoothed_data);
 }
 
 ImPlotPoint LR10KAppGlobals::NominalStressStrainGetter(int idx, void* user_data) {
@@ -194,11 +141,11 @@ void AppCalculator::AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabDa
         return;
     }
 
-    // "Normal" plot data
-    for (int i = 0; i < tabData->LR10KTensileData.Data.size(); i++)
-    {
-        tabData->LR10KTensileData.Data[i].y *= loadScalar;
-    }
+    // "Normal" plot data, and the smoothed curve (drawn, and the points snap to it: it kept the old loads before)
+    for (int i = 0; i < tabData->LR10KTensileData.Data.Size; i++)
+        tabData->LR10KTensileData.Data[i].y = (float)(tabData->LR10KTensileData.Data[i].y * loadScalar);
+    for (int i = 0; i < tabData->LR10KTensileData.SmoothedData.Size; i++)
+        tabData->LR10KTensileData.SmoothedData[i].y = (float)(tabData->LR10KTensileData.SmoothedData[i].y * loadScalar);
 
     // Plot points
     for (int i = 0; i < (int)tabData->plot_dataPoints.size(); i++)
@@ -361,24 +308,19 @@ void AppCalculator::SetGlobalMaterialProperties(TabControl::TabTestDataClass* /*
 
 void AppCalculator::AddEmoduleBounds(TabControl::TabTestDataClass* tabData)
 {
-    // Make sure we have enough data to drop the points, and that they don't already exist
-    bool bounds_exist = false;
-    for (const auto& pt : tabData->plot_dataPoints) {
-        if (std::get<1>(pt) == 5 || std::get<1>(pt) == 6) bounds_exist = true;
-    }
+    // Only if they do not exist yet, and there is enough data: start at points 10 and 50 as a first guess
+    int lower = 0, upper = 0;
+    if (TestData::HasId(tabData->plot_dataPoints, 5) || TestData::HasId(tabData->plot_dataPoints, 6)
+        || !TestData::DefaultEModulusBounds(tabData->LR10KTensileData.Data.Size, lower, upper))
+        return;
 
-    if (!bounds_exist && tabData->LR10KTensileData.Data.Size > 50)
-    {
-        // Drop them at early index points (e.g., 10 and 50) as a starting guess
-        ImVec2 p1 = tabData->LR10KTensileData.Data[10];
-        ImVec2 p2 = tabData->LR10KTensileData.Data[50];
+    const ImVec2 p1 = tabData->LR10KTensileData.Data[lower];
+    const ImVec2 p2 = tabData->LR10KTensileData.Data[upper];
+    tabData->plot_dataPoints.push_back({ ImPlotPoint(p1.x, p1.y), 5 }); // ID 5
+    tabData->plot_dataPoints.push_back({ ImPlotPoint(p2.x, p2.y), 6 }); // ID 6
 
-        tabData->plot_dataPoints.push_back({ ImPlotPoint(p1.x, p1.y), 5 }); // ID 5
-        tabData->plot_dataPoints.push_back({ ImPlotPoint(p2.x, p2.y), 6 }); // ID 6
-
-        tabData->NeedsRecalculation.markAsUnsaved = true;
-        tabData->NeedsRecalculation.recalculate = true;
-    }
+    tabData->NeedsRecalculation.markAsUnsaved = true;
+    tabData->NeedsRecalculation.recalculate = true;
 }
 
 void CreateInputDoubleElement(TabControl::TabTestDataClass* tabData, const char *label, double *v, double min_val, double max_val)

@@ -187,6 +187,7 @@
     <ClInclude Include="ExtensometerFilter.h" />
     <ClInclude Include="ExtensometerTracking.h" />
     <ClInclude Include="CrashReport.h" />
+    <ClInclude Include="TestData.h" />
     <ClInclude Include="CrashHandler.h" />
     <ClInclude Include="..\..\stb_image.h" />
     <ClInclude Include="LR10KController.h" />

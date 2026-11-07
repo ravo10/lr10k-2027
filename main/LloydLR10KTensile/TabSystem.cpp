@@ -11,6 +11,7 @@
 
 #include "common.h"
 #include "MaterialCalc.h"
+#include "TestData.h"
 
 #include "LR10KController.h"
 
@@ -42,7 +43,7 @@ void TabControl::AddNewPointFromLoadAndExtension(TabControl::TabTestDataClass* t
 
         // The extension must be higher (saftey if the rig is shaking or something..)
         // !!Important to prevent negative values!!
-        if (newPoint.x >= 0.0f && newPoint.y >= 0.0f && (lastPointAdded.x == 0.0f || newPoint.x > lastPointAdded.x))
+        if (TestData::AcceptsNewPoint(lastPointAdded.x, newPoint.x, newPoint.y))
         {
             // Add point (and its time: the sampling rate counts the points kept, and TimeData[i] belongs to Data[i])
             tabData->LR10KTensileData.AddPoint(newPoint.x, newPoint.y);
@@ -117,19 +118,16 @@ void TabControl::CheckIfDistanceTraveledToLimit(TabControl::TabTestDataClass* ta
 {
     if (tabData == nullptr) return;
 
-    if (TabControl::CheckIfDistanceTravelControlActivated() && LR10KExtension >= TabControl::LR10KTravelDistanceControl)
+    switch (TestData::TravelLimitAction(TabControl::LR10KTravelDistanceControl, LR10KExtension, TabControl::LR10KTravelDistanceActionAfter))
     {
-        switch (TabControl::LR10KTravelDistanceActionAfter)
-        {
-        case 0:
-            LR10KControlSystem::EndTest(tabData);
-            break;
-        case 1:
-            LR10KControlSystem::PauseTest(tabData);
-            break;
-        default:
-            break;
-        }
+    case TestData::TravelAction::EndTest:
+        LR10KControlSystem::EndTest(tabData);
+        break;
+    case TestData::TravelAction::PauseTest:
+        LR10KControlSystem::PauseTest(tabData);
+        break;
+    case TestData::TravelAction::None:
+        break;
     }
 }
 
@@ -367,87 +365,35 @@ bool AppMainTabSystem::ThisTabIsNotRunningATest()
 
 std::vector<std::pair<ImPlotPoint, int>> TabControl::TabTestDataClass::GetCrucialDataPoints()
 {
-    std::vector<std::pair<ImPlotPoint, int>> crucialDataPoints;
-
-    for (auto pt_tuple : plot_dataPoints)
-    {
-        ImPlotPoint pt = std::get<0>(pt_tuple);
-        int id = std::get<1>(pt_tuple);
-
-        bool hasTheIdAlready = std::any_of(
-            crucialDataPoints.begin(),
-            crucialDataPoints.end(),
-            [id](const auto& dataTuple) {
-                return std::get<1>(dataTuple) == id; // std::get<1> gets the 'int' from the tuple
-            }
-        );
-
-        // Take the first ID found
-        if (!hasTheIdAlready) crucialDataPoints.push_back({ pt , id });
-    }
-
-    return crucialDataPoints;
+    // The first point of each ID
+    std::vector<std::pair<ImPlotPoint, int>> points;
+    for (const auto& item : plot_dataPoints)
+        points.push_back({ std::get<0>(item), std::get<1>(item) });
+    return TestData::FirstOfEachId(points);
 }
 
 bool TabControl::TabTestDataClass::CheckIfCrucialPointExsists(int pointID)
 {
-    bool hasID = std::any_of(
-        plot_dataPoints.begin(),
-        plot_dataPoints.end(),
-        [pointID](const auto& dataTuple) {
-            return std::get<1>(dataTuple) == pointID; // std::get<1> gets the 'int' from the tuple
-        }
-    );
-
-    return hasID;
+    return TestData::HasId(plot_dataPoints, pointID);
 }
 
 ImPlotPoint TabControl::TabTestDataClass::GetUTS()
 {
-    ImPlotPoint biggestLoadPoint;
-
     // Use the curve that is drawn: the smoothed data when it exists (same as the graph), otherwise the raw data.
     // Taking the maximum of the raw data put the point on a noise peak above the drawn (smoothed) curve,
     // e.g. 16.71 instead of 16.51 N/mm^2, because the point was added after the points were snapped.
     const bool useSmoothed = LR10KTensileData.SmoothedData.Size > 0 && LR10KTensileData.SmoothedData.Size == LR10KTensileData.Data.Size;
     const ImVector<ImVec2>& curve = useSmoothed ? LR10KTensileData.SmoothedData : LR10KTensileData.Data;
 
-    // Find maximum
-    for (int i = 0; i < curve.Size; i++)
-    {
-        ImVec2 dataPoint = curve[i];
-
-        if (dataPoint.y > biggestLoadPoint.y)
-        {
-            biggestLoadPoint.x = dataPoint.x;
-            biggestLoadPoint.y = dataPoint.y;
-        }
-    }
-
-    return biggestLoadPoint;
+    const int index = TestData::MaxLoadIndex(curve);
+    return index < 0 ? ImPlotPoint(0, 0) : ImPlotPoint(curve[index].x, curve[index].y);
 }
 ImPlotPoint TabControl::TabTestDataClass::GetFracturePoint(TabTestDataClass* tabData)
 {
-    ImPlotPoint fracturePoint(0, 0);
-
-    auto it = std::find_if(
-        tabData->plot_dataPoints.begin(),
-        tabData->plot_dataPoints.end(),
-        [](const auto& dataTuple) {
-            return std::get<1>(dataTuple) == 3;
-        }
-    );
-
-    if (it != tabData->plot_dataPoints.end()) {
-        // ID 3 exists! Access the data:
-        ImPlotPoint pointData = std::get<0>(*it);
-
-        fracturePoint = pointData;
-    }
-
-    tabData->MarkTabAsUnsaved();
-
-    return fracturePoint;
+    // (Only reads: it used to mark the tab as unsaved, and the calculator window calls it every frame,
+    // so a tab was "unsaved" again as soon as the calculator was open.)
+    const ImPlotPoint* fracture = TestData::FindId(tabData->plot_dataPoints, 3);
+    return fracture ? *fracture : ImPlotPoint(0, 0);
 }
 
 //void TabControl::TabTestDataClass::AssignPoint_PropotionalLimit(TabControl::TabTestDataClass* tabData, ImPlotPoint propotionalLimitPoint)
@@ -496,8 +442,7 @@ void TabControl::TabTestDataClass::AssignPoint_UltimateTensileStrength(TabContro
     if ((!std::isnan(UTSPoint.x) && !std::isnan(UTSPoint.y) && UTSPoint.y > 0 && UTSPoint.x > 0))
     {
         // Replace an existing UTS point instead of adding a second one ("Find UTS" pressed again)
-        plot_dataPoints.erase(std::remove_if(plot_dataPoints.begin(), plot_dataPoints.end(),
-            [](const auto& dataTuple) { return std::get<1>(dataTuple) == 2; }), plot_dataPoints.end());
+        TestData::RemoveId(plot_dataPoints, 2);
 
         plot_dataPoints.push_back({ UTSPoint, 2 });
         DockingApps::console.AddLog("Automatically added a Ultimate Tensile Strength point. (just an assumtion)");
@@ -521,6 +466,42 @@ void TabControl::TabTestDataClass::AssignPoint_BreakPoint(TabControl::TabTestDat
 
     //TabControl::RefreshUpdateImportantDataPoints(tabData);
 }
+namespace
+{
+    /**
+        @brief  Converts all lengths and loads of a test: multiplied by the factors (to a unit), or divided (back to mm and N).
+        @details One place for what the three unit conversions did each on their own. The smoothed curve is converted
+                 too: the graph draws it and points snap to it, and it stayed in the old unit after a unit change.
+    **/
+    void ScaleTabUnits(TabControl::TabTestDataClass* tabData, double dist, double force, bool divide)
+    {
+        auto apply = [divide](auto& value, double factor) {
+            using T = std::remove_reference_t<decltype(value)>;
+            value = (T)(divide ? value / factor : value * factor);
+        };
+
+        apply(tabData->thickness, dist);
+        apply(tabData->width, dist);
+        apply(tabData->length, dist);
+        apply(tabData->diameter, dist);
+        apply(tabData->LR10OffsetZeroPointExtensionAxis, dist); // Zero point is a length too
+        // The area is calculated again from the dimensions
+
+        for (ImVector<ImVec2>* curve : { &tabData->LR10KTensileData.Data, &tabData->LR10KTensileData.SmoothedData })
+            for (ImVec2& point : *curve)
+            {
+                apply(point.x, dist);
+                apply(point.y, force);
+            }
+
+        for (auto& item : tabData->plot_dataPoints)
+        {
+            apply(std::get<ImPlotPoint>(item).x, dist);
+            apply(std::get<ImPlotPoint>(item).y, force);
+        }
+    }
+}
+
 void TabControl::TabTestDataClass::ConvertUnitsBackToBase(TabControl::TabTestDataClass* tabData)
 {
     // -------------------------------------------------------------------------
@@ -537,45 +518,7 @@ void TabControl::TabTestDataClass::ConvertUnitsBackToBase(TabControl::TabTestDat
         // E.g. N an lbf
         const double unitConvOld_force = LR10KAppGlobals::GetUnitOption<double>(9, oldUnitIndex);
 
-        tabData->thickness  /= unitConvOld_dist;
-        tabData->width      /= unitConvOld_dist;
-        tabData->length     /= unitConvOld_dist;
-        tabData->diameter   /= unitConvOld_dist;
-        tabData->LR10OffsetZeroPointExtensionAxis = (float)(tabData->LR10OffsetZeroPointExtensionAxis / unitConvOld_dist); // Zero point is a length too
-        // Area will be calculated automatically
-
-        // "Normal" plot data
-        for (int i = 0; i < tabData->LR10KTensileData.Data.size(); i++)
-        {
-            tabData->LR10KTensileData.Data[i].x /= unitConvOld_dist;
-            tabData->LR10KTensileData.Data[i].y /= unitConvOld_force;
-        }
-
-        // Plot points
-        for (int i = 0; i < (int)tabData->plot_dataPoints.size(); i++)
-        {
-            ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_dataPoints[i]);
-            points.x /= unitConvOld_dist;
-            points.y /= unitConvOld_force;
-
-            const int index = std::get<int>(tabData->plot_dataPoints[i]);
-
-            // Save
-            tabData->plot_dataPoints[i] = std::make_tuple(points, index);
-        }
-
-        //// Crucial points
-        //for (int i = 0; i < tabData->plot_importantDataPoints.size(); i++)
-        //{
-        //    ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_importantDataPoints[i]);
-        //    points.x /= unitConvOld_dist;
-        //    points.y /= unitConvOld_force;
-
-        //    const int index = std::get<int>(tabData->plot_importantDataPoints[i]);
-
-        //    // Save
-        //    tabData->plot_importantDataPoints[i] = std::make_pair(points, index);
-        //}
+        ScaleTabUnits(tabData, unitConvOld_dist, unitConvOld_force, true);
     }
 }
 void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestDataClass* tabData, int unitsIndex, bool saveUnitIndex, bool updateGlobals, bool /*markAsSaved*/)
@@ -593,32 +536,7 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestData
     // E.g. N an lbf
     const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9, unitsIndex);
 
-    tabData->thickness  *= unitConv_dist;
-    tabData->width      *= unitConv_dist;
-    tabData->length     *= unitConv_dist;
-    tabData->diameter   *= unitConv_dist;
-    tabData->LR10OffsetZeroPointExtensionAxis = (float)(tabData->LR10OffsetZeroPointExtensionAxis * unitConv_dist);
-    // Area will be calculated automatically
-
-    // "Normal" plot data
-    for (int i = 0; i < tabData->LR10KTensileData.Data.size(); i++)
-    {
-        tabData->LR10KTensileData.Data[i].x *= unitConv_dist;
-        tabData->LR10KTensileData.Data[i].y *= unitConv_force;
-    }
-
-    // Plot points
-    for (int i = 0; i < (int)tabData->plot_dataPoints.size(); i++)
-    {
-        ImPlotPoint points    = std::get<ImPlotPoint>(tabData->plot_dataPoints[i]);
-        points.x *= unitConv_dist;
-        points.y *= unitConv_force;
-
-        const int index             = std::get<int>(tabData->plot_dataPoints[i]);
-
-        // Save
-        tabData->plot_dataPoints[i] = std::make_tuple(points, index);
-    }
+    ScaleTabUnits(tabData, unitConv_dist, unitConv_force, false);
 
     // -------------------------------------------------------------------------
     // -------------------------------- Finished -------------------------------
@@ -653,32 +571,7 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::Ta
     // E.g. N an lbf
     const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9, tabData->unitsConvertionIndex);
 
-    tabData->thickness *= unitConv_dist;
-    tabData->width *= unitConv_dist;
-    tabData->length *= unitConv_dist;
-    tabData->diameter *= unitConv_dist;
-    tabData->LR10OffsetZeroPointExtensionAxis = (float)(tabData->LR10OffsetZeroPointExtensionAxis * unitConv_dist);
-    // Area will be calculated automatically
-
-    // "Normal" plot data
-    for (int i = 0; i < tabData->LR10KTensileData.Data.size(); i++)
-    {
-        tabData->LR10KTensileData.Data[i].x *= unitConv_dist;
-        tabData->LR10KTensileData.Data[i].y *= unitConv_force;
-    }
-
-    // Plot points
-    for (int i = 0; i < (int)tabData->plot_dataPoints.size(); i++)
-    {
-        ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_dataPoints[i]);
-        points.x *= unitConv_dist;
-        points.y *= unitConv_force;
-
-        const int index = std::get<int>(tabData->plot_dataPoints[i]);
-
-        // Save
-        tabData->plot_dataPoints[i] = std::make_tuple(points, index);
-    }
+    ScaleTabUnits(tabData, unitConv_dist, unitConv_force, false);
 
     // -------------------------------------------------------------------------
     // -------------------------------- Finished -------------------------------

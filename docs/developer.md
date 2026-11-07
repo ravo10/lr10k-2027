@@ -13,7 +13,7 @@ The four parts and their main files:
 | Part | Start with | Then |
 |---|---|---|
 | Hardware I/O (LR 10K, serial port) | LR10KMachine (handshake, sequences, readings) | LR10KProtocol, SerialReader, Win32SerialPort, LR10KStatus |
-| Calculations | TestCalc.h (`CalculateTensile`, `CalculateBending3Point`) | MaterialCalc.h, LR10KMeasurement.h, LoadSafety.h |
+| Calculations | TestCalc.h (`CalculateTensile`, `CalculateBending3Point`) | TestData.h (curve and points), MaterialCalc.h, LR10KMeasurement.h, LoadSafety.h |
 | GUI | appstructs.cpp (windows), main.cpp (main loop, DirectX 12) | TabSystem.cpp (tabs and test data), Calculator.cpp, styles.h |
 | Excel export | ExcelReport.h (what goes in the book, no I/O) | ExcelWriter (libxlsxwriter), ExcelExport.cpp (from a tab) |
 
