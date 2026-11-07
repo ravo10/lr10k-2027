@@ -217,6 +217,7 @@ xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos"</Command>
     <ClInclude Include="LR10KBufferMessage.h" />
     <ClInclude Include="LR10KController.h" />
     <ClInclude Include="LR10KDecryption.h" />
+    <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="styles.h" />
   </ItemGroup>

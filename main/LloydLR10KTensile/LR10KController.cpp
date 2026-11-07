@@ -13,6 +13,9 @@
 
 #include "LR10KController.h"
 
+#include <algorithm>
+#include <array>
+
 
 bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte, bool>> HEXSequence, bool sendPercentageFinished, bool allowSendingDataEvenIfMainLoopIsEnded)
 {
@@ -22,21 +25,24 @@ bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte
     // Get percentage completed based on that we know every return value LR 10K should send back
     // -------------------------------------------------------------------------
 
-    std::string percentageComplete = "0 %%";
-    LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>(percentageComplete.c_str()));
-    double totalAmountOfReadBytes = 0.0;
-
-    // Make nice percentage text
-    auto getPercentageFinsished = [](double amountOfReadBytes, double totalAmountOfReadBytes) -> std::string {
-        // Make nice percentage text
-        char roundedValueChar[30];
-        sprintf_s(roundedValueChar, "%.0f", (amountOfReadBytes / totalAmountOfReadBytes) * 100);
-
-        std::string percentageComplete = roundedValueChar;
-        percentageComplete.append(" %%");
-
-        return percentageComplete;
+    // The status text is read by the GUI thread through a raw char pointer, so it must point at memory
+    // that stays valid. (It used to point into a local std::string, which was freed when this function
+    // returned or the string was reassigned: the GUI then read freed memory.)
+    static const std::array<std::string, 101> percentageTexts = [] {
+        std::array<std::string, 101> texts;
+        for (size_t p = 0; p < texts.size(); p++)
+            texts[p] = std::to_string(p) + " %%";
+        return texts;
+    }();
+    auto getPercentageFinsished = [](double amountOfReadBytes, double totalAmountOfReadBytes) -> char* {
+        double percent = totalAmountOfReadBytes > 0.0 ? (amountOfReadBytes / totalAmountOfReadBytes) * 100.0 : 100.0;
+        size_t index = (size_t)(std::clamp)(percent + 0.5, 0.0, 100.0);
+        return const_cast<char*>(percentageTexts[index].c_str());
     };
+
+    char* percentageComplete = getPercentageFinsished(0.0, 1.0);
+    LR10KAppGlobals::currentStatusMessage.store(percentageComplete);
+    double totalAmountOfReadBytes = 0.0;
 
     for (size_t i = 0; i < HEXSequence.size(); i++)
     {
@@ -110,12 +116,19 @@ bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte
             percentageComplete = getPercentageFinsished(amountOfReadBytes, totalAmountOfReadBytes);
             if (LR10KCOMSystem::CheckIfCOMIsConnected())
             {
-                LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>(percentageComplete.c_str()));
+                LR10KAppGlobals::currentStatusMessage.store(percentageComplete);
                 Sleep(6); // !!Important!!
 
                 // Wait for the correct response from LR 10K...
-                LR10KCOMSystem::SendDataToCom(bufferMessage, LR10KDataDeEncryptionSystem::m_hSerial);
-                LR10KCOMSystem::WaitAndReadFromCOM(HEX_byte);
+                // Stop the sequence if the bytes could not be sent or the LR 10K never answers,
+                // instead of sending the rest of the setup into the void (or waiting forever).
+                if (!LR10KCOMSystem::SendDataToCom(bufferMessage, LR10KDataDeEncryptionSystem::m_hSerial)
+                    || !LR10KCOMSystem::WaitAndReadFromCOM(HEX_byte))
+                {
+                    LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>("No response"));
+                    DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+                    return false;
+                }
             }
 
             // Clear buffer
@@ -149,10 +162,13 @@ bool LR10KController::AskAndWaitForLR10KForReadyToConnect()
     {
         LR10KCOMSystem::SendDataToCom(bufferMessage, LR10KDataDeEncryptionSystem::m_hSerial);
 
+        // Read the answer from the ring buffer. (Calling ReadFile here directly competed with the COM
+        // reader thread for the same bytes, so the answer was often taken by the other thread and missed.)
+        // Waiting up to 100 ms keeps the same pace as the old blocking ReadFile.
         byte uInfo = { 0 };
-        BOOL successPeak = LR10KCOMSystem::PeekDataFromCom(LR10KDataDeEncryptionSystem::m_hSerial, uInfo);
+        LR10KDataDeEncryptionSystem::m_SerialBuffer.TryRead(uInfo, std::chrono::milliseconds(100));
 
-        std::cout << "Trying to get a response from LR 10K (" << (byte)0xB6 << "): " << uInfo << std::endl;
+        printf("Trying to get a response from LR 10K (%02x): %02x\n", 0xB6, uInfo);
 
         // Check if the LR 10K says it is ready
         LR10KReadyToConnect = uInfo == (byte)0xB6 ? true : false;
@@ -182,7 +198,13 @@ bool LR10KController::w_Setup1()
     std::vector<std::pair<byte, bool>> FirstSetupComplete = {  };
     FirstSetupComplete.insert(FirstSetupComplete.end(), Write_FirstSetup.begin(), Write_FirstSetup.end());
 
-    return SendHEXWriteReadSequenceToLR10K(FirstSetupComplete);
+    if (!SendHEXWriteReadSequenceToLR10K(FirstSetupComplete))
+    {
+        mainGUIGlobals::showPopUp_ConnectionTimeout = true;
+        return false;
+    }
+
+    return true;
 }
 
 bool LR10KController::w_Setup2(float testSpeed1, float jogSpeed, bool tensileTest, bool useExtensometer, float extensometerDistance)

@@ -325,6 +325,7 @@ namespace mainGUIGlobals {
     inline extern bool showPopUp_ConnectionTimeout = false;                                 //!< Will display the pop up when true.
     static const char* popUpID_DimensionsNotAdded = "Dimensions for test piece not added";  //!< Pop Up ID for Dimension not added..
     static const char* popUpID_SomethingUnexpectedHappend = "Something unexpeced happend";  //!< Pop Up ID for the Something unexpeced happend.
+    static const char* popUpID_ConnectionLost = "Connection lost";                          //!< Pop Up ID for when the COM port stops working (e.g. cable/USB adapter unplugged).
     static const char* popUpID_ExtensiometerLostMarkerUnderTest = "Extensiometer lost tracking markers";  //!< Pop Up ID for if the extensiometer lost tracking points under testing.
 
     /**
@@ -981,10 +982,12 @@ namespace LR10KCOMSystem {
     bool                        CheckIfCOMIsConnected();
 
     BOOL    PeekDataFromCom(HANDLE hSerial, byte& uInfo);
+    bool    ReadByteFromCom(HANDLE hSerial, byte& uInfo, DWORD& error);
     byte    GetDataFromCom(HANDLE hSerial);
     bool    SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE hSerial);
 
-    bool    WaitAndReadFromCOM(byte hexdecimalData);
+    //! \brief Wait for a specific byte from the LR 10K. Returns false if it does not answer within the timeout.
+    bool    WaitAndReadFromCOM(byte hexdecimalData, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
 }
 
 /**

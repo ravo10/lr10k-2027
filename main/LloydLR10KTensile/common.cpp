@@ -2797,7 +2797,7 @@ UINT __cdecl TabControl::AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabC
                 if (
                     !tabData->test_unfinished_test_started
                     && LR10KAppGlobals::shutLR10KDownIfLoadToHigh
-                    && LR10KAppGlobals::currentStatusMessage.load() != "Ready"
+                    && strcmp(LR10KAppGlobals::currentStatusMessage.load(), "Ready") != 0 // Compare the text, not the pointer (pointer equality only held when the compiler merged identical string literals)
                     && LR10KAppGlobals::stopTranslationOfCrossheadSaftey)
                 {
                     // See if the load is over 50 N, and stop the translation
@@ -3528,8 +3528,7 @@ bool LR10KCOMSystem::TryConnectingToCOMPort(int iPortNumber)
     serialParams.fDsrSensitivity = true;
 
     serialParams.fDtrControl = DTR_CONTROL_HANDSHAKE; // DTR_CONTROL_ENABLE; // DTR_CONTROL_HANDSHAKE;
-    serialParams.fRtsControl = DTR_CONTROL_HANDSHAKE; // RTS_CONTROL_ENABLE; // RTS_CONTROL_HANDSHAKE;
-    SetCommState(LR10KDataDeEncryptionSystem::m_hSerial, &serialParams);
+    serialParams.fRtsControl = RTS_CONTROL_HANDSHAKE; // RTS_CONTROL_ENABLE; // RTS_CONTROL_HANDSHAKE; (same value as DTR_CONTROL_HANDSHAKE, which was used here before)
 
     // Set timeouts (ms)
     COMMTIMEOUTS timeout = { 0 };
@@ -3539,18 +3538,33 @@ bool LR10KCOMSystem::TryConnectingToCOMPort(int iPortNumber)
     timeout.WriteTotalTimeoutConstant = 50;
     timeout.WriteTotalTimeoutMultiplier = 10;
 
-    SetCommTimeouts(LR10KDataDeEncryptionSystem::m_hSerial, &timeout);
+    // The port is useless if it does not accept the LR 10K settings, so give up instead of continuing half-configured
+    if (!SetCommState(LR10KDataDeEncryptionSystem::m_hSerial, &serialParams)
+        || !SetCommTimeouts(LR10KDataDeEncryptionSystem::m_hSerial, &timeout))
+    {
+        DockingApps::console.AddLog("[error] COM%d: could not apply serial settings (error %lu). Is it the right port?", iPortNumber, GetLastError());
+        CloseHandle(LR10KDataDeEncryptionSystem::m_hSerial);
+        LR10KDataDeEncryptionSystem::m_hSerial = INVALID_HANDLE_VALUE;
+        return false;
+    }
+
+    // Throw away anything left in the driver buffers from a previous session
+    PurgeComm(LR10KDataDeEncryptionSystem::m_hSerial, PURGE_RXCLEAR | PURGE_TXCLEAR);
+    LR10KDataDeEncryptionSystem::m_SerialBuffer.ClearAllData();
+    LR10KDataDeEncryptionSystem::comConnectionLost.store(false);
 
     // ---------------------------------------------------
     // Start reading from COM
     // ---------------------------------------------------
 
+    // Allow the thread to run BEFORE starting it. (Setting this after the thread was created let the
+    // new thread see the old "stop" value and exit immediately, so no data was ever read.)
+    LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag.store(false);
+    LR10KDataDeEncryptionSystem::m_pThreadReadCom_running.store(true);
     // Create a new thread to handle information, so it doesn't stall the main thread (old thread being destroyed when disconnecting from old COM port)
     LR10KDataDeEncryptionSystem::m_pThreadReadCom = std::make_unique<std::thread>(LR10KDataDeEncryptionSystem::ReadFromLR10KAndWriteToRingBuffer, LR10KDataDeEncryptionSystem::m_hSerial, &LR10KDataDeEncryptionSystem::m_SerialBuffer);
     // Let the thread run independently detached from main
     LR10KDataDeEncryptionSystem::m_pThreadReadCom->detach();
-    // Start the thread
-    LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag.store(false);
 
     // Everything OK
     LR10KAppGlobals::connectedComPortNumber = iPortNumber;
@@ -3577,6 +3591,10 @@ bool LR10KCOMSystem::TryDisconnectingFromCurrCOMPort()
     {
         // Terminate thread (since we are disconnecting from COM port)
         LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadReadCom, &LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag);
+        // The thread is detached, so make sure it has really left ReadFile before the handle is closed.
+        // Otherwise it can keep running into the next connection and read from it at the same time as the new thread.
+        if (!LR10KDataDeEncryptionSystem::WaitForThreadExit(LR10KDataDeEncryptionSystem::m_pThreadReadCom_running))
+            DockingApps::console.AddLog("[warning] COM reader thread did not stop in time.");
 
         // Get file name
         #if UNICODE
@@ -3624,29 +3642,53 @@ BOOL LR10KCOMSystem::PeekDataFromCom(HANDLE hSerial, byte& uInfo)
     return ReadFile(hSerial, &uInfo, 1, &readBytes, NULL);
 }
 /**
-    @brief  Get full data from LR 10K Tensile Machine to GUI.
+    @brief  Read one byte from the COM port, waiting at most the port's read timeout (~100 ms).
+    @param  hSerial - Open COM port.
+    @param  uInfo   - Receives the byte when one was read.
+    @param  error   - 0 on success or plain timeout; otherwise the Windows error code from ReadFile.
+    @retval true if a byte was read.
+**/
+bool LR10KCOMSystem::ReadByteFromCom(HANDLE hSerial, byte& uInfo, DWORD& error)
+{
+    DWORD readBytes{ 0 };
+    error = 0;
+
+    if (!ReadFile(hSerial, &uInfo, 1, &readBytes, NULL))
+    {
+        error = GetLastError();
+        if (error == 0)
+            error = ERROR_GEN_FAILURE;
+
+        // Clear line errors (framing/overrun etc.) so the port can keep working if this was a glitch
+        DWORD commErrors{ 0 };
+        ClearCommError(hSerial, &commErrors, NULL);
+        return false;
+    }
+
+    return readBytes == 1;
+}
+/**
+    @brief  Get full data from LR 10K Tensile Machine to GUI. Waits until a byte arrives,
+            the COM thread is stopped, or reading fails.
     @param  hSerial -
-    @retval         -
+    @retval The byte read, or 0x00 if nothing was read.
 **/
 byte LR10KCOMSystem::GetDataFromCom(HANDLE hSerial)
 {
     byte uInfo = 0x00;
-    DWORD readBytes{ 0 };
-    BOOL success = 0;
+    DWORD error{ 0 };
 
     // Wait until data from COM is read
-    const auto start = std::chrono::high_resolution_clock::now();
-    while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(6, start) && readBytes == 0)
+    const auto start = std::chrono::steady_clock::now();
+    while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(6, start))
     {
-        success = ReadFile(hSerial, &uInfo, 1, &readBytes, NULL);
-        // printf("ReadFile %d %d %01X\n", success, readBytes, uInfo);
+        if (ReadByteFromCom(hSerial, uInfo, error))
+            return uInfo;
+        if (error != 0)
+            break;
     }
 
-    // Doesn't make sense, but removes warnings in VS
-    if (success)
-        return uInfo;
-
-    return uInfo;
+    return 0x00;
 }
 /**
     @brief  Send data from GUI to LR 10K Tensile Machine.
@@ -3656,18 +3698,34 @@ byte LR10KCOMSystem::GetDataFromCom(HANDLE hSerial)
 **/
 bool LR10KCOMSystem::SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE hSerial)
 {
-    DWORD WriteBytes;
+    DWORD WriteBytes{ 0 }; // Was uninitialized: if WriteFile failed, the check below read garbage
+    BOOL success;
+    DWORD expectedBytes;
 
     if (bufferMessage.isBuffSingle())
-        WriteFile(hSerial, &bufferMessage.message_single, (DWORD)(size_t)1, &WriteBytes, NULL);
+    {
+        expectedBytes = 1;
+        success = WriteFile(hSerial, &bufferMessage.message_single, expectedBytes, &WriteBytes, NULL);
+    }
     else
-        WriteFile(hSerial, &bufferMessage.message, (DWORD)bufferMessage.size_of_message, &WriteBytes, NULL);
+    {
+        expectedBytes = (DWORD)bufferMessage.size_of_message;
+        if (expectedBytes == 0)
+            return true; // Nothing to send
+
+        success = WriteFile(hSerial, &bufferMessage.message, expectedBytes, &WriteBytes, NULL);
+    }
 
     // If it fails to send data from COM
-    if (WriteBytes == 0)
+    if (!success || WriteBytes == 0)
     {
-        // This can appear under setup 1, but it is not a problem
-        DockingApps::console.AddLog("[error] Failed to send data to COM... Check connection!");
+        DockingApps::console.AddLog("[error] Failed to send data to COM (error %lu)... Check connection!", success ? 0UL : GetLastError());
+        return false;
+    }
+    if (WriteBytes < expectedBytes)
+    {
+        // Write timed out part way (e.g. the LR 10K is holding CTS/DSR low)
+        DockingApps::console.AddLog("[error] Only %lu of %lu bytes were sent to COM... Check connection!", WriteBytes, expectedBytes);
         return false;
     }
 
@@ -3678,26 +3736,42 @@ bool LR10KCOMSystem::SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE hSer
     @param  hexdecimalData -
     @retval                -
 **/
-bool LR10KCOMSystem::WaitAndReadFromCOM(byte hexdecimalData)
+bool LR10KCOMSystem::WaitAndReadFromCOM(byte hexdecimalData, std::chrono::milliseconds timeout)
 {
     byte rec{ 0 }; // Used to record packages of HEX data read from the serial buffer.
 
     // Try and read data
     int numberOfTries = 0;
-    const auto start = std::chrono::high_resolution_clock::now();
-    do
+    const auto start = std::chrono::steady_clock::now();
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(1, start))
     {
-        // Will be around 1000 tries in 1 seconds for 1ms
+        // The LR 10K repeats its last byte until it answers with a new one. After this many
+        // other bytes, continue anyway (same behaviour as before).
         if (numberOfTries >= 2000)
-            break;
+            return true;
 
-        rec = LR10KDataDeEncryptionSystem::m_SerialBuffer.Read(LR10KAppGlobals::configurationDone);
+        // No byte at all from the LR 10K for too long: it is not answering
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= deadline)
+        {
+            DockingApps::console.AddLog("[error] LR 10K did not answer (waited %lld ms for 0x%02X). Check the cable and that \"Remote control\" is on.",
+                (long long)timeout.count(), hexdecimalData);
+            return false;
+        }
+
+        const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
+        if (!LR10KDataDeEncryptionSystem::m_SerialBuffer.TryRead(rec, (std::min)(remaining, std::chrono::milliseconds(20))))
+            continue;
+
         printf("Leser av COM: %02x\n", rec);
+        if (rec == hexdecimalData)
+            return true;
 
         numberOfTries++;
-    } while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(1, start) && rec != hexdecimalData);
+    }
 
-    return true;
+    return false; // COM thread was stopped (disconnected) while waiting
 }
 
 // -----------------------------------------------------------------------------
@@ -3712,22 +3786,51 @@ bool LR10KCOMSystem::WaitAndReadFromCOM(byte hexdecimalData)
 **/
 UINT __cdecl LR10KDataDeEncryptionSystem::ReadFromLR10KAndWriteToRingBuffer(HANDLE m_hSerial, CRingBuffer* m_SerialBuffer)
 {
+    // A few failed reads in a row means the port is gone (USB adapter unplugged, driver reset, ...).
+    // Before, ReadFile errors were ignored and this loop spun at 100% CPU forever without telling anyone.
+    constexpr int maxConsecutiveReadErrors = 3;
+    int consecutiveReadErrors = 0;
+
     byte Data;
-    const auto start = std::chrono::high_resolution_clock::now();
+    DWORD error{ 0 };
+    const auto start = std::chrono::steady_clock::now();
     while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(2, start) && !mainGUIGlobals::done)
     {
-        Data = LR10KCOMSystem::GetDataFromCom(m_hSerial);
+        if (LR10KCOMSystem::ReadByteFromCom(m_hSerial, Data, error))
+        {
+            consecutiveReadErrors = 0;
+            m_SerialBuffer->Write(Data);
+            continue;
+        }
 
-        m_SerialBuffer->Write(Data);
+        if (error == 0)
+        {
+            // Plain timeout: no data right now
+            consecutiveReadErrors = 0;
+            continue;
+        }
+
+        if (++consecutiveReadErrors >= maxConsecutiveReadErrors)
+        {
+            // Only report it if nobody asked this thread to stop (a normal disconnect also makes ReadFile fail)
+            if (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(2, start))
+            {
+                printf("COM read failed %d times (last error %lu). Connection lost.\n", consecutiveReadErrors, error);
+                LR10KDataDeEncryptionSystem::comConnectionLost.store(true);
+            }
+            break;
+        }
+        Sleep(50);
     }
 
     // Clean up
     // Terminate thread for (INPUT 2) - Not needed because it is dependent on this thread (INPUT 1)
-    LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadReadLR10K, &LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag); //!< 
+    LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadReadLR10K, &LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag); //!<
 
     // Clear/reset serial buffer
     m_SerialBuffer->ClearAllData();
 
+    LR10KDataDeEncryptionSystem::m_pThreadReadCom_running.store(false);
     return 0;
 }
 
@@ -3770,11 +3873,30 @@ UINT __cdecl LR10KDataDeEncryptionSystem::SendSetupToLR10K()
     @param  m_SerialBuffer - 
     @retval                - 
 **/
+byte LR10KDataDeEncryptionSystem::ReadNextByteForInterpreter(CRingBuffer* m_SerialBuffer)
+{
+    // Like CRingBuffer::Read(), but also gives up when the interpreter itself is told to stop.
+    // Before, a stopped interpreter could stay blocked waiting for data, and after a reconnect two
+    // interpreter threads would split the incoming bytes between them (garbled load/extension values).
+    byte value = 0x00;
+    while (LR10KDataDeEncryptionSystem::ThreadCanRun_InterpetWrittenRingBufferData()
+        && !LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag
+        && !mainGUIGlobals::done)
+    {
+        if (m_SerialBuffer->TryRead(value, std::chrono::milliseconds(20)))
+            return value;
+    }
+
+    return 0x00;
+}
+
 UINT __cdecl LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData(HANDLE m_hSerial, CRingBuffer* m_SerialBuffer)
 {
     while (LR10KDataDeEncryptionSystem::ThreadCanRun_InterpetWrittenRingBufferData() && !mainGUIGlobals::done)
     {
-        byte uData1 = m_SerialBuffer->Read();
+        byte uData1 = ReadNextByteForInterpreter(m_SerialBuffer);
+        if (!LR10KDataDeEncryptionSystem::ThreadCanRun_InterpetWrittenRingBufferData() || LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag)
+            break; // Stopped while waiting: there is no real byte to interpret
         // printf("Thread got some data from LR 10K: %02x ...\n", uData1);
 
         if (uData1 >= 0xE0)
@@ -3808,6 +3930,7 @@ UINT __cdecl LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData(HANDLE m
     // Clear/reset serial buffer
     m_SerialBuffer->ClearAllData();
 
+    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_running.store(false);
     return 0;
 }
 
@@ -4166,12 +4289,22 @@ bool LR10KControlSystem::TryConnectingToLR10K()
     // ------------ Start to intrepret stuff from the LR 10K machine -----------
     // -------------------------------------------------------------------------
 
+    // Make sure an interpreter from an earlier connection is gone, so two threads never split the incoming bytes
+    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag.store(true);
+    if (!LR10KDataDeEncryptionSystem::WaitForThreadExit(LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_running))
+    {
+        DockingApps::console.AddLog("[error] Previous LR 10K data thread is still running. Restart the software.");
+        LR10KDataDeEncryptionSystem::somethingUnexpectedHappend = true;
+        return false;
+    }
+
+    // Allow the thread to run BEFORE starting it (setting it afterwards let the thread exit immediately: no live data)
+    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag.store(false);
+    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_running.store(true);
     // Create a new thread seperate from main thread
     LR10KDataDeEncryptionSystem::m_pThreadReadLR10K = std::make_unique<std::thread>(LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData, LR10KDataDeEncryptionSystem::m_hSerial, &LR10KDataDeEncryptionSystem::m_SerialBuffer);
     // Let the thread run independently detached from main
     LR10KDataDeEncryptionSystem::m_pThreadReadLR10K->detach();
-    // Start the thread
-    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag.store(false);
 
     // Update the GUI if everything is successful
     LR10KAppGlobals::configurationDone              = true;
@@ -4237,6 +4370,8 @@ bool LR10KControlSystem::TryDisconnectFromLR10K()
 
     // Terminate thread
     LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadReadLR10K, &LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag);
+    if (!LR10KDataDeEncryptionSystem::WaitForThreadExit(LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_running))
+        DockingApps::console.AddLog("[warning] LR 10K data thread did not stop in time.");
     LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadConnectingToLR10K);
     LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading);
 

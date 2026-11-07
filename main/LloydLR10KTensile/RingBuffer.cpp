@@ -1,8 +1,9 @@
 /**
 
     @file      RingBuffer.cpp
-    @brief     Contains logic for handling the write and read sequence (Serial Buffer) for the LR 10K Tensile Machine.
-    @details   ~
+    @brief     Blocking Read()/Write() for CRingBuffer that honour the LR 10K thread stop flags.
+    @details   The buffer itself is in RingBuffer.h. These wrappers wait in short slices so a
+               stopped thread notices the stop flag within ~20 ms instead of spinning.
     @author    Rasmus Ullestad Relling (orginal logic by Olaf Hallan Graven)
     @date      4.09.2023
     @copyright (c) Rasmus Ullestad Relling, 2023. All right reserved.
@@ -11,73 +12,37 @@
 
 
 #include "LR10KDecryption.h"
-#include "iostream"
 
-CRingBuffer::CRingBuffer(): m_uData(), m_uRead(0), m_uWrite(0), m_bEmpty(true) { }
-
-bool CRingBuffer::Write(byte Element, bool NonBlocking /*= false*/)
-{
-    // We are full
-    if (NonBlocking && !m_bEmpty && m_uRead == m_uWrite) return false;
-
-    // Wait for space
-    const auto start = std::chrono::high_resolution_clock::now();
-    while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(3, start) && !m_bEmpty && m_uRead == m_uWrite);
-
-    m_Protect.lock();
-    m_uData[m_uWrite++] = Element;
-    m_uWrite %= bufferSize;
-    m_Protect.unlock();
-
-    m_bEmpty = false;
-    return true;
+namespace {
+    constexpr std::chrono::milliseconds waitSlice{ 20 };
 }
 
-byte CRingBuffer::Read(bool configDone)
+bool CRingBuffer::Write(std::uint8_t Element, bool NonBlocking /*= false*/)
 {
-    byte ret; // = 0x00 when no data
+    if (NonBlocking)
+        return TryWrite(Element);
 
-    const auto start = std::chrono::high_resolution_clock::now();
-    while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(4, start, configDone) && m_bEmpty);
-
-    m_Protect.lock();
-    ret = m_uData[m_uRead++];
-    m_uRead %= bufferSize;
-    m_Protect.unlock();
-
-    if (m_uRead == m_uWrite)
-        m_bEmpty = true;
-
-    return ret;
-}
-
-bool CRingBuffer::DataAvailable()
-{
-    return !m_bEmpty;
-}
-
-void CRingBuffer::ReadOutAllData()
-{
-    byte ret; // = 0x00 when no data
-
-    const auto start = std::chrono::high_resolution_clock::now();
-    while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(5, start) && m_bEmpty)
+    // Wait for space while the COM reader is allowed to run
+    const auto start = std::chrono::steady_clock::now();
+    while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(3, start))
     {
-        m_Protect.lock();
-        ret = m_uData[m_uRead++];
-        m_uRead %= bufferSize;
-        m_Protect.unlock();
-
-        if (m_uRead == m_uWrite)
-            m_bEmpty = true;
+        if (WaitWrite(Element, waitSlice))
+            return true;
     }
+
+    return false;
 }
 
-void CRingBuffer::ClearAllData()
+std::uint8_t CRingBuffer::Read(bool configDone)
 {
-    for (size_t i = 0; i < bufferSize; i++) m_uData[i] = NULL;
-    m_uRead = 0;
-    m_uWrite = 0;
+    std::uint8_t value = 0x00; // = 0x00 when no data
 
-    m_bEmpty = true;
+    const auto start = std::chrono::steady_clock::now();
+    while (LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(4, start, configDone))
+    {
+        if (TryRead(value, waitSlice))
+            return value;
+    }
+
+    return 0x00;
 }

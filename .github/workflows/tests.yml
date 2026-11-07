@@ -1,0 +1,27 @@
+# Runs the portable unit tests (code that does not need Windows, the GUI or the machine).
+name: Tests
+
+on:
+  push:
+    branches: [main, claude]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ring buffer (ThreadSanitizer)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
+            -I main/LloydLR10KTensile tests/ring_buffer_test.cpp -o ring_buffer_tsan
+          ./ring_buffer_tsan
+      - name: Ring buffer (AddressSanitizer + UBSan)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -pthread \
+            -I main/LloydLR10KTensile tests/ring_buffer_test.cpp -o ring_buffer_asan
+          ./ring_buffer_asan

@@ -100,21 +100,21 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_dataPackage(byte
     __int16 lParam;
 
     // Second data element
-    byte uData2 = m_SerialBuffer->Read();
+    byte uData2 = ReadNextByteForInterpreter(m_SerialBuffer);
 
     // Load
     lParam = LR10KDataDeEncryptionSystem::DecodingBits_Load(uData1, uData2);
     InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 1);
 
     // Distance
-    uData1 = m_SerialBuffer->Read();
-    uData2 = m_SerialBuffer->Read();
+    uData1 = ReadNextByteForInterpreter(m_SerialBuffer);
+    uData2 = ReadNextByteForInterpreter(m_SerialBuffer);
     lParam = LR10KDataDeEncryptionSystem::DecodingBits_Distance(uData1, uData2);
     InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 2);
 
     // Read extensometer
-    uData1 = m_SerialBuffer->Read();
-    uData2 = m_SerialBuffer->Read();
+    uData1 = ReadNextByteForInterpreter(m_SerialBuffer);
+    uData2 = ReadNextByteForInterpreter(m_SerialBuffer);
     LR10KDataDeEncryptionSystem::DecodingBits_Extensometer(uData1, uData2, &lParam);
     InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 3);
 }
@@ -126,7 +126,7 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_dataPackage(byte
 **/
 void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_overflowMessage(byte uData1, CRingBuffer* m_SerialBuffer)
 {
-    LPARAM lParam = (LPARAM)m_SerialBuffer->Read();
+    LPARAM lParam = (LPARAM)ReadNextByteForInterpreter(m_SerialBuffer);
     LR10KDataDeEncryptionSystem::bMultiplier_load = (byte)pow(2.0, (double)(3.0 - (byte)lParam));
 
     // Post multiplier to main.
@@ -139,7 +139,7 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_overflowMessage(
 **/
 void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_statusMessage(byte uData1, CRingBuffer* m_SerialBuffer)
 {
-    LPARAM lParam = (LPARAM)m_SerialBuffer->Read();
+    LPARAM lParam = (LPARAM)ReadNextByteForInterpreter(m_SerialBuffer);
     // printf("ID_LR10K_STATUS %x\n", (int)lParam);
 
     // Post status to main.
@@ -152,7 +152,7 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_statusMessage(by
 **/
 void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_warnErrorStatusMessage(byte uData1, CRingBuffer* m_SerialBuffer)
 {
-    LPARAM lParam = (LPARAM)m_SerialBuffer->Read();
+    LPARAM lParam = (LPARAM)ReadNextByteForInterpreter(m_SerialBuffer);
     // printf("ID_LR10K_WARN_ERROR_STATUS %x\n", (int)lParam);
 
     // Post status to main.

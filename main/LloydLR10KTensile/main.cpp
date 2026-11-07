@@ -550,6 +550,35 @@ int main(int argc, char** argv)
         ImVec2 center = ImGui::GetMainViewport()->GetCenter();
         ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 
+        // The COM port stopped working (cable or USB adapter unplugged, adapter driver reset, ...)
+        if (LR10KDataDeEncryptionSystem::comConnectionLost.exchange(false))
+        {
+            DockingApps::console.AddLog("[error] Lost connection to the COM port. Disconnecting.");
+
+            // Reset everything so the user can simply connect again from the menu
+            LR10KControlSystem::TryDisconnectFromLR10K();
+            LR10KCOMSystem::TryDisconnectingFromCurrCOMPort();
+
+            ImGui::OpenPopup(mainGUIGlobals::popUpID_ConnectionLost);
+        }
+
+        if (ImGui::BeginPopupModal(mainGUIGlobals::popUpID_ConnectionLost, NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text("Lost connection to the LR 10K (the COM port stopped responding).");
+            ImGui::Text("Check the serial cable / USB adapter, then connect again from the menu.");
+            ImGui::Text("If a test was running, check the machine: it may still be moving.");
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            ImGui::NewLine();
+
+            if (ImGui::Button("OK", ImVec2(120, 0)))
+                ImGui::CloseCurrentPopup();
+            ImGui::SetItemDefaultFocus();
+
+            ImGui::EndPopup();
+        }
+
         // Something unexpected happend
         if (LR10KDataDeEncryptionSystem::somethingUnexpectedHappend)
         {

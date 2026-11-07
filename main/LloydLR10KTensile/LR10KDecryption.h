@@ -47,57 +47,7 @@ inline uint64_t getCurrentTime()
     return now;
 }
 
-/**
-
-    @class   CRingBuffer
-    @brief   Run this class only on a seperate thread to not stall the main thread.
-    @details ~
-    @note    Original logic by: Olaf Hallan Graven
-
-**/
-class CRingBuffer
-{
-private:
-    static const size_t bufferSize{ 200 };  //!< The maximum ring buffer size, before it gets overwritten from index 0 again.
-    byte m_uData[bufferSize];               //!< Container for the buffer data.
-    size_t m_uRead;                         //!< Position of read data from the buffer data. Will match the the m_uWrite when finished reading.
-    size_t m_uWrite;                        //!< Position of written data that will be sent to.
-    bool m_bEmpty;                          //!< Tells if m_uRead == m_uWrite, then every data is read and ready for more data to be written if true.
-
-    std::mutex m_Protect;                   //!< Used for locking/unlocking the thread to ensure that multiple threads or processes do not access shared resources simultaneously.
-
-public:
-    CRingBuffer();
-
-    /**
-        @brief  Write data to the buffer.
-        @param  Element     -
-        @param  NonBlocking -
-        @retval             -
-    **/
-    bool Write(byte Element, bool NonBlocking = false);
-    /**
-        @brief  Read data from the buffer and return the output.
-        @param  configDone -
-        @retval            -
-    **/
-    byte Read(bool configDone = true);
-
-    /**
-        @brief  Check if there are any data available in the buffer.
-        @retval  -
-    **/
-    bool DataAvailable();
-
-    /**
-        @brief  [Experimental] Read out all data to clear the buffer.
-    **/
-    void ReadOutAllData();
-    /**
-        @brief  [Experimental] Clear all data; reset everything as it was initialized.
-    **/
-    void ClearAllData();
-};
+#include "RingBuffer.h" //!< CRingBuffer (portable, unit tested in tests/ring_buffer_test.cpp)
 
 /**
     @namespace LR10KDataDeEncryptionSystem
@@ -115,7 +65,7 @@ namespace LR10KDataDeEncryptionSystem {
     inline extern std::string ConnectedCOMPortName = "";
 #endif
     //! \note Used for reading data from LR10K to buffer, and often includes a "m_SerialBuffer" pointer to written to as a paramter. Contains COM data. (a ring buffer)
-    static CRingBuffer m_SerialBuffer;
+    inline extern CRingBuffer m_SerialBuffer{};  //!< One shared instance for all translation units (was "static", which gave each .cpp its own copy).
 
     inline extern std::unique_ptr<std::thread> m_pThreadReadLR10K = nullptr;    //!< The thread that contains a hooks that reads the data retrived from the LR 10K Tensile Machine
     inline extern std::unique_ptr<std::thread> m_pThreadReadCom = nullptr;      //!< (INPUT) The thread that reads data from the COM port.
@@ -128,6 +78,28 @@ namespace LR10KDataDeEncryptionSystem {
     inline extern std::atomic<bool> m_pThreadLR10KIsLoading_isLoading(false);   //!< Can disable the GUI, so no commands gets sent before setup is complete.
 
     inline extern std::atomic<bool> somethingUnexpectedHappend(false);  //!< If this is true, then the hooks will shut down and display a pop up.
+    inline extern std::atomic<bool> comConnectionLost(false);           //!< Set by the COM reader thread when reading from the port keeps failing (e.g. USB adapter unplugged). Handled on the GUI thread.
+
+    inline extern std::atomic<bool> m_pThreadReadCom_running(false);    //!< True while the COM reader thread function is executing.
+    inline extern std::atomic<bool> m_pThreadReadLR10K_running(false);  //!< True while the interpreter thread function is executing.
+
+    /**
+        @brief  Wait until a detached thread reports that it has left its thread function.
+        @param  running - The thread's "running" flag.
+        @param  timeout - Maximum time to wait.
+        @retval false if the thread was still running after the timeout.
+    **/
+    inline bool WaitForThreadExit(const std::atomic<bool>& running, std::chrono::milliseconds timeout = std::chrono::milliseconds(1500))
+    {
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
+        while (running.load())
+        {
+            if (std::chrono::steady_clock::now() >= deadline)
+                return false;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return true;
+    }
 
     // -------------------------------------------------------------------------
     // ---------------------- Runs on seperate threads => ----------------------
@@ -144,6 +116,7 @@ namespace LR10KDataDeEncryptionSystem {
 
     bool            ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(int trackID, std::chrono::steady_clock::time_point start, bool configDone = true);
     bool            ThreadCanRun_InterpetWrittenRingBufferData();
+    byte            ReadNextByteForInterpreter(CRingBuffer* m_SerialBuffer);
 
     void            TerminateUniqeThread(std::unique_ptr<std::thread>& m_pThread, std::atomic<bool>* stopFlag = nullptr);
 
