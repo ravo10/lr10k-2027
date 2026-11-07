@@ -15,6 +15,7 @@ examples/*/x64/*
 ipch
 *.opensdf
 *.log
+!tests/data/*.log
 *.pdb
 *.ilk
 *.user
