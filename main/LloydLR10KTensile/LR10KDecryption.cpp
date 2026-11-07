@@ -13,6 +13,7 @@
 
 
 #include "LR10KDecryption.h"
+#include "LR10KProtocol.h" //!< The decoding itself (unit tested in tests/protocol_test.cpp)
 
 // -----------------------------------------------------------------------------
 // ------------------ LR 10K Data Decryption/Encryption System -----------------
@@ -31,30 +32,7 @@
 **/
 __int16 LR10KDataDeEncryptionSystem::DecodingBits_Load(byte uData1, byte uData2)
 {
-    __int16 lParam{ 0 };
-    lParam = uData1;
-    lParam &= 0x1F;  // Mask away the first 3 bits
-    lParam <<= 7;
-    lParam += uData2;
-
-    if (LR10KDataDeEncryptionSystem::bMultiplier_load > 1)
-    {
-        if (lParam >= 0x0C00)
-            lParam = (short)map(lParam, 0x0C00, 0x0FFF, 0x800 * LR10KDataDeEncryptionSystem::bMultiplier_load / 2, 0x800 * LR10KDataDeEncryptionSystem::bMultiplier_load);
-        else
-            lParam = (short)map(lParam, 0x03FF, 0x0, -2048 * LR10KDataDeEncryptionSystem::bMultiplier_load / 2, -2048 * LR10KDataDeEncryptionSystem::bMultiplier_load);
-    }
-    else
-    {
-        if (uData1 >= 0xF00)  // Upper half
-            lParam -= 0x800;
-        else
-            lParam = -0x800 + lParam;
-    }
-
-    // printf("ID_LR10K_LOAD = %02X:%02X = %x\n", uData1, uData2, lParam);
-
-    return (LPARAM)lParam;
+    return LR10KProtocol::DecodeLoad(uData1, uData2, LR10KDataDeEncryptionSystem::bMultiplier_load);
 }
 /**
     @brief  Decoder for the distance.
@@ -64,15 +42,7 @@ __int16 LR10KDataDeEncryptionSystem::DecodingBits_Load(byte uData1, byte uData2)
 **/
 __int16 LR10KDataDeEncryptionSystem::DecodingBits_Distance(byte uData1, byte uData2)
 {
-    __int16 lParam{ 0 };
-    lParam = uData1;
-    lParam <<= 9;
-    short tmp16 = uData2 << 2;
-    lParam += tmp16;
-
-    // printf("ID_LR10K_DISTANCE = %02X:%02X = %x\n", uData1, uData2, lParam);
-
-    return (LPARAM)lParam;
+    return LR10KProtocol::DecodeDistanceDelta(uData1, uData2);
 }
 /**
     @brief Decoder for the extensometer.
@@ -82,10 +52,7 @@ __int16 LR10KDataDeEncryptionSystem::DecodingBits_Distance(byte uData1, byte uDa
 **/
 void LR10KDataDeEncryptionSystem::DecodingBits_Extensometer(byte uData1, byte uData2, __int16* lParam)
 {
-    *lParam = uData1 << 7;
-    *lParam += uData2;
-
-    // printf("ID_LR10K_EXSTERNSIOMETER = %02X:%02X = %x\n", uData1, uData2, lParam);
+    *lParam = LR10KProtocol::DecodeExtensometer(uData1, uData2);
 }
 
 /**
@@ -127,7 +94,7 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_dataPackage(byte
 void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_overflowMessage(byte uData1, CRingBuffer* m_SerialBuffer)
 {
     LPARAM lParam = (LPARAM)ReadNextByteForInterpreter(m_SerialBuffer);
-    LR10KDataDeEncryptionSystem::bMultiplier_load = (byte)pow(2.0, (double)(3.0 - (byte)lParam));
+    LR10KDataDeEncryptionSystem::bMultiplier_load = LR10KProtocol::LoadMultiplierFromOverflow((byte)lParam);
 
     // Post multiplier to main.
     InterpetWrittenRingBufferData_WriteGlobals((LPARAM)LR10KDataDeEncryptionSystem::bMultiplier_load, 4);

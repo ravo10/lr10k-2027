@@ -443,3 +443,6 @@ public:
     **/
     bool w_Disconnect();
 };
+
+//! A global scope to gain access to the LR 10K Controller logic (one shared instance for all source files).
+inline LR10KController _LR10KController;

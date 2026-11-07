@@ -13,7 +13,6 @@
 
 #include "LR10KController.h"
 #include "MaterialCalc.h"
-inline LR10KController _LR10KController; //!< A global scope to gain access to the LR 10K Controller logic.
 AppWindowStates g_WindowStates; //!< Create the variable in memory.
 AppExtensiometer g_Extensiometer; //!< Create the variable in memory.
 

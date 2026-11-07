@@ -30,3 +30,8 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/material_calc_test.cpp -o material_calc_test
           ./material_calc_test
+      - name: LR 10K protocol (decoding/encoding, identical to the original code)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/protocol_test.cpp main/LloydLR10KTensile/LR10KBufferMessage.cpp -o protocol_test
+          ./protocol_test

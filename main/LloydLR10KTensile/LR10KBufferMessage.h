@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <cstdint>          //!< uint8_t
 #include <iostream>
 #include <string>           //!< std
 #include <vector>           //!< std

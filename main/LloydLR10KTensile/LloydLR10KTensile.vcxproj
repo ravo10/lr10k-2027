@@ -200,7 +200,13 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClCompile Include="..\..\implot_demo.cpp" />
     <ClCompile Include="..\..\implot_items.cpp" />
     <ClCompile Include="..\..\misc\cpp\imgui_stdlib.cpp" />
-    <ClCompile Include="common.cpp" />
+    <ClCompile Include="Calculator.cpp" />
+    <ClCompile Include="ExcelExport.cpp" />
+    <ClCompile Include="FileSystem.cpp" />
+    <ClCompile Include="TabSystem.cpp" />
+    <ClCompile Include="SerialCom.cpp" />
+    <ClCompile Include="MachineControl.cpp" />
+    <ClCompile Include="Console.cpp" />
     <ClCompile Include="appstructs.cpp" />
     <ClCompile Include="LR10KBufferMessage.cpp" />
     <ClCompile Include="LR10KController.cpp" />
@@ -231,6 +237,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClInclude Include="LR10KDecryption.h" />
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="MaterialCalc.h" />
+    <ClInclude Include="LR10KProtocol.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="styles.h" />
   </ItemGroup>

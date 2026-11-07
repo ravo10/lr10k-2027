@@ -519,8 +519,23 @@ namespace LR10KAppGlobals {
     //! \details The index of the unit vector.
     inline extern int unitsConvertionIndex = 0;
 
+    /**
+        @brief  Gets the correct value from the units conversion.
+        @details When "index" is >= 8, then use double value. Else it is const char*.
+                 Defined here (not in a .cpp) so every source file can use it.
+    **/
     template <typename ReturnType>
-    ReturnType GetUnitOption(int index, int unitIndex = unitsConvertionIndex);
+    ReturnType GetUnitOption(int index, int unitIndex = unitsConvertionIndex)
+    {
+        if (unitIndex < LR10KAppGlobals::unitsConvertion.size()) {
+            if (std::holds_alternative<ReturnType>(LR10KAppGlobals::unitsConvertion[unitIndex][index]))
+            {
+                return std::get<ReturnType>(LR10KAppGlobals::unitsConvertion[unitIndex][index]);
+            }
+        }
+        // Return a default value or handle the out-of-bounds case as needed.
+        return ReturnType{};
+    }
 
    inline extern std::string pendingFileToLoad = "";
 

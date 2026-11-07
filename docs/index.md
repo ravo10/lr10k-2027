@@ -32,19 +32,21 @@ If you have trouble opening the software, try and delete the application data fo
 
 ### Communication & Decryption/Encryption, and the interpeted results. (Development)
 ___
+See [ARCHITECTURE.md](../ARCHITECTURE.md) for how the source files are organised.
+
 ## How the software communicates with the LR 10K Tensile Machine (output/input)
 The software uses a simple logic to output data to the LR 10K through the spesified COM port. Two detached seperate threads (detached from main) constantly looks in a hook for input data from the LR 10K Tensile Machine. These threads run each their own function together with a custom circular/ring buffer for reading/writing buffer messages between the PC and the LR 10K Tensile Machine.
-**The "output" logic** - Sends data to the LR 10K Tensile Machine. (through COM) (*common.cpp*):
+**The "output" logic** - Sends data to the LR 10K Tensile Machine. (through COM) (*SerialCom.cpp*):
 ```c++
-bool LR10KCOMSystem::SendDataToCom(LR10KBufferMessage* bufferMessage, HANDLE hSerial);
+bool LR10KCOMSystem::SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE hSerial);
 ```
 `LR10KBufferMessage* bufferMessage` is a pointer being built up with a single HEX value, or several HEX values combined into a message containing several values. This is quite simple to do with the `LR10KBufferMessage` class.
 
-**Part 1 of "input" logic** (a hook) - Writes the data coming from the LR 10K (from COM) to the ring buffer. (*common.cpp*):
+**Part 1 of "input" logic** (a hook) - Writes the data coming from the LR 10K (from COM) to the ring buffer (*RingBuffer.h*). (*SerialCom.cpp*):
 ```c++
 UINT __cdecl LR10KDataDeEncryptionSystem::ReadFromLR10KAndWriteToRingBuffer(HANDLE m_hSerial, CRingBuffer* m_SerialBuffer);
 ```
-**Part 2 of "input" logic** (a hook) - Reads the written data from the ring buffer and interprets it. (*common.cpp*):
+**Part 2 of "input" logic** (a hook) - Reads the written data from the ring buffer and interprets it, using the decoding in *LR10KProtocol.h*. (*SerialCom.cpp*):
 ```c++
 UINT __cdecl LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData(HANDLE m_hSerial, CRingBuffer* m_SerialBuffer);
 ```

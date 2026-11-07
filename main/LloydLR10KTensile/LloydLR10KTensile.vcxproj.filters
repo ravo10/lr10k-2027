@@ -49,7 +49,25 @@
     <ClCompile Include="appstructs.cpp">
       <Filter>sources</Filter>
     </ClCompile>
-    <ClCompile Include="common.cpp">
+    <ClCompile Include="Calculator.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="ExcelExport.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="FileSystem.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="TabSystem.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="SerialCom.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="MachineControl.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="Console.cpp">
       <Filter>sources</Filter>
     </ClCompile>
     <ClCompile Include="LR10KBufferMessage.cpp">
@@ -144,6 +162,7 @@
     <ClInclude Include="LR10KDecryption.h" />
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="MaterialCalc.h" />
+    <ClInclude Include="LR10KProtocol.h" />
     <ClInclude Include="..\..\stb_image.h" />
     <ClInclude Include="LR10KController.h" />
     <ClInclude Include="..\..\backends\imgui_ImageLoader_dx12.h">
