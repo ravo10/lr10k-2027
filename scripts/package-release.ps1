@@ -4,9 +4,13 @@
 #
 # Build "Release | x64" in Visual Studio first, then run from anywhere:
 #   powershell -ExecutionPolicy Bypass -File scripts\package-release.ps1
+# Add -NoZip to only create the folder.
 #
 # The Visual C++ runtime DLLs are copied next to the .exe ("app-local"), so the
 # lab PC does not need the Visual C++ Redistributable installed.
+param(
+    [switch]$NoZip  # Only create the folder, skip the .zip
+)
 $ErrorActionPreference = 'Stop'
 
 $repo     = Resolve-Path (Join-Path $PSScriptRoot '..')
@@ -72,9 +76,32 @@ if ($debugDlls) {
     Write-Warning "Debug DLLs found ($($debugDlls.Name -join ', ')). Only the Release build should be shipped."
 }
 
-Compress-Archive -Path $dist -DestinationPath $zip
-$size = '{0:N0} MB' -f ((Get-Item $zip).Length / 1MB)
+# 5. Optional .zip. Antivirus / IT policy can lock a freshly copied, unsigned .exe for a while
+#    ("access denied"), so retry a few times and never fail the whole script because of the zip.
+$zipCreated = $false
+if (-not $NoZip) {
+    for ($attempt = 1; $attempt -le 3 -and -not $zipCreated; $attempt++) {
+        try {
+            if (Test-Path $zip) { Remove-Item $zip -Force }
+            Compress-Archive -Path $dist -DestinationPath $zip
+            $zipCreated = $true
+        } catch {
+            if ($attempt -lt 3) {
+                Write-Host "Could not create the .zip yet ($($_.Exception.Message)). Retrying in 5 s ..."
+                Start-Sleep -Seconds 5
+            } else {
+                if (Test-Path $zip) { Remove-Item $zip -Force -ErrorAction SilentlyContinue }
+                Write-Warning "The .zip could not be created: $($_.Exception.Message)"
+                Write-Warning "This is usually antivirus or IT policy blocking the .exe. The folder below is complete: copy it instead (or zip it yourself in Explorer: right-click > Send to > Compressed folder)."
+            }
+        }
+    }
+}
+
 Write-Host ""
 Write-Host "Done: $dist"
-Write-Host "      $zip ($size)"
-Write-Host "Copy the folder (or unzip the .zip) on the lab PC and run '$exeName'."
+if ($zipCreated) {
+    $size = '{0:N0} MB' -f ((Get-Item $zip).Length / 1MB)
+    Write-Host "      $zip ($size)"
+}
+Write-Host "Copy the folder$(if ($zipCreated) { ' (or unzip the .zip)' }) on the lab PC and run '$exeName'."
