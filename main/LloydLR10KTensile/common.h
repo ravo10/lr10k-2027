@@ -979,7 +979,7 @@ void SnapCrucialPointsToSmoothedCurve(std::vector<std::tuple<ImPlotPoint, int>>&
                 data through the COM port.
 **/
 namespace LR10KCOMSystem {
-    std::pair<PULONG, ULONG>    FindAllCOMPorts();
+    std::vector<ULONG>          FindAllCOMPorts();
     bool                        TryConnectingToCOMPort(int iPortNumber = -1);
     bool                        TryDisconnectingFromCurrCOMPort();
     bool                        CheckIfCOMIsConnected();
@@ -990,7 +990,7 @@ namespace LR10KCOMSystem {
     bool    SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE hSerial);
 
     //! \brief Wait for a specific byte from the LR 10K. Returns false if it does not answer within the timeout.
-    bool    WaitAndReadFromCOM(byte hexdecimalData, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
+    bool    WaitAndReadFromCOM(byte hexdecimalData, std::chrono::milliseconds timeout = std::chrono::milliseconds(15000));
 }
 
 /**

@@ -3434,16 +3434,27 @@ const char* getCurrentTimeString()
     @brief  Find all COM ports available on the current computer.
     @retval  -
 **/
-std::pair<PULONG, ULONG> LR10KCOMSystem::FindAllCOMPorts()
+std::vector<ULONG> LR10KCOMSystem::FindAllCOMPorts()
 {
-    // Find all COM Serial Ports, and return their name in correct order
-    ULONG portNumbers[100]; // Ports IDs
-    ULONG portsFound;       // Amount of ports found
+    // Find all COM Serial Ports (the same numbers as in Device Manager), in ascending order.
+    // Returned by value: this used to return a pointer to a local array, which no longer existed when the
+    // menu read it, so the list showed random port numbers (e.g. COM4 missing).
+    std::vector<ULONG> portNumbers(256);
+    ULONG portsFound = 0;
 
-    GetCommPorts(portNumbers, 100, &portsFound);
-    std::pair<PULONG, ULONG> allComPorts = std::make_pair(portNumbers, portsFound);
+    ULONG result = GetCommPorts(portNumbers.data(), (ULONG)portNumbers.size(), &portsFound);
+    if (result == ERROR_MORE_DATA)
+    {
+        portNumbers.resize(portsFound);
+        result = GetCommPorts(portNumbers.data(), (ULONG)portNumbers.size(), &portsFound);
+    }
+    if (result != ERROR_SUCCESS)
+        portsFound = 0; // ERROR_FILE_NOT_FOUND = no COM ports on this PC
 
-    return allComPorts;
+    portNumbers.resize((std::min)((size_t)portsFound, portNumbers.size()));
+    std::sort(portNumbers.begin(), portNumbers.end());
+
+    return portNumbers;
 }
 /**
     @brief  Connect to COM Port. When iPortNumber = -1, the first port available will be connected to.
@@ -3538,15 +3549,12 @@ bool LR10KCOMSystem::TryConnectingToCOMPort(int iPortNumber)
     timeout.WriteTotalTimeoutConstant = 50;
     timeout.WriteTotalTimeoutMultiplier = 10;
 
-    // The port is useless if it does not accept the LR 10K settings, so give up instead of continuing half-configured
-    if (!SetCommState(LR10KDataDeEncryptionSystem::m_hSerial, &serialParams)
-        || !SetCommTimeouts(LR10KDataDeEncryptionSystem::m_hSerial, &timeout))
-    {
-        DockingApps::console.AddLog("[error] COM%d: could not apply serial settings (error %lu). Is it the right port?", iPortNumber, GetLastError());
-        CloseHandle(LR10KDataDeEncryptionSystem::m_hSerial);
-        LR10KDataDeEncryptionSystem::m_hSerial = INVALID_HANDLE_VALUE;
-        return false;
-    }
+    // Report settings the port/driver rejects, but keep going like the original code did:
+    // some USB serial adapters reject individual settings and still work with the LR 10K.
+    if (!SetCommState(LR10KDataDeEncryptionSystem::m_hSerial, &serialParams))
+        DockingApps::console.AddLog("[warning] COM%d: serial settings were not accepted by the driver (error %lu). Trying anyway.", iPortNumber, GetLastError());
+    if (!SetCommTimeouts(LR10KDataDeEncryptionSystem::m_hSerial, &timeout))
+        DockingApps::console.AddLog("[warning] COM%d: read/write timeouts were not accepted by the driver (error %lu). Trying anyway.", iPortNumber, GetLastError());
 
     // Throw away anything left in the driver buffers from a previous session
     PurgeComm(LR10KDataDeEncryptionSystem::m_hSerial, PURGE_RXCLEAR | PURGE_TXCLEAR);

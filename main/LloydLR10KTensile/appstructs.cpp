@@ -975,15 +975,14 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 ImGui::SeparatorText("Connect/Disconnect to COM");
 
                 //List all COM ports available
-                std::pair<PULONG, ULONG> allComPorts = LR10KCOMSystem::FindAllCOMPorts();
+                std::vector<ULONG> allComPorts = LR10KCOMSystem::FindAllCOMPorts();
 
                 // List all ports
                 ImGui::PushItemFlag(ImGuiItemFlags_AutoClosePopups, false);
-                if (allComPorts.second > 0)
+                if (!allComPorts.empty())
                 {
-                    for (int i = 0; i < allComPorts.second; i++)
+                    for (ULONG comPort : allComPorts)
                     {
-                        ULONG comPort = allComPorts.first[i];
 
                         // COM port name
                         std::string name = "COM";

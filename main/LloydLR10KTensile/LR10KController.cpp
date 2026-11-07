@@ -120,10 +120,11 @@ bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte
                 Sleep(6); // !!Important!!
 
                 // Wait for the correct response from LR 10K...
-                // Stop the sequence if the bytes could not be sent or the LR 10K never answers,
-                // instead of sending the rest of the setup into the void (or waiting forever).
-                if (!LR10KCOMSystem::SendDataToCom(bufferMessage, LR10KDataDeEncryptionSystem::m_hSerial)
-                    || !LR10KCOMSystem::WaitAndReadFromCOM(HEX_byte))
+                // Stop the sequence if the LR 10K never answers, instead of waiting forever.
+                // A failed write is only logged (by SendDataToCom), like in the original code: the LR 10K
+                // can hold its handshake line for a moment during setup. What matters is that it answers.
+                LR10KCOMSystem::SendDataToCom(bufferMessage, LR10KDataDeEncryptionSystem::m_hSerial);
+                if (!LR10KCOMSystem::WaitAndReadFromCOM(HEX_byte))
                 {
                     LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>("No response"));
                     DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
@@ -156,22 +157,39 @@ bool LR10KController::AskAndWaitForLR10KForReadyToConnect()
 
     bool LR10KReadyToConnect = false;
 
+    // Throw away old bytes (e.g. live data still streaming from an earlier session), so only fresh answers count
+    LR10KDataDeEncryptionSystem::m_SerialBuffer.ClearAllData();
+
     // Ask LR 10K if it is ready to connect
     int counter = 0;
+    int bytesReceived = 0;
+    byte lastByteReceived = 0x00;
     while (!LR10KReadyToConnect)
     {
         LR10KCOMSystem::SendDataToCom(bufferMessage, LR10KDataDeEncryptionSystem::m_hSerial);
 
         // Read the answer from the ring buffer. (Calling ReadFile here directly competed with the COM
         // reader thread for the same bytes, so the answer was often taken by the other thread and missed.)
-        // Waiting up to 100 ms keeps the same pace as the old blocking ReadFile.
+        // Look at every byte that arrives within ~100 ms (the same pace as the old blocking ReadFile),
+        // not just the first one, so an answer behind other bytes is not missed.
         byte uInfo = { 0 };
-        LR10KDataDeEncryptionSystem::m_SerialBuffer.TryRead(uInfo, std::chrono::milliseconds(100));
+        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+        while (!LR10KReadyToConnect)
+        {
+            const auto now = std::chrono::steady_clock::now();
+            if (now >= until)
+                break;
+            if (!LR10KDataDeEncryptionSystem::m_SerialBuffer.TryRead(uInfo, std::chrono::duration_cast<std::chrono::milliseconds>(until - now)))
+                break;
+
+            bytesReceived++;
+            lastByteReceived = uInfo;
+
+            // Check if the LR 10K says it is ready
+            LR10KReadyToConnect = uInfo == (byte)0xB6;
+        }
 
         printf("Trying to get a response from LR 10K (%02x): %02x\n", 0xB6, uInfo);
-
-        // Check if the LR 10K says it is ready
-        LR10KReadyToConnect = uInfo == (byte)0xB6 ? true : false;
 
         if (counter >= 10 * 3)
             break;
@@ -179,6 +197,16 @@ bool LR10KController::AskAndWaitForLR10KForReadyToConnect()
         // 10 Hz
         Sleep(30); counter++;
     }
+
+    // Shown in the app's console (Release builds have no printf window), to tell the cases apart:
+    // 0 bytes = nothing arrives (wrong port, cable, machine off, "Remote control" off);
+    // bytes but no 0xB6 = the machine talks, but does not answer the connect request.
+    if (LR10KReadyToConnect)
+        DockingApps::console.AddLog("LR 10K answered the connect request (after %d tries).", counter + 1);
+    else if (bytesReceived == 0)
+        DockingApps::console.AddLog("[error] No data at all from COM%d during %d connect requests. Check the port number, the cable, that the LR 10K is on and that \"Remote control\" is pressed.", LR10KAppGlobals::connectedComPortNumber, counter + 1);
+    else
+        DockingApps::console.AddLog("[error] Received %d bytes from COM%d but no answer (0xB6) to the connect request; last byte was 0x%02X. Try restarting the LR 10K.", bytesReceived, LR10KAppGlobals::connectedComPortNumber, lastByteReceived);
 
     return LR10KReadyToConnect;
 }
