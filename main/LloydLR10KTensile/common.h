@@ -183,6 +183,15 @@ struct Extra_Tools {
         std::filesystem::path relativePath(filename);
         std::filesystem::path absolutePath = std::filesystem::absolute(relativePath);
 
+        // The tutorial videos are not stored in git (too large). If one is missing,
+        // open the GitHub Release page where they can be downloaded instead.
+        // See README "Tutorial videos" and scripts/fetch-videos.ps1.
+        std::error_code ec;
+        if (!std::filesystem::exists(absolutePath, ec)) {
+            std::system("start \"\" \"https://github.com/ravo10/lr10k/releases/tag/demo-videos\"");
+            return;
+        }
+
         // 2. Construct the shell command.
         // We still use start "" "path" to ensure it works even if the 
         // user put your whole app folder inside a folder with spaces (e.g. "C:\New Folder\")

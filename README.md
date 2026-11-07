@@ -7,6 +7,18 @@ The software was made as a summer project by machine engineering student Rasmus 
 
 Open up the application and go to "Help" for a quick tutorial. In short steps: Connect to COM port on computer, connect to the LR10K Tensile Machine, send new setup and then start a new test. You can access the [full documentaion](docs/index.md) for a tutorial or developement information.
 
+The generated developer documentation (Doxygen) is published at <https://ravo10.github.io/lr10k/>. It is built automatically by `.github/workflows/docs.yml` and is no longer committed to the repository. To build it locally, run `doxygen Doxyfile` from the `docs` folder; the output goes to `docs/html/` (gitignored).
+
+### Tutorial videos
+
+The Help menu's tutorial videos are too large to keep in git, so they are published as assets on the [`demo-videos` release](https://github.com/ravo10/lr10k/releases/tag/demo-videos). After cloning, download them into `main/LloydLR10KTensile/videos/` (needed for the Help buttons and for building the installer):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\fetch-videos.ps1
+```
+
+If a video is missing, the Help button opens the release page instead.
+
 ### How it works
 
 Uses the ImGui open source package with C++ for the application, where the binary codes sent to the machine was found by "sniffing" the machine's in/out commands and response. The software is also multi-threaded and uses independent threads that run hooks for handling the data flow and circular buffer. More information on how the software works can be found in the docs above.

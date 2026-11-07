@@ -63,3 +63,23 @@ examples/example_sdl2_metal/example_sdl2_metal
 examples/example_sdl2_opengl2/example_sdl2_opengl2
 examples/example_sdl2_opengl3/example_sdl2_opengl3
 examples/example_sdl2_sdlrenderer/example_sdl2_sdlrenderer
+
+## Visual Studio / vcpkg build output (anywhere in the tree)
+[Xx]64/
+[Dd]ebug/
+[Rr]elease/
+*.tlog
+*.idb
+*.iobj
+*.ipdb
+*.aps
+vcpkg_installed/
+
+## Large media: published as GitHub Release assets, not stored in git.
+## Fetch with scripts/fetch-videos.ps1 (see README).
+main/LloydLR10KTensile/videos/*.mp4
+
+## Generated Doxygen output: built and published by .github/workflows/docs.yml
+docs/html/
+docs/latex/
+docs/html.zip
