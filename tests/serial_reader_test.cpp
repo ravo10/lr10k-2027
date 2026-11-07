@@ -5,10 +5,10 @@
 //
 // Run automatically by .github/workflows/tests.yml.
 //
-// FakeSerialPort plays back a script of bytes, quiet periods ("timeouts") and read errors, like a
-// real COM port with the LR 10K settings. The same fake can later replay recorded LR 10K sessions.
+// FakeSerialPort (fake_serial_port.h) plays back a script of bytes, quiet periods and read errors.
 
 #include "SerialReader.h"
+#include "fake_serial_port.h"
 
 #include <atomic>
 #include <chrono>
@@ -24,42 +24,6 @@ using namespace std::chrono_literals;
 static int g_failures = 0;
 #define CHECK(cond) do { if (!(cond)) { std::printf("FAIL line %d: %s\n", __LINE__, #cond); ++g_failures; } } while (0)
 
-class FakeSerialPort : public SerialPort
-{
-public:
-    struct Event { ReadStatus status; std::uint8_t byte; std::uint32_t error; };
-
-    void AddBytes(const std::vector<std::uint8_t>& bytes) { std::lock_guard<std::mutex> l(m); for (auto b : bytes) script.push_back({ ReadStatus::Byte, b, 0 }); }
-    void AddTimeout() { std::lock_guard<std::mutex> l(m); script.push_back({ ReadStatus::Timeout, 0, 0 }); }
-    void AddError(std::uint32_t code) { std::lock_guard<std::mutex> l(m); script.push_back({ ReadStatus::Error, 0, code }); }
-    std::size_t Remaining() { std::lock_guard<std::mutex> l(m); return script.size(); }
-
-    bool IsOpen() const override { return open; }
-    ReadStatus ReadByte(std::uint8_t& out, std::uint32_t& errorCode) override
-    {
-        reads++;
-        Event e{ ReadStatus::Timeout, 0, 0 };
-        {
-            std::lock_guard<std::mutex> l(m);
-            if (!script.empty()) { e = script.front(); script.pop_front(); }
-        }
-        if (e.status == ReadStatus::Timeout)
-            std::this_thread::sleep_for(2ms); // a real port waits up to ~100 ms here
-        errorCode = e.status == ReadStatus::Error ? e.error : 0;
-        if (e.status == ReadStatus::Byte) out = e.byte;
-        return e.status;
-    }
-    std::size_t Write(const std::uint8_t*, std::size_t size, std::uint32_t& errorCode) override { errorCode = 0; return size; }
-    void DiscardBuffers() override {}
-    bool Close() override { open = false; return true; }
-
-    std::atomic<int> reads{ 0 };
-    bool open = true;
-
-private:
-    std::mutex m;
-    std::deque<Event> script;
-};
 
 static bool waitFor(const std::function<bool()>& cond, std::chrono::milliseconds timeout = 2000ms)
 {

@@ -242,6 +242,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClInclude Include="SerialPort.h" />
     <ClInclude Include="SerialReader.h" />
     <ClInclude Include="Win32SerialPort.h" />
+    <ClInclude Include="LR10KMachine.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="styles.h" />
   </ItemGroup>

@@ -40,3 +40,8 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
             -I main/LloydLR10KTensile tests/serial_reader_test.cpp -o serial_reader_test
           ./serial_reader_test
+      - name: Machine (reader + interpreter threads) with a fake port (ThreadSanitizer)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
+            -I main/LloydLR10KTensile tests/machine_test.cpp -o machine_test
+          ./machine_test

@@ -48,7 +48,7 @@ inline uint64_t getCurrentTime()
 }
 
 #include "RingBuffer.h" //!< CRingBuffer (portable, unit tested in tests/ring_buffer_test.cpp)
-#include "SerialReader.h" //!< Reader thread (portable, unit tested in tests/serial_reader_test.cpp)
+#include "LR10KMachine.h" //!< Ring buffer + reader and interpreter threads (portable, tested in tests/machine_test.cpp)
 #include "Win32SerialPort.h" //!< The COM port
 
 /**
@@ -59,7 +59,7 @@ inline uint64_t getCurrentTime()
 namespace LR10KDataDeEncryptionSystem {
     //! \note Used for reading data from LR10K to buffer, and often includes a "m_SerialBuffer" pointer to written to as a paramter. Contains COM connection information.
     inline extern Win32SerialPort comPort{};       //!< The COM port connected to the LR 10K.
-    inline extern SerialReader comReader{};        //!< Reads comPort into m_SerialBuffer on its own thread.
+    inline extern LR10KMachine machine{};          //!< The connection: ring buffer, reader thread (comPort -> buffer) and interpreter thread.
     //! \note The handle of comPort, kept for code that still uses it (INVALID_HANDLE_VALUE when closed).
     inline extern HANDLE m_hSerial = INVALID_HANDLE_VALUE;
 #if UNICODE
@@ -70,9 +70,8 @@ namespace LR10KDataDeEncryptionSystem {
     inline extern std::string ConnectedCOMPortName = "";
 #endif
     //! \note Used for reading data from LR10K to buffer, and often includes a "m_SerialBuffer" pointer to written to as a paramter. Contains COM data. (a ring buffer)
-    inline extern CRingBuffer m_SerialBuffer{};  //!< One shared instance for all translation units (was "static", which gave each .cpp its own copy).
+    inline extern CRingBuffer& m_SerialBuffer = machine.Buffer(); //!< The machine's ring buffer (one shared instance).
 
-    inline extern std::unique_ptr<std::thread> m_pThreadReadLR10K = nullptr;    //!< The thread that contains a hooks that reads the data retrived from the LR 10K Tensile Machine
     inline extern std::unique_ptr<std::thread> m_pThreadReadCom = nullptr;      //!< (INPUT) The thread that reads data from the COM port.
 
     inline extern std::unique_ptr<std::thread> m_pThreadConnectingToLR10K   = nullptr;   //!< The thread that contains a hooks that connects to the LR 10K Tensile Machine
@@ -99,7 +98,6 @@ namespace LR10KDataDeEncryptionSystem {
     inline extern std::atomic<bool> lr10kNotResponding(false);          //!< Set by the watchdog when the LR 10K stops answering. Shows a pop up.
     inline extern std::atomic<bool> watchdogProbeReplyPending(false);   //!< The next status message is the answer to a watchdog probe: update the status quietly.
 
-    inline extern std::atomic<bool> m_pThreadReadLR10K_running(false);  //!< True while the interpreter thread function is executing.
 
     /**
         @brief  Wait until a detached thread reports that it has left its thread function.
@@ -125,7 +123,6 @@ namespace LR10KDataDeEncryptionSystem {
 
     UINT __cdecl    ConnectingToLR10K();
     UINT __cdecl    SendSetupToLR10K();
-    UINT __cdecl    InterpetWrittenRingBufferData(HANDLE m_hSerial, CRingBuffer* m_SerialBuffer);
 
     // -------------------------------------------------------------------------
     // ---------------------- <= Runs on seperate threads ----------------------
@@ -133,7 +130,7 @@ namespace LR10KDataDeEncryptionSystem {
 
     bool            ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(int trackID, std::chrono::steady_clock::time_point start, bool configDone = true);
     bool            ThreadCanRun_InterpetWrittenRingBufferData();
-    byte            ReadNextByteForInterpreter(CRingBuffer* m_SerialBuffer);
+    void            InterpretMessage(const LR10KProtocol::Message& message);
 
     void            TerminateUniqeThread(std::unique_ptr<std::thread>& m_pThread, std::atomic<bool>* stopFlag = nullptr);
 
@@ -153,11 +150,6 @@ namespace LR10KDataDeEncryptionSystem {
     __int16 DecodingBits_Distance(byte uData1, byte uData2);
     void    DecodingBits_Extensometer(byte uData1, byte uData2, __int16* lParam);
 
-    void    InterpetWrittenRingBufferData_dataPackage(byte uData1, CRingBuffer* m_SerialBuffer);
-    void    InterpetWrittenRingBufferData_overflowMessage(byte uData1, CRingBuffer* m_SerialBuffer);
-    void    InterpetWrittenRingBufferData_statusMessage(byte uData1, CRingBuffer* m_SerialBuffer);
-    void    InterpetWrittenRingBufferData_warnErrorStatusMessage(byte uData1, CRingBuffer* m_SerialBuffer);
-    void    InterpetWrittenRingBufferData_unkownData(byte uData1);
 
     void    InterpetWrittenRingBufferData_handling_load(LPARAM lParam);
     void    InterpetWrittenRingBufferData_handling_extension(LPARAM lParam);

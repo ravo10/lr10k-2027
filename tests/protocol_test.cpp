@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 using namespace LR10KProtocol;
 
@@ -251,6 +252,121 @@ static void test_float_encoding_identical_to_legacy()
     if (mismatches) std::printf("  %ld float encoding mismatches against the original code\n", mismatches);
 }
 
+// The original interpreter loop (InterpetWrittenRingBufferData + the per-message functions), reduced to
+// its framing: read a first byte, then read the rest of the message from the same stream. Runs over a
+// finished byte list and stops when a message would be incomplete.
+struct LegacyMessage { int kind; std::vector<std::uint8_t> bytes; }; // kind: 0 data, 1 overflow, 2 status, 3 warn, 4 unknown
+static std::vector<LegacyMessage> legacyFrame(const std::vector<std::uint8_t>& stream)
+{
+    std::vector<LegacyMessage> out;
+    std::size_t i = 0;
+    while (i < stream.size())
+    {
+        const std::uint8_t uData1 = stream[i];
+        int kind = 4; std::size_t length = 1;
+        if (uData1 >= 0xE0) { kind = 0; length = 6; }
+        else switch (uData1)
+        {
+        case 0xB1: kind = 1; length = 2; break;
+        case 0xB6: kind = 2; length = 2; break;
+        case 0xBF: kind = 3; length = 2; break;
+        default: break;
+        }
+        if (i + length > stream.size()) break; // incomplete at the end
+        out.push_back({ kind, std::vector<std::uint8_t>(stream.begin() + i, stream.begin() + i + length) });
+        i += length;
+    }
+    return out;
+}
+
+static int kindOf(Message::Type t)
+{
+    switch (t)
+    {
+    case Message::Type::DataPackage: return 0;
+    case Message::Type::Overflow:    return 1;
+    case Message::Type::Status:      return 2;
+    case Message::Type::WarnError:   return 3;
+    default:                         return 4;
+    }
+}
+
+static void test_message_parser_known_stream()
+{
+    // Status "ready", a data package, an overflow message, a warning and an unknown byte
+    const std::vector<std::uint8_t> stream = { 0xB6, 0x00,  0xF0, 0x05, 0x00, 0x01, 0x02, 0x03,  0xB1, 0x02,  0xBF, 0x04,  0x42 };
+    MessageParser parser;
+    std::vector<Message> got;
+    Message m;
+    for (std::uint8_t b : stream)
+        if (parser.Feed(b, m)) got.push_back(m);
+
+    CHECK(got.size() == 5);
+    if (got.size() == 5)
+    {
+        CHECK(got[0].type == Message::Type::Status && got[0].Value() == 0x00);
+        CHECK(got[1].type == Message::Type::DataPackage);
+        CHECK(got[1].data[0] == 0xF0 && got[1].data[1] == 0x05 && got[1].data[5] == 0x03);
+        CHECK(DecodeLoad(got[1].data[0], got[1].data[1], 1) == 5);              // 0x800 + 5 -> 5 counts
+        CHECK(DecodeDistanceDelta(got[1].data[2], got[1].data[3]) == 4);        // 0x00 0x01 -> 4
+        CHECK(got[2].type == Message::Type::Overflow && LoadMultiplierFromOverflow(got[2].Value()) == 2);
+        CHECK(got[3].type == Message::Type::WarnError && got[3].Value() == 0x04);
+        CHECK(got[4].type == Message::Type::Unknown && got[4].data[0] == 0x42);
+    }
+    CHECK(!parser.InMessage());
+
+    // A data package split over several feeds, and Reset() dropping a half message
+    MessageParser p2;
+    CHECK(!p2.Feed(0xE3, m));
+    CHECK(p2.InMessage());
+    p2.Reset();
+    CHECK(!p2.InMessage());
+    CHECK(p2.Feed(0xB6, m) == false);
+    CHECK(p2.Feed(0x41, m) && m.type == Message::Type::Status && m.Value() == 0x41);
+}
+
+static void test_message_parser_identical_to_legacy()
+{
+    // Random streams: mostly realistic messages, plus random junk bytes in between
+    std::uint32_t seed = 12345;
+    auto rnd = [&seed]() { seed = seed * 1664525u + 1013904223u; return seed >> 8; };
+    long mismatches = 0;
+
+    for (int run = 0; run < 2000; run++)
+    {
+        std::vector<std::uint8_t> stream;
+        const int parts = 1 + (int)(rnd() % 60);
+        for (int k = 0; k < parts; k++)
+        {
+            switch (rnd() % 5)
+            {
+            case 0: stream.push_back((std::uint8_t)(0xE0 + rnd() % 32)); for (int j = 0; j < 5; j++) stream.push_back((std::uint8_t)rnd()); break;
+            case 1: stream.push_back(0xB6); stream.push_back((std::uint8_t)rnd()); break;
+            case 2: stream.push_back(0xB1); stream.push_back((std::uint8_t)(rnd() % 4)); break;
+            case 3: stream.push_back(0xBF); stream.push_back((std::uint8_t)rnd()); break;
+            default: stream.push_back((std::uint8_t)rnd()); break; // anything, also message starts
+            }
+        }
+
+        const std::vector<LegacyMessage> expected = legacyFrame(stream);
+        MessageParser parser;
+        std::vector<Message> got;
+        Message m;
+        for (std::uint8_t b : stream)
+            if (parser.Feed(b, m)) got.push_back(m);
+
+        if (got.size() != expected.size()) { mismatches++; continue; }
+        for (std::size_t k = 0; k < got.size(); k++)
+        {
+            if (kindOf(got[k].type) != expected[k].kind) { mismatches++; break; }
+            for (std::size_t j = 0; j < expected[k].bytes.size(); j++)
+                if (got[k].data[j] != expected[k].bytes[j]) { mismatches++; break; }
+        }
+    }
+    CHECK(mismatches == 0);
+    if (mismatches) std::printf("  %ld framing mismatches against the original interpreter\n", mismatches);
+}
+
 static void test_app_buffer_message_class()
 {
     // The class the app uses to build setup messages must produce the same bytes as before
@@ -284,6 +400,8 @@ int main()
     test_identical_to_legacy_for_all_inputs();
     test_float_encoding_identical_to_legacy();
     test_app_buffer_message_class();
+    test_message_parser_known_stream();
+    test_message_parser_identical_to_legacy();
 
     if (g_failures == 0)
         std::printf("protocol_test: all tests passed\n");

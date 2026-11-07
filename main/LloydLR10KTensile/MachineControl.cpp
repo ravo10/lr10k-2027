@@ -50,22 +50,18 @@ bool LR10KControlSystem::TryConnectingToLR10K()
     // ------------ Start to intrepret stuff from the LR 10K machine -----------
     // -------------------------------------------------------------------------
 
-    // Make sure an interpreter from an earlier connection is gone, so two threads never split the incoming bytes
-    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag.store(true);
-    if (!LR10KDataDeEncryptionSystem::WaitForThreadExit(LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_running))
+    // Start the interpreter (it stops and waits for one from an earlier connection first, so two threads never
+    // split the incoming bytes). It turns the bytes into messages and InterpretMessage() into load/extension/status.
     {
-        DockingApps::console.AddLog("[error] Previous LR 10K data thread is still running. Restart the software.");
-        LR10KDataDeEncryptionSystem::somethingUnexpectedHappend = true;
-        return false;
-    }
+        using namespace LR10KDataDeEncryptionSystem;
+        m_pThreadReadLR10K_stopFlag.store(true);
+        machine.StopInterpreter();
 
-    // Allow the thread to run BEFORE starting it (setting it afterwards let the thread exit immediately: no live data)
-    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag.store(false);
-    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_running.store(true);
-    // Create a new thread seperate from main thread
-    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K = std::make_unique<std::thread>(LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData, LR10KDataDeEncryptionSystem::m_hSerial, &LR10KDataDeEncryptionSystem::m_SerialBuffer);
-    // Let the thread run independently detached from main
-    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K->detach();
+        m_pThreadReadLR10K_stopFlag.store(false); // Allow it to run BEFORE starting it
+        machine.StartInterpreter(&InterpretMessage,
+            []() { return !m_pThreadReadLR10K_stopFlag.load() && !m_pThreadReadCom_stopFlag.load() && !mainGUIGlobals::done; },
+            []() { m_SerialBuffer.ClearAllData(); });
+    }
 
     // Start the "is the LR 10K still answering" watchdog from now
     LR10KControlSystem::WatchdogReset();
@@ -135,9 +131,8 @@ bool LR10KControlSystem::TryDisconnectFromLR10K()
     TabControl::LR10KTravelDistanceActionAfter  = 0;
 
     // Terminate thread
-    LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadReadLR10K, &LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag);
-    if (!LR10KDataDeEncryptionSystem::WaitForThreadExit(LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_running))
-        DockingApps::console.AddLog("[warning] LR 10K data thread did not stop in time.");
+    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag.store(true);
+    LR10KDataDeEncryptionSystem::machine.StopInterpreter(); // Waits until it has finished (within ~20 ms)
     LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadConnectingToLR10K);
     LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading);
 

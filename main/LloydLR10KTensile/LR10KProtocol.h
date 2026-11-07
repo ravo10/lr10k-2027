@@ -106,6 +106,95 @@ namespace LR10KProtocol
         return out;
     }
 
+    // -------------------------------------------------------------------------
+    // Message framing
+    // -------------------------------------------------------------------------
+
+    //! One complete message from the LR 10K.
+    struct Message
+    {
+        enum class Type : std::uint8_t
+        {
+            DataPackage, //!< 6 bytes: load (data[0..1]), distance delta (data[2..3]), extensometer (data[4..5])
+            Overflow,    //!< 0xB1 + value: load multiplier (see LoadMultiplierFromOverflow)
+            Status,      //!< 0xB6 + value: 0x00 ready, 0x40 stopped fast movement, 0x41 up, 0x61 down, ...
+            WarnError,   //!< 0xBF + value: warning/error (e.g. magnetic stop)
+            Unknown      //!< Any other single byte (data[0])
+        };
+
+        Type type = Type::Unknown;
+        std::array<std::uint8_t, 6> data{}; //!< The message bytes, first byte at data[0]
+
+        //! The value byte of an Overflow/Status/WarnError message.
+        std::uint8_t Value() const { return data[1]; }
+    };
+
+    /**
+        @brief  Splits the byte stream from the LR 10K into complete messages.
+        @details Pure state machine: feed bytes one at a time, in any chunks. Frames messages exactly like
+                 the original interpreter loop (first byte >= 0xE0: 6-byte data package; 0xB1/0xB6/0xBF: 2 bytes;
+                 anything else: a 1-byte unknown message). Tested in tests/protocol_test.cpp.
+    **/
+    class MessageParser
+    {
+    public:
+        /**
+            @brief  Add the next byte.
+            @retval true when this byte completed a message, which is written to @p out.
+        **/
+        bool Feed(std::uint8_t byte, Message& out)
+        {
+            if (m_expected == 0)
+            {
+                // First byte of a new message
+                m_current = Message{};
+                m_current.data[0] = byte;
+                m_received = 1;
+
+                if (byte >= DataPackageMin)
+                    return Begin(Message::Type::DataPackage, 6);
+                switch (byte)
+                {
+                case MsgOverflow:  return Begin(Message::Type::Overflow, 2);
+                case MsgStatus:    return Begin(Message::Type::Status, 2);
+                case MsgWarnError: return Begin(Message::Type::WarnError, 2);
+                default:
+                    m_current.type = Message::Type::Unknown;
+                    out = m_current;
+                    m_received = 0;
+                    return true;
+                }
+            }
+
+            m_current.data[m_received++] = byte;
+            if (m_received < m_expected)
+                return false;
+
+            out = m_current;
+            m_expected = 0;
+            m_received = 0;
+            return true;
+        }
+
+        //! Forget a partly received message (e.g. after reconnecting).
+        void Reset() { m_expected = 0; m_received = 0; }
+
+        //! True while in the middle of a message.
+        bool InMessage() const { return m_expected != 0; }
+
+    private:
+        bool Begin(Message::Type type, int length)
+        {
+            m_current.type = type;
+            m_expected = length;
+            return false;
+        }
+
+        Message m_current{};
+        int m_expected = 0; //!< Length of the message being received, 0 = waiting for a first byte
+        int m_received = 0;
+    };
+
     /**
         @brief  Decode 8 ASCII hex characters (see EncodeFloat) back to a float. Invalid characters count as 0.
     **/

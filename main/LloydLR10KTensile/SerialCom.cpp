@@ -104,10 +104,11 @@ bool LR10KCOMSystem::TryConnectingToCOMPort(int iPortNumber)
     callbacks.onExit = []()
     {
         // The interpreter depends on the reader: stop it too, and drop unread bytes
-        TerminateUniqeThread(m_pThreadReadLR10K, &m_pThreadReadLR10K_stopFlag);
+        m_pThreadReadLR10K_stopFlag.store(true);
+        machine.RequestStopInterpreter();
         m_SerialBuffer.ClearAllData();
     };
-    comReader.Start(comPort, m_SerialBuffer,
+    machine.StartReading(comPort,
         []() { return !m_pThreadReadCom_stopFlag.load() && !mainGUIGlobals::done; },
         callbacks);
 
@@ -140,7 +141,7 @@ bool LR10KCOMSystem::TryDisconnectingFromCurrCOMPort()
         // Stop the reader and wait until it has really finished (at most one read timeout, ~100 ms),
         // so it never reads from a closed port or into the next connection.
         m_pThreadReadCom_stopFlag.store(true);
-        comReader.Stop();
+        machine.StopReading();
 
         const int portNumber = LR10KAppGlobals::connectedComPortNumber;
         const bool closed = comPort.Close();
@@ -290,72 +291,8 @@ UINT __cdecl LR10KDataDeEncryptionSystem::SendSetupToLR10K()
     return 0;
 }
 
-/**
-    @brief  (INPUT 2) (Step 1) Interpet data from the LR10K Tensile Machine that has been stored in the ring buffer. (runs on seperate thread)
-    @param  m_hSerial      - 
-    @param  m_SerialBuffer - 
-    @retval                - 
-**/
-byte LR10KDataDeEncryptionSystem::ReadNextByteForInterpreter(CRingBuffer* m_SerialBuffer)
-{
-    // Like CRingBuffer::Read(), but also gives up when the interpreter itself is told to stop.
-    // Before, a stopped interpreter could stay blocked waiting for data, and after a reconnect two
-    // interpreter threads would split the incoming bytes between them (garbled load/extension values).
-    byte value = 0x00;
-    while (LR10KDataDeEncryptionSystem::ThreadCanRun_InterpetWrittenRingBufferData()
-        && !LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag
-        && !mainGUIGlobals::done)
-    {
-        if (m_SerialBuffer->TryRead(value, std::chrono::milliseconds(20)))
-            return value;
-    }
-
-    return 0x00;
-}
-
-UINT __cdecl LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData(HANDLE m_hSerial, CRingBuffer* m_SerialBuffer)
-{
-    while (LR10KDataDeEncryptionSystem::ThreadCanRun_InterpetWrittenRingBufferData() && !mainGUIGlobals::done)
-    {
-        byte uData1 = ReadNextByteForInterpreter(m_SerialBuffer);
-        if (!LR10KDataDeEncryptionSystem::ThreadCanRun_InterpetWrittenRingBufferData() || LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag)
-            break; // Stopped while waiting: there is no real byte to interpret
-        // printf("Thread got some data from LR 10K: %02x ...\n", uData1);
-
-        if (uData1 >= 0xE0)
-            // We have a data package comming. (used for load, distance etc.)
-            LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_dataPackage(uData1, m_SerialBuffer);
-        else
-        {
-            switch (uData1)
-            {
-            case 0xB1:
-                // We have a overflow message. (for getting the mutiplier)
-                LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_overflowMessage(uData1, m_SerialBuffer);
-                break;
-            case 0xB6:
-                // We have a status message. (for getting the current status of LR 10K)
-                LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_statusMessage(uData1, m_SerialBuffer);
-                break;
-            case 0xBF:
-                // We have a warning/error message. (used for e.g. magnetic stop)
-                LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_warnErrorStatusMessage(uData1, m_SerialBuffer);
-                break;
-
-            default:
-                // Unknown. (as of now unkown data)
-                LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_unkownData(uData1);
-                break;
-            }
-        }
-    }
-
-    // Clear/reset serial buffer
-    m_SerialBuffer->ClearAllData();
-
-    LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_running.store(false);
-    return 0;
-}
+// (INPUT 2) Interpreting the ring buffer is done by the interpreter thread in LR10KMachine (LR10KMachine.h):
+// it frames the bytes into messages and calls LR10KDataDeEncryptionSystem::InterpretMessage() for each.
 
 // -----------------------------------------------------------------------------
 // ------------- Handle data coming from the LR 10K Tensile Machine ------------

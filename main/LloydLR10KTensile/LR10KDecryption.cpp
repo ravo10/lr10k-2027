@@ -56,83 +56,48 @@ void LR10KDataDeEncryptionSystem::DecodingBits_Extensometer(byte uData1, byte uD
 }
 
 /**
-    @brief (Step 2) (runs on a seperate thread; on "InterpetWrittenRingBufferData")
-            For handling the load, distance and extensiometer values. These needs to be
-            multiplied by a constant in namespace "LR10KAppGlobals" for readability.
-    @param uData1         -
-    @param m_SerialBuffer -
+    @brief (Step 2) Handle one complete message from the LR 10K (runs on the interpreter thread, see LR10KMachine).
+            Same steps as the old per-message functions: decode, then write the values to the globals.
+    @param message - Framed by LR10KProtocol::MessageParser.
 **/
-void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_dataPackage(byte uData1, CRingBuffer* m_SerialBuffer)
+void LR10KDataDeEncryptionSystem::InterpretMessage(const LR10KProtocol::Message& message)
 {
-    __int16 lParam;
+    using Type = LR10KProtocol::Message::Type;
 
-    // Second data element
-    byte uData2 = ReadNextByteForInterpreter(m_SerialBuffer);
+    switch (message.type)
+    {
+    case Type::DataPackage:
+    {
+        // Load, distance and extensometer. These need to be multiplied by a constant in namespace
+        // "LR10KAppGlobals" for readability.
+        __int16 lParam = LR10KDataDeEncryptionSystem::DecodingBits_Load(message.data[0], message.data[1]);
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 1);
 
-    // Load
-    lParam = LR10KDataDeEncryptionSystem::DecodingBits_Load(uData1, uData2);
-    InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 1);
+        lParam = LR10KDataDeEncryptionSystem::DecodingBits_Distance(message.data[2], message.data[3]);
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 2);
 
-    // Distance
-    uData1 = ReadNextByteForInterpreter(m_SerialBuffer);
-    uData2 = ReadNextByteForInterpreter(m_SerialBuffer);
-    lParam = LR10KDataDeEncryptionSystem::DecodingBits_Distance(uData1, uData2);
-    InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 2);
-
-    // Read extensometer
-    uData1 = ReadNextByteForInterpreter(m_SerialBuffer);
-    uData2 = ReadNextByteForInterpreter(m_SerialBuffer);
-    LR10KDataDeEncryptionSystem::DecodingBits_Extensometer(uData1, uData2, &lParam);
-    InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 3);
-}
-
-/**
-    @brief For handling the overflow message - that is the multiplier for the bytes.
-    @param uData1         -
-    @param m_SerialBuffer -
-**/
-void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_overflowMessage(byte uData1, CRingBuffer* m_SerialBuffer)
-{
-    LPARAM lParam = (LPARAM)ReadNextByteForInterpreter(m_SerialBuffer);
-    LR10KDataDeEncryptionSystem::bMultiplier_load = LR10KProtocol::LoadMultiplierFromOverflow((byte)lParam);
-
-    // Post multiplier to main.
-    InterpetWrittenRingBufferData_WriteGlobals((LPARAM)LR10KDataDeEncryptionSystem::bMultiplier_load, 4);
-}
-/**
-    @brief For handling the actual status. (ready, up, down, fast up etc.)
-    @param uData1         -
-    @param m_SerialBuffer -
-**/
-void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_statusMessage(byte uData1, CRingBuffer* m_SerialBuffer)
-{
-    LPARAM lParam = (LPARAM)ReadNextByteForInterpreter(m_SerialBuffer);
-    // printf("ID_LR10K_STATUS %x\n", (int)lParam);
-
-    // Post status to main.
-    InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 5);
-}
-/**
-    @brief For handling the actual warning/error status. (ready, up, down, fast up etc.)
-    @param uData1         -
-    @param m_SerialBuffer -
-**/
-void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_warnErrorStatusMessage(byte uData1, CRingBuffer* m_SerialBuffer)
-{
-    LPARAM lParam = (LPARAM)ReadNextByteForInterpreter(m_SerialBuffer);
-    // printf("ID_LR10K_WARN_ERROR_STATUS %x\n", (int)lParam);
-
-    // Post status to main.
-    InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 6);
-}
-/**
-    @brief For handling unknown data.
-    @param uData1 -
-**/
-void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_unkownData(byte uData1)
-{
-    // Post data to main.
-    InterpetWrittenRingBufferData_WriteGlobals((LPARAM)uData1);
+        LR10KDataDeEncryptionSystem::DecodingBits_Extensometer(message.data[4], message.data[5], &lParam);
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 3);
+        break;
+    }
+    case Type::Overflow:
+        // The multiplier for the load bytes
+        LR10KDataDeEncryptionSystem::bMultiplier_load = LR10KProtocol::LoadMultiplierFromOverflow(message.Value());
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)LR10KDataDeEncryptionSystem::bMultiplier_load, 4);
+        break;
+    case Type::Status:
+        // The actual status (ready, up, down, fast up etc.)
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)message.Value(), 5);
+        break;
+    case Type::WarnError:
+        // Warning/error status (e.g. magnetic stop)
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)message.Value(), 6);
+        break;
+    default:
+        // Unknown (as of now unknown data)
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)message.data[0]);
+        break;
+    }
 }
 
 /**
@@ -201,7 +166,8 @@ bool LR10KDataDeEncryptionSystem::ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer
         if (elapsed.count() > 7000)
         {
             // Terminate thread
-            LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadReadLR10K, &LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag);
+            LR10KDataDeEncryptionSystem::m_pThreadReadLR10K_stopFlag.store(true);
+            LR10KDataDeEncryptionSystem::machine.RequestStopInterpreter();
             // Terminate thread (since we are disconnecting from COM port)
             LR10KDataDeEncryptionSystem::TerminateUniqeThread(LR10KDataDeEncryptionSystem::m_pThreadReadCom, &LR10KDataDeEncryptionSystem::m_pThreadReadCom_stopFlag);
 
