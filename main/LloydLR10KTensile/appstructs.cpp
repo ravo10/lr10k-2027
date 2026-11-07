@@ -1698,11 +1698,16 @@ void SetExtensiometerTargetColor(float* color, bool reset = false)
     ImGui::ColorConvertHSVtoRGB(h_avg / 179.0f, s_avg / 255.0f, v_avg / 255.0f, r, g, b);
     color[0] = r; color[1] = g; color[2] = b;
 
-    // Save settings immediately
-    LR10KAppGlobals::opticalSourceExtensiometerTargetColor[0] = color[0];
-    LR10KAppGlobals::opticalSourceExtensiometerTargetColor[1] = color[1];
-    LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2] = color[2];
-    DockingApps::mainFileSystem.SaveApplicationSettings();
+    // Save only when the colour changed. This runs every frame while the settings panel is open, and it used to
+    // write the settings file to disk every frame (~60 times per second, on the GUI thread).
+    float* saved = LR10KAppGlobals::opticalSourceExtensiometerTargetColor;
+    if (saved[0] != color[0] || saved[1] != color[1] || saved[2] != color[2])
+    {
+        saved[0] = color[0];
+        saved[1] = color[1];
+        saved[2] = color[2];
+        DockingApps::mainFileSystem.SaveApplicationSettings();
+    }
 }
 
 void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabData, bool* p_open)
@@ -1853,6 +1858,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                     PlaySoundEffect("buttonClick0");
                 }
             }
+            ImGui::SetItemTooltip("Hotkey: F6\nAlso sets the optical L0, so the extension starts at 0.");
             ImGui::PopStyleColor(3);
             ImGui::EndDisabled();
 
@@ -1875,6 +1881,9 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             {
                 DockingApps::console.ExecCommand(tabData, "start");
             }
+            ImGui::SetItemTooltip(tabData->current_temp_preSaveLocation.empty()
+                ? "Choose the folder where the test is saved automatically first."
+                : "Start the test. Hotkey: F7");
             ImGui::PopStyleColor(3);
             ImGui::EndDisabled();
 
@@ -1964,89 +1973,60 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 }
                 if (ImGui::BeginMenu("View")) {
                     ImGui::SeparatorText("CV Mask");
-                    ImGui::MenuItem("Binary", NULL, &g_Extensiometer.show_cvmask);
+                    ImGui::MenuItem("Mask tabs (binary)", NULL, &g_Extensiometer.show_cvmask);
                     ImGui::MenuItem("Settings", NULL, &g_Extensiometer.show_cvsettings);
                     ImGui::EndMenu();
                 }
                 ImGui::EndMenuBar();
 
-                // Left Panel: MASK View
-                if (g_Extensiometer.is_active && g_pResourceCamera && g_Extensiometer.show_cvmask)
-                {
-                    
-
-                    if (ImGui::BeginChild("Ext.LeftPanel", ImVec2(400, 0), true))
+                // Draws a camera texture as large as fits in the given size, keeping the aspect ratio
+                auto drawFitted = [aspect](ImTextureID texture, ImVec2 availSize) {
+                    float w = availSize.x;
+                    float h = w / aspect;
+                    if (h > availSize.y)
                     {
-                        // --- Sub-Window 1: Extension/strain information window---
-                        if (ImGui::BeginChild("ExtStrainInformation", ImVec2(0, 240), true, ImGuiWindowFlags_MenuBar))
-                        {
-                            ImGui::PushFont(Extra::fonts.jetbrainsFont);
+                        h = availSize.y;
+                        w = h * aspect;
+                    }
+                    if (w > 0.0f && h > 0.0f)
+                        ImGui::Image(texture, ImVec2(w, h));
+                };
 
-                            ImVec2 cursorStart = ImGui::GetCursorPos();
+                // Left Panel: TRACKING information. (It used to share a 400 px column with the binary mask, which is
+                // now a tab next to the camera image.)
+                if (g_Extensiometer.is_active && g_pResourceCamera)
+                {
+                    if (ImGui::BeginChild("Ext.LeftPanel", ImVec2(300, 0), true, ImGuiWindowFlags_MenuBar))
+                    {
+                        if (ImGui::BeginMenuBar()) { ImGui::Text("Tracking (extension & strain)"); ImGui::EndMenuBar(); }
+                        ImGui::PushFont(Extra::fonts.jetbrainsFont);
+                        if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
+                            // Tracking status: green with two markers, red otherwise (the values then stay at the last ones)
+                            const int markers = g_Extensiometer.markers_found.load();
+                            const bool tracking = markers == 2;
+                            if (tracking)
+                                ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Tracking: 2 markers");
+                            else
+                                ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "Tracking lost (%d marker%s found)", markers, markers == 1 ? "" : "s");
 
-                            if (ImGui::BeginMenuBar()) { ImGui::Text("Tracking Information (ext. & strain)"); ImGui::EndMenuBar(); }
+                            ImGui::SeparatorText("Current values");
+                            const ImVec4 valueColor = tracking ? ImVec4(0, 1, 0, 1) : ImVec4(0.6f, 0.6f, 0.6f, 1.0f);
+                            ImGui::TextColored(valueColor, "Extension: %.3f mm", g_Extensiometer.results.travel_mm.load());
+                            ImGui::TextColored(valueColor, "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage.load());
 
-                            if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
-                                // Tracking status: green with two markers, red otherwise (the values then stay at the last ones)
-                                const int markers = g_Extensiometer.markers_found.load();
-                                const bool tracking = markers == 2;
-                                if (tracking)
-                                    ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Tracking: 2 markers");
-                                else
-                                    ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "Tracking lost (%d marker%s found)", markers, markers == 1 ? "" : "s");
+                            // Scale: L0 in pixels and in mm
+                            const double l0px = g_Extensiometer.initial_dist_px.load();
+                            const double l0mm = g_Extensiometer.gauge_length_mm.load();
+                            if (l0px > 0.0 && l0mm > 0.0)
+                                ImGui::TextDisabled("L0: %.1f px = %.2f mm (%.4f mm/px)", l0px, l0mm, l0mm / l0px);
 
-                                ImGui::SeparatorText("Current values");
-                                const ImVec4 valueColor = tracking ? ImVec4(0, 1, 0, 1) : ImVec4(0.6f, 0.6f, 0.6f, 1.0f);
-                                ImGui::TextColored(valueColor, "Extension: %.3f mm", g_Extensiometer.results.travel_mm.load());
-                                ImGui::TextColored(valueColor, "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage.load());
-
-                                // Scale: L0 in pixels and in mm
-                                const double l0px = g_Extensiometer.initial_dist_px.load();
-                                const double l0mm = g_Extensiometer.gauge_length_mm.load();
-                                if (l0px > 0.0 && l0mm > 0.0)
-                                    ImGui::TextDisabled("L0: %.1f px = %.2f mm (%.4f mm/px)", l0px, l0mm, l0mm / l0px);
-
-                                ImGui::Spacing();
-                                ImGui::TextWrapped("Set zero point (or Start Test) also sets L0, so the extension starts at 0. After fracture the values may jump.");
-                            }
-                            else {
-                                ImGui::Text("Waiting for camera feed...");
-                            }
+                            ImGui::Spacing();
+                            ImGui::TextWrapped("Set zero point (or Start Test) also sets L0, so the extension starts at 0. After fracture the values may jump.");
+                        }
+                        else {
+                            ImGui::Text("Waiting for camera feed...");
                         }
                         ImGui::PopFont();
-                        ImGui::EndChild();
-
-                        // --- Sub-Window 2: CV Mask ---
-                        if (ImGui::BeginChild("ExtCVMask", ImVec2(0, 0), true, ImGuiWindowFlags_MenuBar))
-                        {
-                            if (ImGui::BeginMenuBar()) { ImGui::Text("CV Mask (Binary)"); ImGui::EndMenuBar(); }
-
-                            if (g_pResourceMask != nullptr && g_hGpuDescMask.ptr != 0) {
-                                // 1. Get available space in the window
-                                ImVec2 availSize = ImGui::GetContentRegionAvail();
-
-                                // 2. Calculate the best size that fits within 'availSize' while keeping 'aspect'
-                                float w = availSize.x;
-                                float h = w / aspect;
-
-                                // If the calculated height is too tall for the space, constrain by height instead
-                                if (h > availSize.y)
-                                {
-                                    h = availSize.y;
-                                    w = h * aspect;
-                                }
-
-                                // 3. Draw the image with the corrected size
-                                ImGui::Image((ImTextureID)g_hGpuDescMask.ptr, ImVec2(w, h));
-
-                                /*ImVec2 size = ImGui::GetContentRegionAvail();
-                                ImGui::Image((ImTextureID)g_hGpuDescMask.ptr, size);*/
-                            }
-                            else {
-                                ImGui::Text("Waiting for mask data...");
-                            }
-                        }
-                        ImGui::EndChild();
                     }
                     ImGui::EndChild();
                     ImGui::SameLine();
@@ -2054,7 +2034,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                 if (g_Extensiometer.is_active)
                 {
-                    // Center Panel: CAMERA View
+                    // Center Panel: CAMERA view (tabs: camera, mask, both)
                     float rightPanelWidth = g_Extensiometer.show_cvsettings ? 350.0f : 0.0f;
                     float centerWidth = ImGui::GetContentRegionAvail().x - rightPanelWidth - ImGui::GetStyle().ItemSpacing.x;
 
@@ -2073,35 +2053,41 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             ImGui::InputFloat("##Gauge length 2", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
                             ImGui::Text("(More material properties in the calculator view.)");
                             ImGui::Spacing();
+                            ImGui::PopFont();
 
-                            // 1. Get available space in the window
-                            ImVec2 availSize = ImGui::GetContentRegionAvail();
-
-                            // 2. Calculate the best size that fits within 'availSize' while keeping 'aspect'
-                            float w = availSize.x;
-                            float h = w / aspect;
-
-                            // If the calculated height is too tall for the space, constrain by height instead
-                            if (h > availSize.y)
+                            const bool maskReady = g_pResourceMask != nullptr && g_hGpuDescMask.ptr != 0;
+                            if (ImGui::BeginTabBar("ExtCameraViews"))
                             {
-                                h = availSize.y;
-                                w = h * aspect;
+                                if (ImGui::BeginTabItem("Camera"))
+                                {
+                                    drawFitted((ImTextureID)g_hGpuDescCamera.ptr, ImGui::GetContentRegionAvail());
+                                    ImGui::EndTabItem();
+                                }
+                                if (g_Extensiometer.show_cvmask && ImGui::BeginTabItem("Mask (binary)"))
+                                {
+                                    if (maskReady) drawFitted((ImTextureID)g_hGpuDescMask.ptr, ImGui::GetContentRegionAvail());
+                                    else ImGui::Text("Waiting for mask data...");
+                                    ImGui::EndTabItem();
+                                }
+                                if (g_Extensiometer.show_cvmask && ImGui::BeginTabItem("Side by side"))
+                                {
+                                    // For tuning the colour: the two white dots in the mask should be the markers
+                                    ImVec2 avail = ImGui::GetContentRegionAvail();
+                                    ImVec2 half(avail.x * 0.5f - ImGui::GetStyle().ItemSpacing.x * 0.5f, avail.y);
+                                    drawFitted((ImTextureID)g_hGpuDescCamera.ptr, half);
+                                    ImGui::SameLine();
+                                    if (maskReady) drawFitted((ImTextureID)g_hGpuDescMask.ptr, half);
+                                    ImGui::EndTabItem();
+                                }
+                                ImGui::EndTabBar();
                             }
-
-                            // 3. Draw the image with the corrected size
-                            ImGui::Image((ImTextureID)g_hGpuDescCamera.ptr, ImVec2(w, h));
-
-                            //ImVec2 size = ImGui::GetContentRegionAvail();
-                            //ImVec2 cursorStart = ImGui::GetCursorPos();
-
-                            //// Draw Image
-                            //ImGui::Image((ImTextureID)g_hGpuDescCamera.ptr, size);
+                            ImGui::PushFont(Extra::fonts.jetbrainsFont);
                         }
                         else {
                             ImGui::Text("Waiting for camera feed...");
                         }
+                        ImGui::PopFont();
                     }
-                    ImGui::PopFont();
                     ImGui::EndChild();
                 }
 
@@ -2260,20 +2246,26 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         ImGui::Spacing();
                         // =========================================================
 
-                        ImGui::SliderInt("Hue Min", &g_Extensiometer.settings.h_min, 0, 179);
-                        ImGui::SliderInt("Hue Max", &g_Extensiometer.settings.h_max, 0, 179);
-                        ImGui::Separator();
-                        ImGui::SliderInt("Sat Min", &g_Extensiometer.settings.s_min, 0, 255);
-                        ImGui::SliderInt("Sat Max", &g_Extensiometer.settings.s_max, 0, 255);
-                        ImGui::Separator();
-                        ImGui::SliderInt("Val Min", &g_Extensiometer.settings.v_min, 0, 255);
-                        ImGui::SliderInt("Val Max", &g_Extensiometer.settings.v_max, 0, 255);
+                        // The exact HSV ranges, for when the colour picker is not enough (folded: rarely needed)
+                        if (ImGui::TreeNode("Advanced: HSV ranges"))
+                        {
+                            ImGui::SliderInt("Hue Min", &g_Extensiometer.settings.h_min, 0, 179);
+                            ImGui::SliderInt("Hue Max", &g_Extensiometer.settings.h_max, 0, 179);
+                            ImGui::Separator();
+                            ImGui::SliderInt("Sat Min", &g_Extensiometer.settings.s_min, 0, 255);
+                            ImGui::SliderInt("Sat Max", &g_Extensiometer.settings.s_max, 0, 255);
+                            ImGui::Separator();
+                            ImGui::SliderInt("Val Min", &g_Extensiometer.settings.v_min, 0, 255);
+                            ImGui::SliderInt("Val Max", &g_Extensiometer.settings.v_max, 0, 255);
+                            ImGui::TreePop();
+                        }
+                        ImGui::SetItemTooltip("Wider ranges find the markers more easily, but also other objects.\nCheck the result in the \"Side by side\" tab.");
 
                         ImGui::Spacing();
 
                         SetExtensiometerTargetColor(color);
+                        ImGui::PopFont(); // (inside the if: it used to be popped also when the panel was not drawn)
                     }
-                    ImGui::PopFont();
                     ImGui::EndChild();
                 }
             }

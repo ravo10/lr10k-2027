@@ -39,7 +39,8 @@ Ctrl+S saves (.lr10k and .xlsx), Ctrl+Alt+S saves as, Ctrl+Alt+E saves an Excel 
 
 - *Set zero point* (also done by *Start Test* by default) sets the optical L0 too, so the optical extension starts at 0 together with the machine's. *SET L0 / RESET* still does it by hand.
 - L0 in mm is the real distance between the two markers; measure it as accurately as possible. The strain comes from the markers alone, and extension = strain × L0.
-- The *Tracking Information* panel shows whether two markers are tracked. A test is paused if the markers stay lost for half a second.
+- The *Tracking* panel shows whether two markers are tracked. A test is paused if the markers stay lost for half a second.
+- The camera view has tabs: *Camera*, *Mask (binary)* and *Side by side* (handy while setting the marker colour). The exact HSV ranges are under *Advanced: HSV ranges* in the settings panel.
 - *Smoothing* (settings panel, default 0.25 s): more is calmer but makes the extension lag the load.
 
 ## Recording the optical extensometer
