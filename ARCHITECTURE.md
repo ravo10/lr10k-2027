@@ -19,6 +19,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `LR10KMachine.h` | One connection: owns the ring buffer, the reader thread and the interpreter thread, which frames bytes into messages (`LR10KProtocol::MessageParser`) and hands each to a handler. Also the protocol steps (the "ready to connect" handshake, waiting for a reply byte, send/expect sequences) and the decoded readings (`LR10KReadings`: load, distance, extensometer, multiplier, status, warning, counters) | serial classes (portable, tested with a fake port and a recorded session) |
 | | `LR10KMeasurement.h` | Load (N) and extension (mm) from the machine's readings, with the zero point ("next package is the load zero") | `LR10KMachine.h` (portable, tested) |
 | | `LR10KStatus.h` | Connection state and status texts the GUI shows (COM port, connected, live data, zero point, status/warning text), one thread-safe object (`LR10KAppGlobals::MachineStatus()`) | nothing (portable, tested) |
+| | `LoadSafety.h` | The 50 N translation blocker and the load limit (stop a crosshead movement that pushes the load up, end a test at the limit); checked every frame by `LR10KControlSystem::LoadSafetyTick()` | nothing (portable, tested) |
 | | `SerialTrafficLog.h` | Optional log of every byte sent/received with timestamps (menu: *Log serial traffic to file*); logs can be read back and replayed | nothing (portable, tested) |
 | | `SerialCom.cpp` | Connect/disconnect a COM port (using the classes above), sending messages, interpreter thread, turning decoded values into load/extension | serial classes, globals |
 | | `LR10KDecryption.h/.cpp` | Thread flags, `InterpretMessage()` (copies the machine's readings into the globals the GUI uses) | Windows API |
@@ -55,6 +56,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `connect_replay_test.cpp` | The handshake and setup #1 against a recorded real session (`tests/data/`): same bytes sent as in the real session; the old "stuck at 6 %" behaviour; no answer at all; the whole recorded stream frames cleanly; recorded setup #2 values |
 | `measurement_test.cpp` | Load/extension conversion, zero point at the next package, a zero reading of exactly 0 counts, reset, together with the machine |
 | `status_test.cpp` | Connect/disconnect/port events, texts, the GUI always seeing a whole state while another thread changes it (with ThreadSanitizer) |
+| `load_safety_test.cpp` | The 50 N blocker: stops when the load rises above the limit, lets the user move away, ignores noise, compression loads; the load limit (capped at 10 kN) |
 | `serial_reader_test.cpp` | Reader thread against a fake port: byte order, connection loss after 3 failed reads, tolerated glitches, stopping (also with a full buffer), restarting |
 
 ## Still to do

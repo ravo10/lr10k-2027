@@ -20,6 +20,26 @@ When you have your correct settings setup and sent to the LR 10K, you can go to 
 ## After completing a test
 You can now edit and manipulate the crucial points with *Ctrl+Click*. Like yielding, ultimate tensile strength or break point. The software will automatically add some of these points. You can also toggle the graph type shown - here it is possible to also see the true stress graph compared to the nominal/engineering stress. **But**, before it is possible to toggle to this type of graph, you must calculate the material property from the *Calculator* window. This window can be enabled by going to *Menu* > *Options*.
 
+## Hotkeys
+
+| Key | No test running | Test running | Test paused |
+|---|---|---|---|
+| F1 | Stop the crosshead | | |
+| F2 / F3 | Move up / down | | |
+| F4 (hold) | Fast, in the direction of F2/F3 | | |
+| F5 | Return to zero point | | |
+| F6 | Set zero point | | |
+| F7 | Start test | | Continue test |
+| F8 | | End test | End test |
+| F9 | | Pause test | |
+
+Ctrl+S saves (.lr10k and .xlsx), Ctrl+Alt+S saves as, Ctrl+Alt+E saves an Excel book, Ctrl+O opens a test and Ctrl+Z removes the last crucial point. The buttons show their hotkey as a tooltip.
+
+## Load safety
+
+- **Translation load blocker** (*Zero Point & Safety*, on every time the software starts): when you move the crosshead without a test and the load rises above 50 N, the crosshead stops. Moving the other way, so that the load drops, is still possible.
+- **Load limit** (*Limits inside LR 10K*): a running test is ended when the load reaches the limit, and moving the crosshead stops there. The limit is never above the 10 kN capacity of the machine.
+
 ## Saving a successfully completed test (+ Excel)
 When a test is ended and completed successfully, you can save the test from the *Menu* or using the hotkey. This will save the data from the current completed test to a `.lr10k` file. This `.lr10k` file is possible to load into the software to manipulate, which is JSON formatted. If you want to save the completed test data to an Excel book for further analysis, use *Save Excel Book As...* in the *File* menu (Ctrl+Alt+E). This also works for a test opened from a `.lr10k` file. This will generate raw data and plots that can be saved as an image for use in  e.g. a report.
 

@@ -319,7 +319,7 @@ namespace mainGUIGlobals {
     inline extern float dpiScale = 1.0f;                    //!< Used for getting the High DPI scale currently at use.
 
     inline extern bool ignoreSavingPrompt = false;                      //!< Used for getting a notification when trying to close an unsaved document.
-    inline extern bool ignoreSavingPrompt2 = false;                     //!< Used for getting a notification when trying to save a document that is not calculated stress for yet.
+    inline extern bool ignoreSavingPrompt2 = false;                     //!< (Unused: the pop up it controlled could never appear. Kept so existing settings files stay valid.)
     inline extern std::string guiTheme = mainGUIThemes::Default;        //!< Used for getting the active theme the user picked.
 
     static const char* popUpID_ConnectionTimout = "Connection timeout";                     //!< Pop Up ID for the Connection timeout.
@@ -485,7 +485,6 @@ namespace defaultValuesGUI {
     inline extern float offsetZeroPointExtensionAxis{ 0.0f };   //!< mm
 
     //! \details Used for disabling the toogle graph button or when user wants to save (need to calculate first)
-    inline extern bool invalidStressDataNotUpdated = false;
 
     //! \details Used to reset translation GUI if the crosshead e.g. suddenly stops
     inline extern bool resetNavigationGUIButtons = false;
@@ -918,10 +917,7 @@ namespace TabControl {
     inline extern void CrucialPointsUndoPoint(TabTestDataClass* tabData);
 
     //inline extern void AutoAdjustNormalExtensionLoadVariabels(TabTestDataClass* tabData, bool doNotMarkAsUnsaved = false);
-    inline extern UINT __cdecl AutoAdjustNormalExtensionLoadVariabels_PlotUpdater(TabTestDataClass* tabData);
-
-    inline extern void PreventExtremeLimitsLR10K(TabTestDataClass* tabData);
-    inline extern void PreventUserLimitsLR10K(TabTestDataClass* tabData);
+    // (The load limit checks and the 50 N blocker are LR10KControlSystem::LoadSafetyTick() now.)
 
 
     //inline extern bool DetectIfABreakHasOccured(TabTestDataClass* tabData, ImPlotPoint UTSPoint, int enable_automaticBreakDetection = 0, float breakThreshold = 0.3f);
@@ -1005,6 +1001,7 @@ namespace LR10KControlSystem {
 
     //! \brief Call once per frame. Detects an LR 10K that stopped answering (see the implementation for details).
     void    WatchdogTick();
+    void    LoadSafetyTick(); //!< 50 N translation blocker and the user's load limit (see LoadSafety.h); once per frame
     //! \brief Restart the watchdog timers (e.g. after connecting, or when the user chooses to keep waiting).
     void    WatchdogReset();
     //! \brief True if there is a COM port to reconnect to and no connect/setup/reconnect is running.
@@ -1015,6 +1012,8 @@ namespace LR10KControlSystem {
     bool    SetZeroPoint(TabControl::TabTestDataClass* tabData = nullptr);
     bool    StartTest(TabControl::TabTestDataClass* tabData);
     bool    EndTest(TabControl::TabTestDataClass* tabData);
+    //! The specimen dimensions a test on this tab would start with (its own values if entered, else the global ones).
+    TestCalc::Specimen SpecimenForNextTest(const TabControl::TabTestDataClass* tabData);
     bool    PauseTest(TabControl::TabTestDataClass* tabData);
     bool    ContinueTest(TabControl::TabTestDataClass* tabData);
     bool    ReturnToZeroPoint(TabControl::TabTestDataClass* tabData);

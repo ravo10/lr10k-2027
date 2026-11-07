@@ -12,6 +12,10 @@
 #include "common.h"
 #include "MaterialCalc.h"
 #include "TestCalc.h"
+#include "LoadSafety.h"
+
+#include <cmath>
+#include <cstring>
 
 #include "LR10KController.h"
 
@@ -330,6 +334,71 @@ void LR10KControlSystem::WatchdogTick()
     lr10kNotResponding.store(true);
 }
 /**
+    @brief  Software load safety, once per frame on the GUI thread (see LoadSafety.h).
+    @details - A running test is ended when the load reaches the load limit ("Limits inside LR 10K", at most 10 kN).
+             - Moving the crosshead without a test: stopped when the load rises above 50 N ("Translation load
+               blocker", on by default) or above the load limit. Moving so that the load drops is allowed.
+             Both used to run in a background thread that was no longer started (since Feb. 2026).
+**/
+void LR10KControlSystem::LoadSafetyTick()
+{
+    using namespace LR10KDataDeEncryptionSystem;
+    static LoadSafety::Guard blocker(LoadSafety::kTranslationBlockerN);
+    static LoadSafety::Guard limitWhileMoving(LoadSafety::kMachineCapacityN);
+    static double limitGuardLimitN = LoadSafety::kMachineCapacityN;
+
+    const LR10KStatus::Snapshot status = LR10KAppGlobals::MachineStatus().Get();
+    if (mainGUIGlobals::useDemoMode || !status.machineConnected)
+    {
+        blocker.Update(false, 0.0, 0);
+        limitWhileMoving.Update(false, 0.0, 0);
+        return;
+    }
+
+    const double loadN = Measurement().FromReadings(machine.Readings()).loadNewton;
+    const long long now = SteadyNowMs();
+
+    // The user's limit is in the display unit (N or lbf)
+    const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9);
+    const double userLimitN = unitConv_force > 0.0 ? LR10KAppGlobals::maximumLoadAllowedInsideLR10K / unitConv_force : LR10KAppGlobals::maximumLoadAllowedInsideLR10K;
+    const double limitN = LoadSafety::EffectiveLimit(userLimitN);
+
+    // A running test: end it at the limit
+    const int testIndex = TabControl::aTestIsStartedOnTabIndexId;
+    TabControl::TabTestDataClass* testTab = (testIndex >= 0 && testIndex < (int)TabControl::allTabTestData.size()) ? TabControl::allTabTestData[testIndex] : nullptr;
+    const bool testStarted = testTab != nullptr && testTab->test_unfinished_test_started && !testTab->test_finished;
+    if (testStarted && testTab->test_running_test && LoadSafety::OverLimit(loadN, limitN))
+    {
+        DockingApps::console.AddLog("[warning] Load limit reached (%.0f N of %.0f N): ending the test.", std::fabs(loadN), limitN);
+        LR10KControlSystem::EndTest(testTab);
+        return;
+    }
+
+    // Moving the crosshead without a test (the machine reports something else than "Ready" after a jog command)
+    const bool moving = !testStarted
+        && LR10KAppGlobals::shutLR10KDownIfLoadToHigh // set by the up/down commands, cleared when a test starts
+        && std::strcmp(status.status, "Ready") != 0;
+
+    if (limitGuardLimitN != limitN)
+    {
+        limitGuardLimitN = limitN;
+        limitWhileMoving = LoadSafety::Guard(limitN);
+    }
+
+    const bool stopForBlocker = blocker.Update(moving && LR10KAppGlobals::stopTranslationOfCrossheadSaftey, loadN, now);
+    const bool stopForLimit = limitWhileMoving.Update(moving, loadN, now);
+    if (stopForBlocker || stopForLimit)
+    {
+        _LR10KController.w_Stop();
+        defaultValuesGUI::resetNavigationGUIButtons = true;
+        if (stopForBlocker)
+            DockingApps::console.AddLog("[warning] Stopped the crosshead: the load rose above %.0f N while moving without a test (%.1f N). Move the other way to relieve it, or turn off \"Translation load blocker\" under Zero Point & Safety.", LoadSafety::kTranslationBlockerN, std::fabs(loadN));
+        else
+            DockingApps::console.AddLog("[warning] Stopped the crosshead: the load limit of %.0f N was reached (%.1f N).", limitN, std::fabs(loadN));
+        PlaySoundEffect("error");
+    }
+}
+/**
     @brief  True if there is a COM port to reconnect to and nothing else is connecting right now.
 **/
 bool LR10KControlSystem::CanReconnect()
@@ -394,7 +463,7 @@ bool LR10KControlSystem::SetZeroPoint(TabControl::TabTestDataClass* tabData)
     @brief  The specimen dimensions a test on @p tabData starts with: the test's own values if they were entered,
             otherwise (or with "Always load from global values") the calculator's global values.
 **/
-static TestCalc::Specimen SpecimenForStartingTest(const TabControl::TabTestDataClass* tabData)
+TestCalc::Specimen LR10KControlSystem::SpecimenForNextTest(const TabControl::TabTestDataClass* tabData)
 {
     TestCalc::Specimen local;
     local.crossSection = tabData->areaOptionPicked;
@@ -447,7 +516,7 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
             // Store the specimen dimensions (checked above) in this test: the test's own values if entered,
             // otherwise the global ones. Without this, a new tab kept its 0.01 mm placeholders, so the graph,
             // the live readout and the Excel export divided by a 0.01 mm gauge length (47 000 % strain).
-            const TestCalc::Specimen specimen = SpecimenForStartingTest(tabData);
+            const TestCalc::Specimen specimen = SpecimenForNextTest(tabData);
             DockingApps::calculator.SetLocalMaterialProperties(tabData, specimen.crossSection,
                 specimen.thickness, specimen.width, specimen.length, specimen.diameter);
             DockingApps::console.AddLog("Specimen for this test: gauge length %.3f, area %.3f (%s).", tabData->length, tabData->area,
@@ -480,8 +549,8 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
     if (tabData == nullptr) return false;
 
     // Check if user has added gauge length, gauge thickness etc. for test
-    // (the values the test will be started with, see SpecimenForStartingTest)
-    bool userHasNotAddedDimensions = !TestCalc::HasDimensions(SpecimenForStartingTest(tabData));
+    // (the values the test will be started with, see SpecimenForNextTest)
+    bool userHasNotAddedDimensions = !TestCalc::HasDimensions(SpecimenForNextTest(tabData));
 
     // Show a message
     if (userHasNotAddedDimensions)

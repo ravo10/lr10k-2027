@@ -163,7 +163,23 @@ struct Extra_Widgets {
         }
 
         // 6. Draw Tooltip
-        if (sliderHoveredOrActive)
+        if (sliderHoveredOrActive && settingIndex == 2)
+        {
+            // What the load error does, and which sign to use (MaterialCalc::LoadErrorFactor)
+            const double factor = MaterialCalc::LoadErrorFactor(displayValue);
+            ImGui::BeginTooltip();
+            ImGui::Text("Load error correction: %.2f %%", displayValue);
+            ImGui::Text("Every measured load is multiplied by 1 + (%.2f / 100) = %.4f.", displayValue, factor);
+            ImGui::Separator();
+            ImGui::Text("If the load cell shows MORE than the real load, use a NEGATIVE value.");
+            ImGui::Text("If it shows LESS than the real load, use a POSITIVE value.");
+            ImGui::Text("Example: the load cell shows 2 %% too much -> set -2 %% (exactly -1.96 %%).");
+            ImGui::Text("(Exact value: 100 / (1 + x/100) - 100, for a load cell that is x %% off.)");
+            ImGui::Separator();
+            ImGui::TextDisabled("Applies to new tests. For a finished test, press \"Update finished test\".");
+            ImGui::EndTooltip();
+        }
+        else if (sliderHoveredOrActive)
         {
             ImGui::SetTooltip("%s%.2f%s", tooltipText1, displayValue, tooltipText2);
         }
@@ -748,47 +764,12 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
     }
 
     // Save application data with shortcut
-    const char* popUpID = "Saving File(s) error";
+    // Save with Ctrl+S (a finished test, or one that was not started). (A "calculate stresses before saving" pop up
+    // used to be here; its condition was never set, so it could not appear. The results are recalculated automatically.)
     if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S) && tabData != nullptr)
     {
-        if (defaultValuesGUI::invalidStressDataNotUpdated)
-        {
-            // Tell user that something is wrong (user needs to calculate new stress)
-            PlaySoundEffect("error");
-
-            if (!mainGUIGlobals::ignoreSavingPrompt2)
-                ImGui::OpenPopup(popUpID);
-        }
-        else
-        {
-            // Save data from the current test GUI to a text file (if a test is not started or test has started and is finished)
-            if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
-                saveLogic();
-        }
-    }
-
-    // Always center this window when appearing
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-    if (ImGui::BeginPopupModal(popUpID, NULL, ImGuiWindowFlags_AlwaysAutoResize))
-    {
-        ImGui::Text("You need to calculate stresses before trying to save.");
-        ImGui::Spacing();
-        ImGui::Separator();
-
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
-        ImGui::Checkbox(" Don't tell me again", &mainGUIGlobals::ignoreSavingPrompt2);
-        ImGui::PopStyleVar();
-
-        ImGui::NewLine();
-
-        if (ImGui::Button("Abort", ImVec2(120, 0)))
-            ImGui::CloseCurrentPopup();
-
-        ImGui::SetItemDefaultFocus();
-
-        ImGui::EndPopup();
+        if (!tabData->test_unfinished_test_started || (tabData->test_unfinished_test_started && tabData->test_finished))
+            saveLogic();
     }
 
     // -------------------------------------------------------------------
@@ -818,14 +799,15 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
     {
         if (LR10KAppGlobals::showHotkeyTips)
         {
-            std::string strHotkeys = "F1 (STOP) F2 (UP) F3 (DOWN) F4 (FAST) F5 (RETURN) F6 (ZERO) F7 (GO)";
+            // F7 = start/continue, F8 = end, F9 = pause in every state (see PlotWindowDraw)
+            std::string strHotkeys = "F1 (STOP) F2 (UP) F3 (DOWN) F4 (hold: FAST) F5 (RETURN TO ZERO) F6 (SET ZERO) F7 (START TEST)";
             if (tabData->test_unfinished_test_started)
             {
                 // If test is not paused
                 if (tabData->test_running_test)
                     strHotkeys = "F8 (END TEST) F9 (PAUSE)";
                 else
-                    strHotkeys = "F1 (CONTINUE) F2 (END TEST)";
+                    strHotkeys = "F7 (CONTINUE) F8 (END TEST)";
             }
 
             // Float left
@@ -896,7 +878,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
                 ImGui::EndDisabled();
 
-                ImGui::BeginDisabled(!tabData->unsavedThingsInTab || tabData->current_temp_preSaveLocation == "" || defaultValuesGUI::invalidStressDataNotUpdated);
+                ImGui::BeginDisabled(!tabData->unsavedThingsInTab || tabData->current_temp_preSaveLocation == "");
                 if (ImGui::MenuItem("Save (.lr10k and .xlsx)", "Ctrl+S"))
                     saveLogic();
                 ImGui::EndDisabled();
@@ -2408,7 +2390,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
                 // Adjust for load error
                 DockingApps::calculator.AdaptTabDataForLoadError(tabData);
             }
-            ImGui::SetItemTooltip("This will update the load error.");
+            ImGui::SetItemTooltip("Corrects this finished test's loads for the load error\nchosen on the slider (and recalculates the results).");
             ImGui::EndDisabled();
             if (tabData->test_finished)
             {
@@ -2561,7 +2543,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
             ImGui::SeparatorText("Safety");
             ImGui::Text("Not saved in settings.\nApplies only to software.");
             ImGui::Checkbox("Translation load blocker", &LR10KAppGlobals::stopTranslationOfCrossheadSaftey);
-            ImGui::SetItemTooltip("Will stop the crosshead from translating when the\nload limit exceeds 50 N and no test is started.");
+            ImGui::SetItemTooltip("Stops the crosshead when the load rises above 50 N\nwhile moving it without a test (e.g. moving down onto\nthe specimen). Moving the other way to relieve the\nload is still possible. On every time the software starts.");
 
             ImGui::EndDisabled();
             ImGui::Spacing();
@@ -3126,17 +3108,23 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     // Buttons for graph
     ImGui::Spacing();
 
-    if (ImGui::Button("Toggle Graph Type", { 180, 45 }))
+    // Graph buttons in their own colours (violet / slate blue), apart from the machine buttons
+    // (green start, red stop/end, orange up/down, beige zero point, teal pause)
+    if (Extra::widgets.widgetCreate_ButtonType1("Toggle Graph Type", { 180, 45 }, 0.77f)) // Violet
     {
         LR10KAppGlobals::showStressStrain = !LR10KAppGlobals::showStressStrain;
-		tabData->request_graph_autofit = true;
+        tabData->request_graph_autofit = true;
 
         PlaySoundEffect("buttonClick0");
     }
+    ImGui::SetItemTooltip(LR10KAppGlobals::showStressStrain
+        ? "Showing stress-strain. Click to show load-extension."
+        : "Showing load-extension. Click to show stress-strain.");
 
     ImGui::SameLine();
-    // A single, clean button to replace the sliders
-    if (ImGui::Button("Reset Graph View", { 180, 45 })) tabData->request_graph_autofit = true;
+    if (Extra::widgets.widgetCreate_ButtonType1("Reset Graph View", { 180, 45 }, 0.60f)) // Slate blue
+        tabData->request_graph_autofit = true;
+    ImGui::SetItemTooltip("Fit the axes to all of the data again (after zooming or panning).");
 
     ImGui::SameLine(0.0f, 20.0f);
     if (ImGui::Button(g_WindowStates.show_calculator ? "Hide Calculator" : "View Calculator"))
@@ -3832,9 +3820,18 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     if (tabData->current_temp_preSaveLocation != "")
         buttonType1Text = "Start Test";
 
+    // The dimensions the test will start with (the tab's own, or the global values): see SpecimenForNextTest
+    const TestCalc::Specimen nextSpecimen = LR10KControlSystem::SpecimenForNextTest(tabData);
+    const bool tinyDimensions = TestCalc::HasDimensions(nextSpecimen)
+        && (nextSpecimen.length < 0.1
+            || (nextSpecimen.crossSection == MaterialCalc::Circular ? nextSpecimen.diameter < 0.1
+                                                                    : (nextSpecimen.thickness < 0.1 || nextSpecimen.width < 0.1)));
+
     if (Extra::widgets.widgetCreate_ButtonType1(buttonType1Text.c_str(), {sizeWidth, sizeHeight}, 0.23f)) // Green
     {
-        if (tabData->current_temp_preSaveLocation != "" && (tabData->thickness <= 0.1 || tabData->width <= 0.1))
+        // (This used to check the tab's own thickness/width, which are 0.01 placeholders on a new tab: the
+        // warning showed every time the global dimensions were used, and circular specimens were not checked.)
+        if (tabData->current_temp_preSaveLocation != "" && tinyDimensions)
         {
             // Open a warning popup instead of starting the test
             ImGui::OpenPopup("Dimensions Warning");
@@ -3848,10 +3845,30 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
         g_WindowStates.show_extensiometer = false;
     }
 
+    // Why the button cannot be used right now, or what it will do (tooltips also show on disabled buttons)
+    {
+        const char* startTooltip = nullptr;
+        if (!LR10KAppGlobals::MachineStatus().IsMachineConnected() && !mainGUIGlobals::useDemoMode)
+            startTooltip = "Connect to the LR 10K first:\nPC Config. > connect a COM port, then \"Connect PC\".";
+        else if (tabData->test_finished)
+            startTooltip = "This test is finished.\nStart the next test in a new tab (\"+ New Test\").";
+        else if (tabData->test_unfinished_test_started || tabData->test_running_test)
+            startTooltip = "A test is running in this tab.";
+        else if (!LR10KAppGlobals::MachineStatus().IsZeroPointSet() && !mainGUIGlobals::useDemoMode)
+            startTooltip = "Set the zero point first (\"Set zero point\").";
+        else if (tabData->current_temp_preSaveLocation == "")
+            startTooltip = "Choose the folder where this test is saved automatically.\nAfter that, this button starts the test.";
+        else if (!TestCalc::HasDimensions(nextSpecimen))
+            startTooltip = "Enter the specimen dimensions in the Calculator first.";
+        else
+            startTooltip = "Start the test with the current settings. Hotkey: F7";
+        ImGui::SetItemTooltip("%s", startTooltip);
+    }
+
     // Dimensions Warning Popup
     if (ImGui::BeginPopupModal("Dimensions Warning", NULL, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::Text("You left the specimen dimensions lower than 0.1 mm!");
+        ImGui::Text("A specimen dimension is smaller than 0.1 %s.", LR10KAppGlobals::GetUnitOption<const char*>(0));
         ImGui::Text("This will cause extreme Stress/Strain values.");
         ImGui::Separator();
 
@@ -3880,6 +3897,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
         || tabData->test_finished);
     if (Extra::widgets.widgetCreate_ButtonType1("End Test", { sizeWidth, sizeHeight }, 0.00f)) // Red
         DockingApps::console.ExecCommand(tabData, "end");
+    ImGui::SetItemTooltip("Hotkey: F8");
     ImGui::EndDisabled();
 
     // When pausing a test
@@ -3891,6 +3909,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
         || !tabData->test_unfinished_test_started);
     if (Extra::widgets.widgetCreate_ButtonType1("Pause Test", { sizeWidth, sizeHeight }, 1.47f)) // Light blue
         DockingApps::console.ExecCommand(tabData, "pause");
+    ImGui::SetItemTooltip("Hotkey: F9");
     ImGui::EndDisabled();
 
     // When continuing a test
@@ -3901,7 +3920,9 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     if (Extra::widgets.widgetCreate_ButtonType2("Continue Test", { sizeWidth, sizeHeight }, 1.93f, true)) // Light gray
         DockingApps::console.ExecCommand(tabData, "continue");
     if (TabControl::CheckIfDistanceTravelControlActivated() && TabControl::LR10KTravelDistanceActionAfter == 1)
-        ImGui::SetItemTooltip("Test will only be able to continue, if the distance travelled is less than the distance set.");
+        ImGui::SetItemTooltip("Hotkey: F7\nTest will only be able to continue, if the distance travelled is less than the distance set.");
+    else
+        ImGui::SetItemTooltip("Hotkey: F7");
     ImGui::EndDisabled();
 
     // When pausing a test
@@ -3917,13 +3938,14 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
             PlaySoundEffect("buttonClick0");
         }
     }
-    ImGui::SetItemTooltip("Zero point will also be set automatically\nwhen applying a setup (or Start Test).");
+    ImGui::SetItemTooltip("Hotkey: F6\nZero point will also be set automatically\nwhen applying a setup (or Start Test).");
     ImGui::EndDisabled();
 
     ImGui::SameLine();
     ImGui::BeginDisabled(mainGUIGlobals::useDemoMode || !LR10KAppGlobals::MachineStatus().IsMachineConnected() || tabData->test_running_test);
     if (Extra::widgets.widgetCreate_ButtonType2("Return to zero point", { sizeWidth, sizeHeight }, 0.6f)) // Light gray
         DockingApps::console.ExecCommand(tabData, "rezero");
+    ImGui::SetItemTooltip("Move back to the zero point. Hotkey: F5");
     ImGui::EndDisabled();
 
     ImGui::EndDisabled();
@@ -3976,9 +3998,11 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
         }
         else
         {
-            if (ImGui::IsKeyPressed(ImGuiKey_F1))
+            // Paused: F7 continues, F8 ends (the same keys as for starting/ending). This used to be F1/F2, which
+            // are STOP/UP when no test runs: pressing F2 to move up after a pause ended the test.
+            if (ImGui::IsKeyPressed(ImGuiKey_F7))
                 LR10KControlSystem::ContinueTest(tabData);
-            else if (ImGui::IsKeyPressed(ImGuiKey_F2))
+            else if (ImGui::IsKeyPressed(ImGuiKey_F8))
                 LR10KControlSystem::EndTest(tabData);
         }
     }
@@ -4026,7 +4050,13 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_F7))
         {
-            LR10KControlSystem::StartTest(tabData);
+            // Same rules as the Start Test button (it is greyed out without a zero point; F7 used to start anyway)
+            const bool connected = LR10KAppGlobals::MachineStatus().IsMachineConnected() || mainGUIGlobals::useDemoMode;
+            const bool zeroPointSet = LR10KAppGlobals::MachineStatus().IsZeroPointSet() || mainGUIGlobals::useDemoMode;
+            if (connected && zeroPointSet && !tabData->test_finished)
+                LR10KControlSystem::StartTest(tabData);
+            else if (connected && !zeroPointSet)
+                DockingApps::console.AddLog("[warning] F7: set the zero point first (F6 or \"Set zero point\").");
         }
 
         // Released (only 1 at the time)
@@ -4075,6 +4105,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
         DockingApps::console.ExecCommand(tabData, "stop");
         disableAllControls();
     }
+    ImGui::SetItemTooltip("Stop the crosshead. Hotkey: F1");
 
     // Up
     ImGui::SameLine();
@@ -4089,6 +4120,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
         GoingUP = true;
         GoingDOWN = false;
     }
+    ImGui::SetItemTooltip("Move the crosshead up. Hotkey: F2");
     ImGui::EndDisabled();
 
     // Down
@@ -4104,6 +4136,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
         GoingUP = false;
         GoingDOWN = true;
     }
+    ImGui::SetItemTooltip("Move the crosshead down. Hotkey: F3\n(Stops by itself if the load rises above 50 N; see Zero Point & Safety.)");
     ImGui::EndDisabled();
 
     // Fast up
@@ -4122,6 +4155,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
         LR10KControlSystem::Translation_FASTUP_press(tabData);
     else if (ImGui::IsItemDeactivated())
         LR10KControlSystem::Translation_FASTUP_release();
+    ImGui::SetItemTooltip("Hold to move up fast. Hotkey: F2, then hold F4"); // (after the press/release checks: those must look at the button)
     // ImGui::EndDisabled();
 
     // Fast down
@@ -4138,6 +4172,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
         LR10KControlSystem::Translation_FASTDOWN_press(tabData);
     else if (ImGui::IsItemDeactivated())
         LR10KControlSystem::Translation_FASTDOWN_release();
+    ImGui::SetItemTooltip("Hold to move down fast. Hotkey: F3, then hold F4"); // (after the press/release checks: those must look at the button)
     // ImGui::EndDisabled();
 
     ImGui::EndDisabled();
@@ -4271,7 +4306,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         ImGui::BulletText("Crucial points you have not placed show \"-\" in the Excel report");
         ImGui::BulletText("You can reset the GUI interface and settings in the Menu");
         ImGui::BulletText("If you want to manually manipulate the settings files, they are located in the hidden local AppData folder");
-        ImGui::BulletText("If you go over 50 N while translating downwards, the machine will stop.\nThis is for safety reasons");
+        ImGui::BulletText("If the load rises above 50 N while you move the crosshead without a test, it stops (safety).\nMoving the other way to relieve the load is still possible");
         ImGui::Spacing();
     }
 

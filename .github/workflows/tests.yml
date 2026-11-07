@@ -75,6 +75,11 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
             -I main/LloydLR10KTensile tests/status_test.cpp -o status_test
           ./status_test
+      - name: Load safety (50 N blocker, load limit)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/load_safety_test.cpp -o load_safety_test
+          ./load_safety_test
 
   excel-files:
     # Writes sample .xlsx reports with the real libxlsxwriter and checks them with openpyxl
