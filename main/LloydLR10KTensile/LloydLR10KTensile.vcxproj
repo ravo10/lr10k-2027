@@ -122,7 +122,7 @@
 xcopy /y /d /i "$(ProjectDir)images" "$(OutDir)images"
 xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
 xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"
-xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos"</Command>
+if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos") else (echo Tutorial videos not found, skipping. Run scripts\fetch-videos.ps1 to download them.)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -172,7 +172,7 @@ xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos"</Command>
 xcopy /y /d /i "$(ProjectDir)images" "$(OutDir)images"
 xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
 xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"
-xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos"</Command>
+if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos") else (echo Tutorial videos not found, skipping. Run scripts\fetch-videos.ps1 to download them.)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
