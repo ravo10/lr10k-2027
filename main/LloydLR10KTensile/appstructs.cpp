@@ -1028,6 +1028,17 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                     LR10KDataDeEncryptionSystem::m_pThreadConnectingToLR10K->detach();
                 }
 
+                // Close and reopen the last COM port, then connect to the LR 10K again (e.g. after the cable was
+                // re-plugged, or the LR 10K stopped answering)
+                {
+                    std::string reconnectLabel = "Reconnect";
+                    if (LR10KAppGlobals::lastConnectedComPortNumber > -1)
+                        reconnectLabel += " (COM" + std::to_string(LR10KAppGlobals::lastConnectedComPortNumber) + ")";
+                    if (ImGui::MenuItem(reconnectLabel.c_str(), nullptr, nullptr, LR10KControlSystem::CanReconnect()))
+                        LR10KControlSystem::StartReconnect();
+                    ImGui::SetItemTooltip("Disconnect, open the last used COM port again and connect to the LR 10K.");
+                }
+
                 if (mainGUIGlobals::showPopUp_ConnectionTimeout)
                 {
                     mainGUIGlobals::showPopUp_ConnectionTimeout = false;

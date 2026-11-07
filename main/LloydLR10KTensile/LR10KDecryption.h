@@ -80,6 +80,20 @@ namespace LR10KDataDeEncryptionSystem {
     inline extern std::atomic<bool> somethingUnexpectedHappend(false);  //!< If this is true, then the hooks will shut down and display a pop up.
     inline extern std::atomic<bool> comConnectionLost(false);           //!< Set by the COM reader thread when reading from the port keeps failing (e.g. USB adapter unplugged). Handled on the GUI thread.
 
+    inline extern std::unique_ptr<std::thread> m_pThreadReconnecting = nullptr; //!< Runs LR10KControlSystem::StartReconnect() work off the GUI thread.
+    inline extern std::atomic<bool> reconnectInProgress(false);         //!< True while a reconnect is running.
+
+    /**
+        @brief  Milliseconds from a monotonic clock (not affected by changes to the PC clock).
+    **/
+    inline long long SteadyNowMs()
+    {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
+    inline extern std::atomic<long long> lastByteReceivedMs(0);         //!< SteadyNowMs() when the COM reader last received a byte. Used by the watchdog.
+    inline extern std::atomic<bool> lr10kNotResponding(false);          //!< Set by the watchdog when the LR 10K stops answering. Shows a pop up.
+    inline extern std::atomic<bool> watchdogProbeReplyPending(false);   //!< The next status message is the answer to a watchdog probe: update the status quietly.
+
     inline extern std::atomic<bool> m_pThreadReadCom_running(false);    //!< True while the COM reader thread function is executing.
     inline extern std::atomic<bool> m_pThreadReadLR10K_running(false);  //!< True while the interpreter thread function is executing.
 

@@ -3568,6 +3568,8 @@ bool LR10KCOMSystem::TryConnectingToCOMPort(int iPortNumber)
 
     // Everything OK
     LR10KAppGlobals::connectedComPortNumber = iPortNumber;
+    if (iPortNumber > -1)
+        LR10KAppGlobals::lastConnectedComPortNumber = iPortNumber;
 
     // Update the GUI if everything is successful
     LR10KAppGlobals::readyToConnectToLR10K = true;
@@ -3799,6 +3801,7 @@ UINT __cdecl LR10KDataDeEncryptionSystem::ReadFromLR10KAndWriteToRingBuffer(HAND
         if (LR10KCOMSystem::ReadByteFromCom(m_hSerial, Data, error))
         {
             consecutiveReadErrors = 0;
+            LR10KDataDeEncryptionSystem::lastByteReceivedMs.store(LR10KDataDeEncryptionSystem::SteadyNowMs());
             m_SerialBuffer->Write(Data);
             continue;
         }
@@ -4060,6 +4063,27 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_overflo
 **/
 void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_status(LPARAM lParam)
 {
+    // Answer to a watchdog probe: only proves the LR 10K is alive. Update the status text quietly,
+    // without logging every few seconds and without the "ready after return to zero" side effect below.
+    if (LR10KDataDeEncryptionSystem::watchdogProbeReplyPending.exchange(false))
+    {
+        const char* quietStatus = nullptr;
+        switch ((byte)lParam)
+        {
+        case 0x00: quietStatus = "Ready"; break;
+        case 0x40: quietStatus = "Stopped fast movement"; break;
+        case 0x41: quietStatus = "Going up"; break;
+        case 0x61: quietStatus = "Going down"; break;
+        default: break; // Unknown: keep the current text
+        }
+        if (quietStatus != nullptr)
+        {
+            LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>(quietStatus));
+            DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+        }
+        return;
+    }
+
     // Special cases
     if ((byte)lParam == 0x00)
     {
@@ -4306,6 +4330,9 @@ bool LR10KControlSystem::TryConnectingToLR10K()
     // Let the thread run independently detached from main
     LR10KDataDeEncryptionSystem::m_pThreadReadLR10K->detach();
 
+    // Start the "is the LR 10K still answering" watchdog from now
+    LR10KControlSystem::WatchdogReset();
+
     // Update the GUI if everything is successful
     LR10KAppGlobals::configurationDone              = true;
     LR10KAppGlobals::currentLiveStatusMessage       = "No";
@@ -4346,6 +4373,8 @@ bool LR10KControlSystem::TryDisconnectFromLR10K()
 
     // Reset GUI variabels
     LR10KAppGlobals::configurationDone              = false;
+    LR10KDataDeEncryptionSystem::lr10kNotResponding.store(false);
+    LR10KDataDeEncryptionSystem::watchdogProbeReplyPending.store(false);
 
     LR10KAppGlobals::sendingLiveDataFromLR10K       = false;
     LR10KAppGlobals::currentLiveStatusMessage       = "N/A";
@@ -4473,6 +4502,150 @@ void LR10KControlSystem::GetCurrReportFromLR10K()
     }
 }
 
+
+// -----------------------------------------------------------------------------
+// ------------------------- Watchdog and reconnecting -------------------------
+// -----------------------------------------------------------------------------
+
+namespace {
+    constexpr long long watchdogSilenceMs       = 3000; //!< No byte for this long: ask the LR 10K for its status.
+    constexpr long long watchdogProbeIntervalMs = 1500; //!< Time to wait for an answer before asking again.
+    constexpr int       watchdogMaxProbes       = 2;    //!< Unanswered status requests before the LR 10K counts as not responding.
+
+    int       watchdogProbesSent  = 0;
+    long long watchdogLastProbeMs = 0;
+
+    /**
+        @brief Background part of LR10KControlSystem::StartReconnect().
+    **/
+    void ReconnectWorker(int comPort)
+    {
+        LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.store(true);
+        DockingApps::console.AddLog("Reconnecting to LR 10K on COM%d ...", comPort);
+        LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>("Reconnecting ..."));
+        DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+
+        // Close everything first. (Safe to call when parts are already closed, e.g. after "Connection lost".)
+        LR10KControlSystem::TryDisconnectFromLR10K();
+        LR10KCOMSystem::TryDisconnectingFromCurrCOMPort();
+        Sleep(500); // Give a re-plugged USB adapter / the driver a moment
+
+        if (!LR10KCOMSystem::TryConnectingToCOMPort(comPort))
+        {
+            DockingApps::console.AddLog("[error] Reconnect failed: COM%d could not be opened. Is the cable/adapter plugged in?", comPort);
+            LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>("Reconnect failed"));
+            DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+            LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.store(false);
+            LR10KDataDeEncryptionSystem::reconnectInProgress.store(false);
+            return;
+        }
+
+        // Same as "Connect PC" in the menu (shows the timeout pop up itself if the LR 10K does not answer)
+        LR10KDataDeEncryptionSystem::ConnectingToLR10K();
+
+        if (LR10KAppGlobals::configurationDone)
+            DockingApps::console.AddLog("Reconnected to LR 10K on COM%d.", comPort);
+        else
+            DockingApps::console.AddLog("[error] Reconnect failed: COM%d opened, but the LR 10K did not answer.", comPort);
+
+        LR10KDataDeEncryptionSystem::reconnectInProgress.store(false);
+    }
+}
+
+/**
+    @brief Restart the watchdog timers.
+**/
+void LR10KControlSystem::WatchdogReset()
+{
+    watchdogProbesSent  = 0;
+    watchdogLastProbeMs = 0;
+    LR10KDataDeEncryptionSystem::watchdogProbeReplyPending.store(false);
+    LR10KDataDeEncryptionSystem::lastByteReceivedMs.store(LR10KDataDeEncryptionSystem::SteadyNowMs());
+}
+/**
+    @brief  Detects an LR 10K that stopped answering. Call once per frame on the GUI thread.
+    @details A native serial port gives no error when the machine is switched off or the cable is
+             pulled, it just goes quiet. So: if no byte arrived for a while, ask for the status (0xB6).
+             The LR 10K answers that even when it is not streaming live data (e.g. paused, or live data
+             turned off), so a quiet but healthy machine does not raise an alarm. If several requests
+             in a row get no answer, the "not responding" pop up is shown.
+**/
+void LR10KControlSystem::WatchdogTick()
+{
+    using namespace LR10KDataDeEncryptionSystem;
+
+    // Waiting for the user to answer the pop up
+    if (lr10kNotResponding.load())
+        return;
+
+    // Only watch a connected machine that is not busy with connect/setup/reconnect
+    if (mainGUIGlobals::useDemoMode
+        || !LR10KAppGlobals::configurationDone
+        || !LR10KCOMSystem::CheckIfCOMIsConnected()
+        || m_pThreadLR10KIsLoading_isLoading.load()
+        || reconnectInProgress.load())
+    {
+        WatchdogReset();
+        return;
+    }
+
+    const long long now = SteadyNowMs();
+    const long long silence = now - lastByteReceivedMs.load();
+
+    if (silence < watchdogSilenceMs)
+    {
+        watchdogProbesSent = 0; // Data is flowing (or a probe was answered)
+        return;
+    }
+    if (now - watchdogLastProbeMs < watchdogProbeIntervalMs)
+        return; // Still waiting for the answer to the last probe
+
+    if (watchdogProbesSent < watchdogMaxProbes)
+    {
+        LR10KBufferMessage bufferMessage;
+        bufferMessage.DataSetSingleBufferMessage(0xB6); // SEND STATUS
+
+        watchdogProbeReplyPending.store(true);
+        LR10KCOMSystem::SendDataToCom(bufferMessage, m_hSerial);
+        watchdogProbesSent++;
+        watchdogLastProbeMs = now;
+        return;
+    }
+
+    watchdogProbeReplyPending.store(false);
+    DockingApps::console.AddLog("[error] LR 10K has not answered for %lld s (status requested %d times).", silence / 1000, watchdogProbesSent);
+    LR10KAppGlobals::currentStatusMessage.store(const_cast<char*>("Not responding"));
+    DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
+    lr10kNotResponding.store(true);
+}
+/**
+    @brief  True if there is a COM port to reconnect to and nothing else is connecting right now.
+**/
+bool LR10KControlSystem::CanReconnect()
+{
+    return LR10KAppGlobals::lastConnectedComPortNumber > -1
+        && !mainGUIGlobals::useDemoMode
+        && !LR10KDataDeEncryptionSystem::reconnectInProgress.load()
+        && !LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load();
+}
+/**
+    @brief  Disconnect, reopen the last COM port and connect to the LR 10K again (on a background thread).
+    @retval false if a reconnect is not possible right now (see CanReconnect()).
+**/
+bool LR10KControlSystem::StartReconnect()
+{
+    if (!LR10KControlSystem::CanReconnect())
+        return false;
+
+    LR10KDataDeEncryptionSystem::reconnectInProgress.store(true);
+    LR10KDataDeEncryptionSystem::lr10kNotResponding.store(false);
+
+    const int comPort = LR10KAppGlobals::lastConnectedComPortNumber;
+    LR10KDataDeEncryptionSystem::m_pThreadReconnecting = std::make_unique<std::thread>(ReconnectWorker, comPort);
+    LR10KDataDeEncryptionSystem::m_pThreadReconnecting->detach();
+
+    return true;
+}
 
 /**
     @brief  Sets a zero point.

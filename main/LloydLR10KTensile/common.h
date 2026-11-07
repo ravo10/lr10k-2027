@@ -326,6 +326,7 @@ namespace mainGUIGlobals {
     static const char* popUpID_DimensionsNotAdded = "Dimensions for test piece not added";  //!< Pop Up ID for Dimension not added..
     static const char* popUpID_SomethingUnexpectedHappend = "Something unexpeced happend";  //!< Pop Up ID for the Something unexpeced happend.
     static const char* popUpID_ConnectionLost = "Connection lost";                          //!< Pop Up ID for when the COM port stops working (e.g. cable/USB adapter unplugged).
+    static const char* popUpID_LR10KNotResponding = "LR 10K not responding";            //!< Pop Up ID for when the watchdog gets no answer from the LR 10K.
     static const char* popUpID_ExtensiometerLostMarkerUnderTest = "Extensiometer lost tracking markers";  //!< Pop Up ID for if the extensiometer lost tracking points under testing.
 
     /**
@@ -525,6 +526,8 @@ namespace LR10KAppGlobals {
 
     //! \note Used in GUI control
     inline extern int   connectedComPortNumber = -1;       //!< \details Displays the current connected COM port number/id.
+    //! \note Used for "Reconnect"
+    inline extern int   lastConnectedComPortNumber = -1;   //!< \details The last COM port that was connected successfully.
     //! \note Used in GUI control
     inline extern bool  readyToConnectToLR10K = false;    //!< \details This will true when COM is connected.
     //! \note Used in GUI control
@@ -1005,6 +1008,15 @@ namespace LR10KControlSystem {
     void    TellLR10KToSendData();
     void    TellLR10KToStopSendingData();
     void    GetCurrReportFromLR10K();
+
+    //! \brief Call once per frame. Detects an LR 10K that stopped answering (see the implementation for details).
+    void    WatchdogTick();
+    //! \brief Restart the watchdog timers (e.g. after connecting, or when the user chooses to keep waiting).
+    void    WatchdogReset();
+    //! \brief True if there is a COM port to reconnect to and no connect/setup/reconnect is running.
+    bool    CanReconnect();
+    //! \brief Disconnect, reopen the last COM port and connect to the LR 10K again, on a background thread.
+    bool    StartReconnect();
 
     bool    SetZeroPoint(TabControl::TabTestDataClass* tabData = nullptr);
     bool    StartTest(TabControl::TabTestDataClass* tabData);

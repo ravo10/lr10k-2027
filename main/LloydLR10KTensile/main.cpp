@@ -572,12 +572,81 @@ int main(int argc, char** argv)
 
             ImGui::NewLine();
 
+            ImGui::BeginDisabled(!LR10KControlSystem::CanReconnect());
+            if (ImGui::Button("Reconnect", ImVec2(120, 0)))
+            {
+                LR10KControlSystem::StartReconnect();
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndDisabled();
+            ImGui::SetItemTooltip("Open COM%d again and connect to the LR 10K.", LR10KAppGlobals::lastConnectedComPortNumber);
+            ImGui::SameLine();
             if (ImGui::Button("OK", ImVec2(120, 0)))
                 ImGui::CloseCurrentPopup();
             ImGui::SetItemDefaultFocus();
 
             ImGui::EndPopup();
         }
+
+        // The LR 10K stopped answering (switched off, "Remote control" off, cable loose on a real COM port, ...)
+        LR10KControlSystem::WatchdogTick();
+        static bool notRespondingPopupOpen = false;
+        if (LR10KDataDeEncryptionSystem::lr10kNotResponding.load() && !notRespondingPopupOpen)
+        {
+            notRespondingPopupOpen = true;
+            ImGui::OpenPopup(mainGUIGlobals::popUpID_LR10KNotResponding);
+        }
+
+        if (ImGui::BeginPopupModal(mainGUIGlobals::popUpID_LR10KNotResponding, NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            bool close = false;
+
+            ImGui::Text("The LR 10K is not answering (no data, and no answer to status requests).");
+            ImGui::Text("Check that it is switched on, that \"Remote control\" is on, and the serial cable.");
+            ImGui::Text("If a test was running, check the machine: it may still be moving.");
+            ImGui::Spacing();
+            ImGui::Separator();
+
+            ImGui::NewLine();
+
+            ImGui::BeginDisabled(!LR10KControlSystem::CanReconnect());
+            if (ImGui::Button("Reconnect", ImVec2(120, 0)))
+            {
+                LR10KControlSystem::StartReconnect();
+                close = true;
+            }
+            ImGui::EndDisabled();
+            ImGui::SetItemTooltip("Disconnect, open COM%d again and connect to the LR 10K.", LR10KAppGlobals::lastConnectedComPortNumber);
+            ImGui::SameLine();
+            if (ImGui::Button("Disconnect", ImVec2(120, 0)))
+            {
+                LR10KControlSystem::TryDisconnectFromLR10K();
+                LR10KCOMSystem::TryDisconnectingFromCurrCOMPort();
+                close = true;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Keep waiting", ImVec2(120, 0)))
+            {
+                LR10KDataDeEncryptionSystem::lr10kNotResponding.store(false);
+                LR10KControlSystem::WatchdogReset();
+                close = true;
+            }
+            ImGui::SetItemDefaultFocus();
+
+            // The machine came back by itself, or something else (e.g. a disconnect) cleared the state
+            if (!LR10KDataDeEncryptionSystem::lr10kNotResponding.load() && !close)
+                close = true;
+
+            if (close)
+            {
+                notRespondingPopupOpen = false;
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+        else
+            notRespondingPopupOpen = false;
 
         // Something unexpected happend
         if (LR10KDataDeEncryptionSystem::somethingUnexpectedHappend)
