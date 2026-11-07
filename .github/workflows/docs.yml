@@ -1,6 +1,7 @@
-# Builds the Doxygen documentation and uploads it as a downloadable
-# workflow artifact (Actions -> Docs -> latest run -> "docs-html").
+# Builds the Doxygen developer documentation and uploads it as a downloadable
+# workflow artifact (Actions -> Docs -> latest run -> "docs-html"; unzip and open index.html).
 # GitHub Pages is not used because it needs a paid plan for private repos.
+# On Windows the same pages are built by docs\build-docs.bat.
 name: Docs
 
 on:
@@ -20,7 +21,25 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
       - name: Generate docs
         working-directory: docs
-        run: doxygen Doxyfile
+        run: |
+          # The version shown on the pages: LR10KAppVersion in common.h
+          export LR10K_VERSION="$(sed -n 's/.*LR10KAppVersion = "\([^"]*\)".*/\1/p' ../main/LloydLR10KTensile/common.h)"
+          export LR10K_HAVE_DOT=YES
+          echo "Version: $LR10K_VERSION"
+          doxygen Doxyfile
+      - name: List the warnings in the run summary
+        working-directory: docs
+        run: |
+          count=$(grep -c 'warning:' doxygen-warnings.txt || true)
+          {
+            echo "### Doxygen: $count warning(s)"
+            echo "Wrong @param names, unknown commands and similar comment mistakes."
+            if [ "$count" -gt 0 ]; then
+              echo '```'
+              sed "s#$GITHUB_WORKSPACE/##" doxygen-warnings.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: docs-html

@@ -93,8 +93,6 @@ struct RollingBuffer {
     }
     /**
         @brief Adds a new elapsed time point (in seconds) from the start time.
-        @param startTime - seconds
-        @param currentTime - seconds
     **/
     void AddTime()
     {
@@ -862,19 +860,10 @@ namespace TabControl {
         **/
         ImPlotPoint GetFracturePoint(TabTestDataClass* tabData);
 
-        /**
-            @brief Tries to figure out if there is a linear line being created, which is where we can find the Young's modulus.
-            @details It will not be exactly the propotional limit, but the same as it (...)
-            @param  tabData               -
-            @param  propotionalLimitPoint -
-        **/
+        // Tries to figure out if there is a linear line being created, which is where we can find the Young's modulus.
         //void AssignPoint_PropotionalLimit(TabTestDataClass* tabData, ImPlotPoint propotionalLimitPoint);
 
-        /**
-            @brief  For detecting/assuming the lower yield point.
-            @param  tabData       -
-            @param  yieldingPoint -
-        **/
+        // For detecting/assuming the lower yield point.
         //void AssignPoint_YieldPoint(TabTestDataClass* tabData, ImPlotPoint yieldingPoint);
 
         /**
@@ -987,7 +976,7 @@ namespace LR10KCOMSystem {
     //! \brief Send bytes through the open COM port (logged, errors reported in the console).
     bool    SendBytesToCom(const std::uint8_t* data, std::size_t size);
 
-    //! \brief Start logging all serial traffic to a new file in Documents\LR10K serial logs (see SerialTrafficLog).
+    //! \brief Start logging all serial traffic to a new file in Documents\\LR10K serial logs (see SerialTrafficLog).
     bool    StartTrafficLog();
     //! \brief Stop logging serial traffic.
     void    StopTrafficLog();
@@ -1098,10 +1087,7 @@ struct AppCalculator
     /**
         @brief Calculates stress points. Converting to crucial points to plot for nominal stress. This has to be executed before "CalculateStresses".
         @param tabData          -
-        @param initDimensions   -
         @param playSound        -
-        @param markAsSaved      -
-        @param saveAppSettings  -
     **/
     void CalculateStressPoints(TabControl::TabTestDataClass* tabData, bool playSound = false);
 
@@ -1109,8 +1095,6 @@ struct AppCalculator
         @brief For compression only. Calculates the max bending moment and UTS that can be used to calculate the Young's Moduls.
         @param tabData         -
         @param playSound       -
-        @param markAsSaved     -
-        @param saveAppSettings -
     **/
     void CalculateCompressionBendMomentAndUTS(TabControl::TabTestDataClass* tabData, bool playSound = false);
 
@@ -1505,7 +1489,6 @@ namespace DockingApps {
 /**
     @brief  Play sound effect. (internal)
     @param  soundNameID -
-    @retval             -
 **/
 inline void PlaySoundEffectT(std::wstring soundNameID)
 {
@@ -1520,7 +1503,6 @@ inline void PlaySoundEffectT(std::wstring soundNameID)
 /**
     @brief  Play sound effect. (internal)
     @param  soundNameID -
-    @retval             -
 **/
 inline void PlaySoundEffectT(std::string soundNameID)
 {

@@ -26,8 +26,6 @@ struct AppMain
     /**
         @brief Draws the main window.
         @param tabData          -
-        @param showConsole      - 
-        @param showCalculator   - 
         @param enableSound      - 
         @param show_demo_window - 
     **/
@@ -35,7 +33,7 @@ struct AppMain
 
     /**
         @brief Store the current view settings from the Menu bar.
-        @param g_WindowState    -
+        @param original_pointer -
         @param toggler          -
     **/
     void SaveApplicationSettingsManualCheck(bool* original_pointer, bool* toggler);

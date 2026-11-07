@@ -23,6 +23,8 @@ The script uses the [GitHub CLI](https://cli.github.com) (`gh auth login` first)
 
 See [BUILDING.md](BUILDING.md) for the tools to install, how to build, and how to package the app for a lab PC without Visual Studio.
 
+Developer documentation (all classes and files, threads, conventions, with links to the source): run `docs\build-docs.bat` to build it and open it in the browser, or download *docs-html* from the latest *Docs* run under *Actions*. The start page is [docs/developer.md](docs/developer.md); the source layout is in [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ### How it works
 
 Uses the ImGui open source package with C++ for the application, where the binary codes sent to the machine was found by "sniffing" the machine's in/out commands and response. The software is also multi-threaded and uses independent threads that run hooks for handling the data flow and circular buffer. More information on how the software works can be found in the docs above.

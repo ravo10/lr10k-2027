@@ -80,10 +80,11 @@ vcpkg_installed/
 ## Fetch with scripts/fetch-videos.ps1 (see README).
 main/LloydLR10KTensile/videos/*.mp4
 
-## Generated Doxygen output: built and published by .github/workflows/docs.yml
+## Generated Doxygen output: docs\build-docs.bat, or .github/workflows/docs.yml
 docs/html/
 docs/latex/
 docs/html.zip
+docs/doxygen-warnings.txt
 
 ## Packaged release output (scripts/package-release.ps1)
 dist/

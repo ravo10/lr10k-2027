@@ -223,7 +223,7 @@ bool LR10KCOMSystem::SendBytesToCom(const std::uint8_t* data, std::size_t size)
 // -----------------------------------------------------------------------------
 
 namespace {
-    //! Documents\LR10K serial logs (wide-character path, so user names with e.g. "ø" work).
+    //! Documents\\LR10K serial logs (wide-character path, so user names with e.g. "ø" work).
     std::filesystem::path TrafficLogFolder()
     {
         std::filesystem::path folder;
