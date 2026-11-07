@@ -227,6 +227,7 @@ int main(int argc, char** argv)
 
     messageStringStartup.append("Responsible for software: Rasmus Ullestad Relling (GitHub: ravo10)\n");
     messageStringStartup.append("Last update: "); messageStringStartup.append(LR10KAppVersion);
+    messageStringStartup.append(" (github.com/ravo10/"); messageStringStartup.append(LR10KAppRepository); messageStringStartup.append(")");
     MessageBoxA(NULL, messageStringStartup.c_str(), "Information", MB_OK);
 
     // Custom Initialization

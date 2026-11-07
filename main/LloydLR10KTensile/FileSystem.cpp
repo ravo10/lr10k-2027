@@ -460,7 +460,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
 
             // Set the global configuration settings file name
             LR10KAppGlobals::configSettingPathFile = LR10KAppGlobals::LocalFolderPath;
-            std::string fileName = "v"; fileName.append(LR10KAppVersion).append("_lr10k.ini");
+            std::string fileName = "v"; fileName.append(LR10KSettingsFileVersion).append("_lr10k.ini");
             LR10KAppGlobals::configSettingPathFile.append(fileName);
 
             // Delete
@@ -674,7 +674,7 @@ void AppMainFileSystem::LR10KGUISettingsInitialization(const std::string folderP
 
     // Set the global configuration settings file name
     LR10KAppGlobals::configSettingPathFile = LR10KAppGlobals::LocalFolderPath;
-    std::string fileName = "v"; fileName.append(LR10KAppVersion).append("_lr10k.ini");
+    std::string fileName = "v"; fileName.append(LR10KSettingsFileVersion).append("_lr10k.ini");
     LR10KAppGlobals::configSettingPathFile.append(fileName); // If big changes occur, it will always access succeed...
 
     if (!std::filesystem::exists(LR10KAppGlobals::configSettingPathFile))

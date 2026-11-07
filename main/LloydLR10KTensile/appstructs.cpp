@@ -932,7 +932,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 ImGui::Separator();
 
                 std::string strV = "Application Version: ";
-                strV.append(LR10KAppVersion);
+                strV.append(LR10KAppVersion).append(" (").append(LR10KAppRepository).append(")");
 
                 ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 0.50f, 0.90f }), strV.c_str());
 
@@ -1600,6 +1600,7 @@ void ExtensiometerWorkerThread()
         // =========================================================
         // 4. PHYSICS & DRAW MARKERS
         // =========================================================
+        g_Extensiometer.markers_found = (int)centers.size();
         if (centers.size() == 2) {
             live_camera_feed_text = "Live Camera Feed";
             markersMissing = false;
@@ -1877,7 +1878,14 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             ImGui::PopStyleColor(3);
             ImGui::EndDisabled();
 
-            ImGui::Text("Notice: It is possible to record a test without having markers tracked!");
+            // Recording status (Record menu)
+            if (g_Extensiometer.is_recording)
+                ImGui::TextColored(ImVec4(1.0f, 0.25f, 0.25f, 1.0f), "REC  Recording this test (also when the markers are not tracked).");
+            else if (g_Extensiometer.record_test)
+                ImGui::Text("Recording: on. Each test is saved in \"Recordings\" in the storage folder%s",
+                    tabData->current_temp_preSaveLocation.empty() ? " (set a storage folder first: File > Specify Storage Folder)." : ".");
+            else
+                ImGui::TextDisabled("Recording: off (Record > Record tests).");
 
             ImGui::Separator();
 
@@ -1970,7 +1978,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                     if (ImGui::BeginChild("Ext.LeftPanel", ImVec2(400, 0), true))
                     {
                         // --- Sub-Window 1: Extension/strain information window---
-                        if (ImGui::BeginChild("ExtStrainInformation", ImVec2(0, 200), true, ImGuiWindowFlags_MenuBar))
+                        if (ImGui::BeginChild("ExtStrainInformation", ImVec2(0, 240), true, ImGuiWindowFlags_MenuBar))
                         {
                             ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
@@ -1979,17 +1987,27 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             if (ImGui::BeginMenuBar()) { ImGui::Text("Tracking Information (ext. & strain)"); ImGui::EndMenuBar(); }
 
                             if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
+                                // Tracking status: green with two markers, red otherwise (the values then stay at the last ones)
+                                const int markers = g_Extensiometer.markers_found.load();
+                                const bool tracking = markers == 2;
+                                if (tracking)
+                                    ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Tracking: 2 markers");
+                                else
+                                    ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "Tracking lost (%d marker%s found)", markers, markers == 1 ? "" : "s");
+
                                 ImGui::SeparatorText("Current values");
+                                const ImVec4 valueColor = tracking ? ImVec4(0, 1, 0, 1) : ImVec4(0.6f, 0.6f, 0.6f, 1.0f);
+                                ImGui::TextColored(valueColor, "Extension: %.3f mm", g_Extensiometer.results.travel_mm.load());
+                                ImGui::TextColored(valueColor, "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage.load());
 
-                                //ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 10));
-                                ImGui::TextColored(ImVec4(0, 1, 0, 1), "Extension: %.3f mm", g_Extensiometer.results.travel_mm.load());
+                                // Scale: L0 in pixels and in mm
+                                const double l0px = g_Extensiometer.initial_dist_px.load();
+                                const double l0mm = g_Extensiometer.gauge_length_mm.load();
+                                if (l0px > 0.0 && l0mm > 0.0)
+                                    ImGui::TextDisabled("L0: %.1f px = %.2f mm (%.4f mm/px)", l0px, l0mm, l0mm / l0px);
 
-                                //ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 30));
-                                ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage.load());
-
-                                // Draw Overlay Text
                                 ImGui::Spacing();
-                                ImGui::Text("Normal behavior: Extension and strain\nmight jump unexpectedly after fracture,\nand lose tracking.");
+                                ImGui::TextWrapped("Set zero point (or Start Test) also sets L0, so the extension starts at 0. After fracture the values may jump.");
                             }
                             else {
                                 ImGui::Text("Waiting for camera feed...");
@@ -2048,9 +2066,10 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
                         if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
-                            ImGui::Text("Gauge Length (L0) (ε_n, σ_t, ε_t):");
-                            Extra::tools.TextWithWhiteBackground(ImVec4(0.894f, 0.102f, 0.110f, 1.0f), "Needs to be as acurate as possible, for good measurement!");
-                            ImGui::Text("(...Move e.g. 5mm with a test piece, and adjust\naccordingly to calibrate)");
+                            ImGui::Text("Gauge length L0 = distance between the two markers:");
+                            Extra::tools.TextWithWhiteBackground(ImVec4(0.894f, 0.102f, 0.110f, 1.0f), "Measure it as accurately as possible (e.g. with a caliper)!");
+                            ImGui::TextWrapped("The strain comes from the markers alone; extension = strain x L0. "
+                                "Check: move e.g. 5 mm and compare with the machine's extension.");
                             ImGui::InputFloat("##Gauge length 2", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
                             ImGui::Text("(More material properties in the calculator view.)");
                             ImGui::Spacing();
@@ -2120,13 +2139,17 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                         ImGui::SeparatorText("Region of Interest");
 
-                        // Slider from 0% to 47% (cutting 50% would leave 0 pixels)
-                        if (ImGui::SliderFloat("##Restrict sides", &g_Extensiometer.restrictive_area, 0.0f, 0.47f, "%.2f"))
+                        // Slider from 0% to 47% of the width on each side (cutting 50% would leave 0 pixels)
                         {
-                            DockingApps::mainFileSystem.SaveApplicationSettings();
+                            float percent = g_Extensiometer.restrictive_area * 100.0f;
+                            if (ImGui::SliderFloat("##Restrict sides", &percent, 0.0f, 47.0f, "%.0f %% each side"))
+                            {
+                                g_Extensiometer.restrictive_area = percent / 100.0f;
+                                DockingApps::mainFileSystem.SaveApplicationSettings();
+                            }
                         }
-                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Percentage of image width to ignore from left and right sides.");
-                        ImGui::Text("Restrict sides");
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Part of the image width ignored on the left and right side\n(darkened in the camera view). Use it to hide other green objects.");
+                        ImGui::Text("Ignore the image sides");
 
                         ImGui::Spacing();
                         ImGui::SeparatorText("Camera Properties");
@@ -4454,13 +4477,13 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     ImGui::Separator();
     ImGui::Spacing();
     ImGui::Text("University of South-Eastern Norway, Kongsberg.");
-    ImGui::Text("Unofficial LR 10K Tensile Machine (1990's) Control Software (Open Source), v%s.", LR10KAppVersion);
+    ImGui::Text("Unofficial LR 10K Tensile Machine (1990's) Control Software (Open Source), v%s (%s).", LR10KAppVersion, LR10KAppRepository);
     ImGui::Text("Use at your own risk.");
 
     ImGui::NewLine();
 
     ImGui::PushItemWidth(280.0f);
-    std::string link = "https://github.com/ravo10/lr10k";
+    std::string link = std::string("https://github.com/ravo10/") + LR10KAppRepository;
     ImGui::Text("GitHub repo.:"); ImGui::SameLine(); ImGui::InputText("##GitHubRepo", (char*)link.c_str(), link.size() + 1, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly);
     ImGui::PopItemWidth();
     ImGui::Spacing();

@@ -35,7 +35,11 @@ if (appDataFolderPath.first)
 }*/
 // And insert: #include "..\init.h" in "imgui.h".
 // 
-static const char* LR10KAppVersion = "1.1.2 [26.02.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
+static const char* LR10KAppVersion = "2.0.0 [07.11.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
+static const char* LR10KAppRepository = "lr10k-2027";       //!< GitHub repository (github.com/ravo10/lr10k-2027)
+//! The settings file is "v<this>_lr10k.ini" in AppData. Kept at the old version so a new app version does not start
+//! with default settings (the file name used to follow LR10KAppVersion). Change it only when the settings format changes.
+static const char* LR10KSettingsFileVersion = "1.1.2 [26.02.2026]";
 
 
 // ###############################################--------------------------------------------------------------------------------------------------------------
@@ -394,6 +398,7 @@ struct AppExtensiometer
     std::atomic<double> initial_dist_px{ 0.0 }; //!< L0 in pixels (shown in the GUI)
     std::atomic<bool> initialized{ false };
     std::atomic<bool> lostMarkerDetectedlost_tracking{ false };
+    std::atomic<int> markers_found{ 0 };          //!< Markers in the last frame (2 = tracking)
 
     //! \note Instance of settings (initialized with your prototype defaults)
     struct MaskSettings {

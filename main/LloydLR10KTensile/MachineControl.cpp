@@ -445,6 +445,13 @@ bool LR10KControlSystem::SetZeroPoint(TabControl::TabTestDataClass* tabData)
         // Load: the next data package from the machine becomes the zero (0 until then)
         LR10KDataDeEncryptionSystem::Measurement().RequestLoadZero(LR10KDataDeEncryptionSystem::machine.Readings());
 
+        // Optical extensometer: the current marker distance becomes L0 (as "SET L0 / RESET"), so the optical
+        // extension starts at 0 together with the machine's. (L0 was only taken when the button was pressed:
+        // a forgotten reset started the test at e.g. -14 mm.)
+        g_Extensiometer.reset_requested = true;
+        g_Extensiometer.results.travel_mm = 0.0f;
+        g_Extensiometer.results.strain_percentage = 0.0f;
+
         // Extension: count the machine's distance from 0 again (demo: restart the simulated extension)
         if (!mainGUIGlobals::useDemoModeLiveExtension)
         {

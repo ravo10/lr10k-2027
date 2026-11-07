@@ -35,6 +35,13 @@ You can now edit and manipulate the crucial points with *Ctrl+Click*. Like yield
 
 Ctrl+S saves (.lr10k and .xlsx), Ctrl+Alt+S saves as, Ctrl+Alt+E saves an Excel book, Ctrl+O opens a test and Ctrl+Z removes the last crucial point. The buttons show their hotkey as a tooltip.
 
+## Optical extensometer
+
+- *Set zero point* (also done by *Start Test* by default) sets the optical L0 too, so the optical extension starts at 0 together with the machine's. *SET L0 / RESET* still does it by hand.
+- L0 in mm is the real distance between the two markers; measure it as accurately as possible. The strain comes from the markers alone, and extension = strain × L0.
+- The *Tracking Information* panel shows whether two markers are tracked. A test is paused if the markers stay lost for half a second.
+- *Smoothing* (settings panel, default 0.25 s): more is calmer but makes the extension lag the load.
+
 ## Recording the optical extensometer
 
 Turn on *Record > Record tests* in the extensometer window. Each test is then recorded into a `Recordings` folder inside the test's storage folder (*File > Specify Storage Folder*), as two `.mp4` files named like the test: `_RAW` (the camera image with a time stamp) and `_OVERLAY` (with the detected markers). The setting stays on for the next tests until you turn it off.
