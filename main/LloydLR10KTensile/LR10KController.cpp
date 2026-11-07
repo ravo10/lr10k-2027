@@ -226,6 +226,14 @@ bool LR10KController::w_Setup1()
     std::vector<std::pair<byte, bool>> FirstSetupComplete = {  };
     FirstSetupComplete.insert(FirstSetupComplete.end(), Write_FirstSetup.begin(), Write_FirstSetup.end());
 
+    // The sequence starts by waiting for 0xB6: that is the answer to the "ready to connect" request
+    // (see Write_FirstSetup), which AskAndWaitForLR10KForReadyToConnect() has just received and consumed.
+    // The LR 10K sends it only once, so waiting for it again never succeeds (stuck at "6 %", then timeout).
+    // The old code only got past this because it read the port from two threads at once and a spare
+    // 0xB6 often ended up in the ring buffer. Skipping the step sends exactly the same bytes as before.
+    if (!FirstSetupComplete.empty() && FirstSetupComplete.front().first == 0xB6 && FirstSetupComplete.front().second)
+        FirstSetupComplete.erase(FirstSetupComplete.begin());
+
     if (!SendHEXWriteReadSequenceToLR10K(FirstSetupComplete))
     {
         mainGUIGlobals::showPopUp_ConnectionTimeout = true;
