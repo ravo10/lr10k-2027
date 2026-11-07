@@ -1116,32 +1116,6 @@ struct AppCalculator
 **/
 struct AppMainExcel
 {
-    enum ExcelDataVariationWorksheetData {
-        VAR_RAW,
-        VAR_ENG_STRESS,
-        VAR_TRUE_STRESS
-    };
-    /**
-        @brief Write table data for plots (either raw, eng. stress or true stress).
-        @param tabData        -
-        @param workbook       -
-        @param activeLabels   -
-        @param worksheet      -
-        @param bold           -
-        @param dataVariation  -
-    **/
-    void write_worksheet_data(const ExcelReport::Report& report, lxw_workbook* workbook, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, AppMainExcel::ExcelDataVariationWorksheetData dataVariation);
-    /**
-        @brief Add stress line chart.
-        @param tabData          -
-        @param workbook         -
-        @param sheet_name       -
-        @param worksheet        -
-        @param date             -
-        @param dataVariation    -
-    **/
-    void CreateGraphChart(const ExcelReport::Report& report, lxw_workbook* workbook, const char* sheet_name, lxw_worksheet* worksheet, ExcelDataVariationWorksheetData dataVariation);
-
     /**
         @brief  Save plot data and crucial points to a .xlsx file. Returns true on success.
         @param  tabData  -

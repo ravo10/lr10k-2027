@@ -23,6 +23,13 @@ You can now edit and manipulate the crucial points with *Ctrl+Click*. Like yield
 ## Saving a successfully completed test (+ Excel)
 When a test is ended and completed successfully, you can save the test from the *Menu* or using the hotkey. This will save the data from the current completed test to a `.lr10k` file. This `.lr10k` file is possible to load into the software to manipulate, which is JSON formatted. If you want to save the completed test data to an Excel book for further analysis, it is possible to do this by clicking *Save as a .XLSX file* button besides the *Toggle Graph Type* button. This will generate raw data and plots that can be saved as an image for use in  e.g. a report.
 
+The Excel book contains:
+
+- **Full Report**: test type and date, the specimen dimensions, the results (E-modulus; for 3-point bending the maximum load, travel, bending moment, flexural strength and modulus) and a table of the crucial points with engineering and true stress/strain. Points you did not place show "-". Without specimen dimensions the report says that stress and strain were not calculated.
+- **Setup**: crosshead and jog speed, load error correction, test type, sampling rate, number of samples and the software version.
+- **Graph N-mm**: load against extension (from the zero point), with the crucial points labelled on the chart.
+- **Graph Eng. Stress** and **Graph True Stress** (tension/compression with dimensions): stress against strain in percent.
+
 ## Loading a previous saved test
 By going to *Menu* > *Open*, you can load previous tests that are saved as a `.lr10k` file. From here you can further manipulate the file, but you need to save it again/overwrite to keep the changes.
 

@@ -10,6 +10,7 @@
 
 #include "TestCalc.h"
 
+#include <utility>
 #include <string>
 #include <vector>
 
@@ -27,20 +28,35 @@ namespace ExcelReport
         std::string modulus = "GPa";      //!< The E-modulus is shown as GPa with SI units, psi with imperial units
     };
 
+    enum class TestKind { Tension, Compression, Bending3Point };
+
+    //! 3-point bending results calculated in the app (TestCalc::BendingResults).
+    struct BendingValues
+    {
+        double maxLoad = 0.0;
+        double maxTravel = 0.0;
+        double bendingMoment = 0.0;
+        double flexuralStress = 0.0;
+    };
+
     //! One finished test: all the data the export needs.
     struct Report
     {
         std::string date;
         std::string description;
+        std::string appVersion;  //!< Written on the setup sheet
+        std::string exportedAt;  //!< e.g. "2026-11-07 18:30"
         Units units;
 
-        bool tension = true;
+        bool tension = true;     //!< (kept for older callers; kind says the same and more)
+        TestKind kind = TestKind::Tension;
         TestCalc::Specimen specimen;
         double storedArea = 0.0;  //!< The area saved with the test (only used if the dimensions give none)
         double zeroOffset = 0.0;  //!< The test's zero point on the extension axis (slack)
 
         // Results calculated in the app (TestCalc)
-        double youngsModulus = 0.0;  //!< In units.modulus
+        double youngsModulus = 0.0;  //!< In units.modulus (the flexural modulus for 3-point bending)
+        BendingValues bending;       //!< Only for TestKind::Bending3Point
         TestCalc::StressStrain nominal[TestCalc::TensileResults::kPoints]; //!< Prop. limit, yield, UTS, fracture
 
         // Machine settings
@@ -53,8 +69,44 @@ namespace ExcelReport
         std::vector<TestCalc::MarkedPoint> points;   //!< Crucial points as placed on the curve (before the zero offset)
     };
 
-    //! The report and stress sheets need the specimen dimensions.
-    inline bool HasStressSheets(const Report& r) { return TestCalc::HasDimensions(r.specimen); }
+    //! Stress/strain needs the specimen dimensions.
+    inline bool HasDimensions(const Report& r) { return TestCalc::HasDimensions(r.specimen); }
+
+    //! The engineering/true stress sheets: tension or plain compression with dimensions. (3-point bending has
+    //! no uniform stress/strain: those sheets used to be written for it anyway.)
+    inline bool HasStressSheets(const Report& r) { return r.kind != TestKind::Bending3Point && HasDimensions(r); }
+
+    //! Name of a crucial point ID (same as in the app), or nullptr for an unknown ID.
+    inline const char* PointName(int id)
+    {
+        static const char* const names[] = { "Proportional Limit", "Yielding Strength", "Ultimate Tensile Strength", "Fracture", "Other", "E-Lower Bound", "E-Upper Bound" };
+        return (id >= 0 && id < 7) ? names[id] : nullptr;
+    }
+
+    //! Short name of a crucial point ID for chart labels (same as in the app), or nullptr for an unknown ID.
+    inline const char* PointShortName(int id)
+    {
+        static const char* const names[] = { "Prop. Limit", "Yield Str.", "UTS", "Fracture", "Other", "E-Lower", "E-Upper" };
+        return (id >= 0 && id < 7) ? names[id] : nullptr;
+    }
+
+    //! True if the user placed a point with this ID.
+    inline bool HasPoint(const Report& r, int id)
+    {
+        for (const TestCalc::MarkedPoint& p : r.points)
+            if (p.id == id) return true;
+        return false;
+    }
+
+    inline const char* TestKindText(TestKind kind)
+    {
+        switch (kind)
+        {
+        case TestKind::Compression:   return "Compression";
+        case TestKind::Bending3Point: return "Compression (3-point bending)";
+        default:                      return "Tension";
+        }
+    }
 
     //! A_0 for the export: from the dimensions (older files have a wrong stored area for circular specimens),
     //! else the stored area, else 1.
@@ -64,6 +116,161 @@ namespace ExcelReport
         if (a > 0.0) return a;
         return r.storedArea > 0.0 ? r.storedArea : 1.0;
     }
+
+    // -------------------------------------------------------------------------
+    // Report and setup sheets: label / value / unit lines
+    // -------------------------------------------------------------------------
+
+    struct Line
+    {
+        std::string label;
+        bool isNumber = false;
+        double number = 0.0;
+        std::string text;     //!< When not a number ("-" = not available)
+        std::string unit;
+        int decimals = 3;
+    };
+
+    inline Line NumberLine(std::string label, double value, std::string unit, int decimals = 3)
+    {
+        Line l;
+        l.label = std::move(label);
+        l.isNumber = true;
+        l.number = value;
+        l.unit = std::move(unit);
+        l.decimals = decimals;
+        return l;
+    }
+
+    inline Line TextLine(std::string label, std::string text, std::string unit = "")
+    {
+        Line l;
+        l.label = std::move(label);
+        l.text = std::move(text);
+        l.unit = std::move(unit);
+        return l;
+    }
+
+    struct Section
+    {
+        std::string title;
+        std::vector<Line> lines;
+    };
+
+    //! One row of the crucial points table (tension/compression).
+    struct PointResult
+    {
+        int id = -1;
+        std::string name;
+        bool placed = false;          //!< False: not placed on the curve (shown as "-", used to be 0.000)
+        double stress = 0.0;          //!< Engineering
+        double strainPercent = 0.0;
+        double trueStress = 0.0;
+        double trueStrainPercent = 0.0;
+    };
+
+    //! The proportional limit, yield, UTS and fracture rows, with true stress/strain from the engineering values.
+    inline std::vector<PointResult> PointResults(const Report& r)
+    {
+        std::vector<PointResult> rows;
+        for (int id = 0; id < TestCalc::TensileResults::kPoints; ++id)
+        {
+            PointResult row;
+            row.id = id;
+            row.name = PointName(id);
+            if (r.kind == TestKind::Compression && id == TestCalc::UltimateTensileStrength)
+                row.name = "Ultimate Compressive Strength";
+            row.placed = HasPoint(r, id);
+            if (row.placed)
+            {
+                const TestCalc::StressStrain& n = r.nominal[id];
+                row.stress = n.stress;
+                row.strainPercent = n.strain * 100.0;
+                row.trueStress = MaterialCalc::TrueStress(n.stress, n.strain);
+                row.trueStrainPercent = MaterialCalc::TrueStrain(n.strain) * 100.0;
+            }
+            rows.push_back(row);
+        }
+        return rows;
+    }
+
+    //! The report sheet above the points table: test, specimen and (for E-modulus / 3-point bending) results.
+    inline std::vector<Section> ReportSections(const Report& r)
+    {
+        const Units& u = r.units;
+        std::vector<Section> sections;
+
+        Section test{ "Test", {} };
+        test.lines.push_back(TextLine("Test date", r.date));
+        test.lines.push_back(TextLine("Test type", TestKindText(r.kind)));
+        test.lines.push_back(TextLine("Units", u.si ? "SI" : "English Engineering"));
+        sections.push_back(test);
+
+        const bool bending = r.kind == TestKind::Bending3Point;
+        Section specimen{ "Specimen", {} };
+        if (bending || r.specimen.crossSection == MaterialCalc::Rectangular)
+        {
+            specimen.lines.push_back(TextLine("Cross-section", "Rectangular"));
+            specimen.lines.push_back(NumberLine("Thickness", r.specimen.thickness, u.length));
+            specimen.lines.push_back(NumberLine("Width", r.specimen.width, u.length));
+        }
+        else
+        {
+            specimen.lines.push_back(TextLine("Cross-section", "Circular"));
+            specimen.lines.push_back(NumberLine("Diameter", r.specimen.diameter, u.length));
+        }
+        specimen.lines.push_back(NumberLine(bending ? "Support span (L)" : "Gauge length (L0)", r.specimen.length, u.length));
+        if (!bending)
+            specimen.lines.push_back(NumberLine("Cross-sectional area (A0)", HasDimensions(r) ? AreaForExport(r) : 0.0, u.length + "^2"));
+        if (r.zeroOffset != 0.0)
+            specimen.lines.push_back(NumberLine("Zero point offset (slack)", r.zeroOffset, u.length));
+        sections.push_back(specimen);
+
+        Section results{ "Results", {} };
+        if (bending)
+        {
+            results.lines.push_back(NumberLine("Maximum load", r.bending.maxLoad, u.force));
+            results.lines.push_back(NumberLine("Travel at maximum load", r.bending.maxTravel, u.length));
+            results.lines.push_back(NumberLine("Maximum bending moment", r.bending.bendingMoment, u.force + "*" + u.length));
+            results.lines.push_back(NumberLine("Flexural strength", r.bending.flexuralStress, u.stress));
+            results.lines.push_back(NumberLine("Flexural modulus", r.youngsModulus, u.modulus));
+        }
+        else if (HasDimensions(r))
+        {
+            results.lines.push_back(NumberLine("Young's modulus (E)", r.youngsModulus, u.modulus));
+        }
+        else
+        {
+            results.lines.push_back(TextLine("Stress, strain and E-modulus", "Not calculated: enter the specimen dimensions in the Calculator"));
+        }
+        sections.push_back(results);
+        return sections;
+    }
+
+    //! The setup sheet.
+    inline std::vector<Line> SetupLines(const Report& r)
+    {
+        std::vector<Line> lines;
+        lines.push_back(NumberLine("Crosshead speed", r.crossheadSpeed, r.units.speed, 2));
+        lines.push_back(NumberLine("Jog speed", r.jogSpeed, r.units.speed, 2));
+        lines.push_back(NumberLine("Load error correction", r.loadErrorPercent, "%", 2));
+        lines.push_back(TextLine("Test type", TestKindText(r.kind)));
+        // Older files have no sampling rate (0)
+        if (r.samplingRateHz > 0.0)
+            lines.push_back(NumberLine("Sampling rate", r.samplingRateHz, "Hz", 0));
+        else
+            lines.push_back(TextLine("Sampling rate", "-", "Hz"));
+        lines.push_back(NumberLine("Samples", (double)r.data.size(), "", 0));
+        if (!r.appVersion.empty())
+            lines.push_back(TextLine("Exported with", "LR 10K software " + r.appVersion));
+        if (!r.exportedAt.empty())
+            lines.push_back(TextLine("Exported", r.exportedAt));
+        return lines;
+    }
+
+    // -------------------------------------------------------------------------
+    // Graph sheets
+    // -------------------------------------------------------------------------
 
     enum class Sheet { LoadExtension, EngineeringStress, TrueStress };
 

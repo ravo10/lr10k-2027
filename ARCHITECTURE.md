@@ -26,8 +26,9 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | **Calculations** | `MaterialCalc.h` | Formulas: area, engineering/true stress and strain, line fit (E-modulus), 3-point bending | nothing (portable, tested) |
 | | `TestCalc.h` | The calculations for one test on plain data: stress/strain at the crucial points, E-modulus, 3-point bending, and which dimensions a new test starts with | `MaterialCalc.h` (portable, tested) |
 | | `Calculator.cpp` | Passes a test's own dimensions and data to `TestCalc.h`, stores the results in the test, and draws the calculator window | `TestCalc.h`, GUI |
-| **Excel export** | `ExcelReport.h` | Everything the export writes as a plain `Report` struct, and the rows of each graph sheet (zero offset, stress/strain, crucial points) | `TestCalc.h` (portable, tested) |
-| | `ExcelExport.cpp` | `MakeExcelReport()` fills a `Report` from a test tab; the rest writes it to .xlsx (formatting, charts, report sheet) | `ExcelReport.h`, libxlsxwriter |
+| **Excel export** | `ExcelReport.h` | Everything the export writes as a plain `Report` struct: the report and setup sheet lines, the crucial points table and the rows of each graph sheet (zero offset, stress/strain, crucial points) | `TestCalc.h` (portable, tested) |
+| | `ExcelWriter.h/.cpp` | Writes a `Report` to .xlsx (layout, formats, charts); no GUI code | `ExcelReport.h`, libxlsxwriter (checked on GitHub with sample files) |
+| | `ExcelExport.cpp` | `MakeExcelReport()` fills a `Report` from a test tab, saves it with `ExcelWriter` and logs the result | GUI, `ExcelWriter.h` |
 | **GUI** | `main.cpp` | Window, DirectX 12, main loop, pop ups | everything |
 | | `appstructs.h/.cpp` | Docking windows, menus, settings, .lr10k JSON save/load | everything |
 | | `TabSystem.cpp` | Test tabs: live plot data, limits, unit conversion, crucial points | globals |
@@ -47,6 +48,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `material_calc_test.cpp` | Every formula against hand-calculated values, unit conversion (1 MPa = 145.04 psi), clamping at 0 |
 | `test_calc_test.cpp` | Crucial points, zero offset, E-modulus and 3-point bending against hand-calculated values; identical results to the old calculator code on 2 000 random tests; which dimensions a new test starts with |
 | `excel_report_test.cpp` | Load-extension, engineering and true stress sheets, crucial points (with the zero offset, unknown IDs, points not on a sample), circular specimens, area; same numbers as the old export on 500 random tests |
+| `excel_writer_check.cpp` + `check_excel_reports.py` | Writes sample .xlsx files (tension rectangular/circular, 3-point bending, no dimensions, no data) with the real libxlsxwriter and checks sheets, cells and charts with openpyxl; the files are uploaded as the *excel-sample-reports* artifact of each run |
 | `protocol_test.cpp` | Known values from the sniffed setup messages, that decoding/encoding is identical to the original code for every possible input, and that message framing matches the original interpreter on random byte streams |
 | `machine_test.cpp` | Port to messages through both threads, sending, restarting the interpreter without losing or splitting bytes, stop flags, connection loss |
 | `serial_traffic_log_test.cpp` | Log format, grouping of received bytes, read back, and replaying a logged session through the machine |

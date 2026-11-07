@@ -75,3 +75,29 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
             -I main/LloydLR10KTensile tests/status_test.cpp -o status_test
           ./status_test
+
+  excel-files:
+    # Writes sample .xlsx reports with the real libxlsxwriter and checks them with openpyxl
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install libxlsxwriter and openpyxl
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxlsxwriter-dev
+          pip install openpyxl
+      - name: Write sample reports
+        run: |
+          g++ -std=c++20 -O1 -g -Wall -Wextra -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/excel_writer_check.cpp main/LloydLR10KTensile/ExcelWriter.cpp \
+            -lxlsxwriter -o excel_writer_check
+          mkdir -p excel-samples
+          ./excel_writer_check excel-samples
+      - name: Check the reports
+        run: python3 tests/check_excel_reports.py excel-samples
+      - name: Upload the sample reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: excel-sample-reports
+          path: excel-samples/

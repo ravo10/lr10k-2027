@@ -192,8 +192,86 @@ static void test_same_numbers_as_the_old_export()
     }
 }
 
+static const Line* findLine(const std::vector<Section>& sections, const std::string& label)
+{
+    for (const auto& section : sections)
+        for (const auto& line : section.lines)
+            if (line.label == label) return &line;
+    return nullptr;
+}
+
+static void test_point_results()
+{
+    Report r = rectangularReport();
+    r.points = { { TestCalc::UltimateTensileStrength, { 5.5, 400.0 } } };
+    r.nominal[TestCalc::UltimateTensileStrength] = { 0.1, 20.0 };
+    const std::vector<PointResult> rows = PointResults(r);
+    CHECK(rows.size() == 4);
+    CHECK(!rows[TestCalc::Yield].placed);                     // shown as "-" (used to be 0.000)
+    CHECK(rows[TestCalc::UltimateTensileStrength].placed);
+    CHECK(rows[TestCalc::UltimateTensileStrength].name == "Ultimate Tensile Strength");
+    NEAR(rows[TestCalc::UltimateTensileStrength].stress, 20.0);
+    NEAR(rows[TestCalc::UltimateTensileStrength].strainPercent, 10.0);
+    NEAR(rows[TestCalc::UltimateTensileStrength].trueStress, 22.0);
+    NEAR(rows[TestCalc::UltimateTensileStrength].trueStrainPercent, std::log(1.1) * 100.0);
+
+    r.kind = TestKind::Compression;
+    CHECK(PointResults(r)[TestCalc::UltimateTensileStrength].name == "Ultimate Compressive Strength");
+}
+
+static void test_report_sections()
+{
+    // Tension with dimensions: E-modulus line, area, no bending results
+    Report r = rectangularReport();
+    r.youngsModulus = 2.5;
+    auto sections = ReportSections(r);
+    CHECK(findLine(sections, "Young's modulus (E)") != nullptr);
+    NEAR(findLine(sections, "Cross-sectional area (A0)")->number, 20.0);
+    CHECK(findLine(sections, "Gauge length (L0)") != nullptr);
+    CHECK(findLine(sections, "Zero point offset (slack)") == nullptr); // only when set
+    CHECK(findLine(sections, "Flexural strength") == nullptr);
+    CHECK(findLine(sections, "Test type")->text == "Tension");
+    CHECK(HasStressSheets(r));
+
+    // 3-point bending: bending results, span, no stress sheets
+    r.kind = TestKind::Bending3Point;
+    r.bending = { 400.0, 5.0, 6400.0, 240.0 };
+    sections = ReportSections(r);
+    NEAR(findLine(sections, "Flexural strength")->number, 240.0);
+    CHECK(findLine(sections, "Maximum bending moment")->unit == "N*mm");
+    CHECK(findLine(sections, "Support span (L)") != nullptr);
+    CHECK(findLine(sections, "Young's modulus (E)") == nullptr);
+    CHECK(!HasStressSheets(r));
+
+    // No dimensions: a note instead of results
+    Report none;
+    sections = ReportSections(none);
+    const Line* note = findLine(sections, "Stress, strain and E-modulus");
+    CHECK(note != nullptr && !note->isNumber);
+    CHECK(!HasStressSheets(none));
+}
+
+static void test_setup_lines()
+{
+    Report r = rectangularReport();
+    r.loadErrorPercent = -2.0;
+    auto lines = SetupLines(r);
+    bool samplingDash = false, samples = false;
+    for (const auto& l : lines)
+    {
+        if (l.label == "Sampling rate") samplingDash = !l.isNumber && l.text == "-"; // older files: no rate
+        if (l.label == "Samples") samples = l.isNumber && l.number == 101.0;
+        if (l.label == "Load error correction") NEAR(l.number, -2.0);
+    }
+    CHECK(samplingDash);
+    CHECK(samples);
+}
+
 int main()
 {
+    test_point_results();
+    test_report_sections();
+    test_setup_lines();
     test_load_extension_sheet();
     test_stress_sheets();
     test_crucial_points();

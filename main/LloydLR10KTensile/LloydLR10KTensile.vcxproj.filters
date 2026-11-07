@@ -55,6 +55,9 @@
     <ClCompile Include="ExcelExport.cpp">
       <Filter>sources</Filter>
     </ClCompile>
+    <ClCompile Include="ExcelWriter.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
     <ClCompile Include="FileSystem.cpp">
       <Filter>sources</Filter>
     </ClCompile>
@@ -167,6 +170,7 @@
     <ClInclude Include="MaterialCalc.h" />
     <ClInclude Include="TestCalc.h" />
     <ClInclude Include="ExcelReport.h" />
+    <ClInclude Include="ExcelWriter.h" />
     <ClInclude Include="LR10KProtocol.h" />
     <ClInclude Include="SerialPort.h" />
     <ClInclude Include="SerialReader.h" />

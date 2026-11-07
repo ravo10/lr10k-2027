@@ -202,6 +202,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClCompile Include="..\..\misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="Calculator.cpp" />
     <ClCompile Include="ExcelExport.cpp" />
+    <ClCompile Include="ExcelWriter.cpp" />
     <ClCompile Include="FileSystem.cpp" />
     <ClCompile Include="TabSystem.cpp" />
     <ClCompile Include="SerialCom.cpp" />
@@ -240,6 +241,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClInclude Include="MaterialCalc.h" />
     <ClInclude Include="TestCalc.h" />
     <ClInclude Include="ExcelReport.h" />
+    <ClInclude Include="ExcelWriter.h" />
     <ClInclude Include="LR10KProtocol.h" />
     <ClInclude Include="SerialPort.h" />
     <ClInclude Include="SerialReader.h" />
