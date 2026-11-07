@@ -48,7 +48,7 @@ Rules learned the hard way:
 ## Conventions
 
 - **Settings file:** JSON in `%AppData%`, named `v<LR10KSettingsFileVersion>_lr10k.ini` (FileSystem.cpp). A missing *required* key resets all settings, so new keys must be read as optional with a default. Change `LR10KSettingsFileVersion` only when the old file cannot be used any more.
-- **Version:** `LR10KAppVersion` in common.h. It is shown in *About* and on this page. Also change `vcpkg.json`, and the installer's *ProductVersion* in Visual Studio.
+- **Version:** `LR10KAppVersion` in common.h. It is shown in *About* and on this page. Also change `vcpkg.json`, and the installer's *ProductVersion* in Visual Studio (answer *Yes* to a new ProductCode; see BUILDING.md, section 5).
 - **ImGui IDs:** use `"Visible text###StableId"` when a label changes (language, unit, state), so the window, tab or table keeps its position and settings.
 - **Comments:** Doxygen style (`@brief`, `@param`, `@details`, `//!<`). The *Docs* workflow lists the warnings in its run summary; a wrong `@param` name shows up there.
 

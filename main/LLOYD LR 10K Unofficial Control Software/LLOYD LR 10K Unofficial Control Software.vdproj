@@ -15,6 +15,18 @@
     {
         "Entry"
         {
+        "MsmKey" = "8:_50FC9B548CE94E3CB65C323C8241EAA5"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_1793D72429A44F2AB516E5D7E64C42F9"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_074A36049045489BB4C6B6573AD42695"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -225,19 +237,7 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_D9017032FB1648A8A68E52D63DCC78D2"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_E30B552501024F1B87C6E36A88AF8405"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_E93C754BE00C44A09A9275781E0858F5"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -292,11 +292,6 @@
             "ComponentsUrl" = "8:"
                 "Items"
                 {
-                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:.NETFramework,Version=v4.7.2"
-                    {
-                    "Name" = "8:Microsoft .NET Framework 4.7.2 (x86 and x64)"
-                    "ProductCode" = "8:.NETFramework,Version=v4.7.2"
-                    }
                 }
             }
         }
@@ -324,11 +319,6 @@
             "ComponentsUrl" = "8:"
                 "Items"
                 {
-                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:.NETFramework,Version=v4.7.2"
-                    {
-                    "Name" = "8:Microsoft .NET Framework 4.7.2 (x86 and x64)"
-                    "ProductCode" = "8:.NETFramework,Version=v4.7.2"
-                    }
                     "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:Microsoft.Visual.C++.14.0.x64"
                     {
                     "Name" = "8:Visual C++ \"14\" Runtime Libraries (x64)"
@@ -459,8 +449,48 @@
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_3F5B2E64C3C44D3CAC6563576EC498A3"
             {
-            "SourcePath" = "8:..\\..\\vcpkg\\installed\\x64-windows\\bin\\zlib1.dll"
+            "SourcePath" = "8:..\\LloydLR10KTensile\\Release\\zlib1.dll"
             "TargetName" = "8:zlib1.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_1793D72429A44F2AB516E5D7E64C42F9"
+            {
+            "SourcePath" = "8:..\\LloydLR10KTensile\\Release\\opencv_videoio_ffmpeg4120_64.dll"
+            "TargetName" = "8:opencv_videoio_ffmpeg4120_64.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_50FC9B548CE94E3CB65C323C8241EAA5"
+            {
+            "SourcePath" = "8:..\\LloydLR10KTensile\\Release\\Lloyd LR10K Tensile Machine Control Software.pdb"
+            "TargetName" = "8:Lloyd LR10K Tensile Machine Control Software.pdb"
             "Tag" = "8:"
             "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
             "Condition" = "8:"
@@ -639,7 +669,7 @@
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_6891126FF35446AB9FF4B7DB0E3C7B02"
             {
-            "SourcePath" = "8:..\\..\\vcpkg\\installed\\x64-windows\\bin\\xlsxwriter.dll"
+            "SourcePath" = "8:..\\LloydLR10KTensile\\Release\\xlsxwriter.dll"
             "TargetName" = "8:xlsxwriter.dll"
             "Tag" = "8:"
             "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
@@ -873,7 +903,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:FALSE"
+            "Exclude" = "11:TRUE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -893,7 +923,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:TRUE"
+            "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -913,7 +943,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:TRUE"
+            "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -959,7 +989,7 @@
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_C193C27D9F89444AB0DEFE3B6FF64C20"
             {
-            "SourcePath" = "8:..\\..\\vcpkg\\installed\\x64-windows\\bin\\minizip.dll"
+            "SourcePath" = "8:..\\LloydLR10KTensile\\Release\\minizip.dll"
             "TargetName" = "8:minizip.dll"
             "Tag" = "8:"
             "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
@@ -1037,52 +1067,12 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_D9017032FB1648A8A68E52D63DCC78D2"
-            {
-            "SourcePath" = "8:C:\\opencv\\build\\x64\\vc16\\lib\\opencv_world4120d.lib"
-            "TargetName" = "8:opencv_world4120d.lib"
-            "Tag" = "8:"
-            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_E30B552501024F1B87C6E36A88AF8405"
             {
             "SourcePath" = "8:..\\LloydLR10KTensile\\effects\\buttonClick1.wav"
             "TargetName" = "8:buttonClick1.wav"
             "Tag" = "8:"
             "Folder" = "8:_757CB52310CE459ABE019E9D159D6359"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_E93C754BE00C44A09A9275781E0858F5"
-            {
-            "SourcePath" = "8:C:\\opencv\\build\\x64\\vc16\\lib\\opencv_world4120.lib"
-            "TargetName" = "8:opencv_world4120.lib"
-            "Tag" = "8:"
-            "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
             "Condition" = "8:"
             "Transitive" = "11:FALSE"
             "Vital" = "11:TRUE"
@@ -1153,7 +1143,7 @@
             "SharedLegacy" = "11:FALSE"
             "PackageAs" = "3:1"
             "Register" = "3:1"
-            "Exclude" = "11:TRUE"
+            "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
@@ -1311,15 +1301,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:LLOYD LR 10K Unofficial Control Software"
-        "ProductCode" = "8:{8E367E44-01E3-4B8C-AC55-77F611C43CB1}"
-        "PackageCode" = "8:{32F7F2D3-700D-4BA4-8461-BB6E0D7115A9}"
+        "ProductCode" = "8:{AA8444E9-A811-4DE0-B085-DD5A90BFEDA7}"
+        "PackageCode" = "8:{F85D8173-7936-4FF6-AA95-700B87A3CCE0}"
         "UpgradeCode" = "8:{686F73AC-8F49-4304-A938-A8A02E890844}"
         "AspNetVersion" = "8:2.0.50727.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:1.1.2"
+        "ProductVersion" = "8:2.0.0"
         "Manufacturer" = "8:USN (ravo10)"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://github.com/ravo10/lr10k-2027"
