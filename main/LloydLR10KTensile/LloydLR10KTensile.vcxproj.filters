@@ -170,6 +170,7 @@
     <ClInclude Include="SerialReader.h" />
     <ClInclude Include="Win32SerialPort.h" />
     <ClInclude Include="LR10KMachine.h" />
+    <ClInclude Include="SerialTrafficLog.h" />
     <ClInclude Include="..\..\stb_image.h" />
     <ClInclude Include="LR10KController.h" />
     <ClInclude Include="..\..\backends\imgui_ImageLoader_dx12.h">

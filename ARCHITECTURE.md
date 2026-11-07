@@ -16,6 +16,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `Win32SerialPort.h/.cpp` | The real COM port with the LR 10K settings (9600 8N1, CTS/DSR handshake, ~100 ms read timeout) | Windows API |
 | | `SerialReader.h` | Thread that copies the port into the ring buffer; detects a lost connection (3 failed reads in a row) | `SerialPort.h`, `RingBuffer.h` (portable, tested with a fake port) |
 | | `LR10KMachine.h` | One connection: owns the ring buffer, the reader thread and the interpreter thread, which frames bytes into messages (`LR10KProtocol::MessageParser`) and hands each to a handler | serial classes (portable, tested with a fake port) |
+| | `SerialTrafficLog.h` | Optional log of every byte sent/received with timestamps (menu: *Log serial traffic to file*); logs can be read back and replayed | nothing (portable, tested) |
 | | `SerialCom.cpp` | Connect/disconnect a COM port (using the classes above), sending messages, interpreter thread, turning decoded values into load/extension | serial classes, globals |
 | | `LR10KDecryption.h/.cpp` | Thread flags, `InterpretMessage()` (turns a message into load/extension/status globals), decoder wrappers | Windows API |
 | | `MachineControl.cpp` | High-level machine commands (connect, setup, start/pause/end test, movement), watchdog, reconnect | serial I/O, GUI state |
@@ -41,6 +42,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `material_calc_test.cpp` | Every formula against hand-calculated values, unit conversion (1 MPa = 145.04 psi), clamping at 0 |
 | `protocol_test.cpp` | Known values from the sniffed setup messages, that decoding/encoding is identical to the original code for every possible input, and that message framing matches the original interpreter on random byte streams |
 | `machine_test.cpp` | Port to messages through both threads, sending, restarting the interpreter without losing or splitting bytes, stop flags, connection loss |
+| `serial_traffic_log_test.cpp` | Log format, grouping of received bytes, read back, and replaying a logged session through the machine |
 | `serial_reader_test.cpp` | Reader thread against a fake port: byte order, connection loss after 3 failed reads, tolerated glitches, stopping (also with a full buffer), restarting |
 
 ## Still to do

@@ -14,6 +14,10 @@
 
 #include "LR10KController.h"
 
+#include <shellapi.h>   //!< ShellExecuteW (open the log folder)
+#include <ctime>
+#include <filesystem>
+
 // -----------------------------------------------------------------------------
 // ----------------------------- LR 10K COM System -----------------------------
 // -----------------------------------------------------------------------------
@@ -90,15 +94,17 @@ bool LR10KCOMSystem::TryConnectingToCOMPort(int iPortNumber)
     m_pThreadReadCom_stopFlag.store(false);
 
     SerialReader::Callbacks callbacks;
-    callbacks.onByte = [](std::uint8_t)
+    callbacks.onByte = [](std::uint8_t byte)
     {
         // For the watchdog: when the LR 10K last sent something
         lastByteReceivedMs.store(SteadyNowMs());
+        trafficLog.LogReceived(byte);
     };
     callbacks.onConnectionLost = [](std::uint32_t lastError, int failedReads)
     {
         // Handled on the GUI thread (main.cpp): disconnect and show the "Connection lost" pop up
         printf("COM read failed %d times (last error %lu). Connection lost.\n", failedReads, (unsigned long)lastError);
+        trafficLog.LogNote("Connection lost: reading failed " + std::to_string(failedReads) + " times (error " + std::to_string(lastError) + ")");
         comConnectionLost.store(true);
     };
     callbacks.onExit = []()
@@ -122,6 +128,7 @@ bool LR10KCOMSystem::TryConnectingToCOMPort(int iPortNumber)
     PlaySoundEffect("buttonClick1");
 
     DockingApps::console.AddLog("COM%d port connected!", LR10KAppGlobals::connectedComPortNumber);
+    trafficLog.LogNote("COM" + std::to_string(portNumber) + " opened (9600 baud 8N1)");
 
     return true;
 }
@@ -148,6 +155,7 @@ bool LR10KCOMSystem::TryDisconnectingFromCurrCOMPort()
         m_hSerial = INVALID_HANDLE_VALUE;
         LR10KAppGlobals::connectedComPortNumber = -1;
 
+        trafficLog.LogNote("COM" + std::to_string(portNumber) + " closed");
         if (closed)
             DockingApps::console.AddLog("Disconnected from COM%d...", portNumber);
         else
@@ -193,6 +201,11 @@ bool LR10KCOMSystem::SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE /*hS
     std::uint32_t error = 0;
     const std::size_t written = LR10KDataDeEncryptionSystem::comPort.Write(data, expectedBytes, error);
 
+    // "Log serial traffic to file": what was actually sent, and a note if not everything was
+    LR10KDataDeEncryptionSystem::trafficLog.LogSent(data, written);
+    if (written < expectedBytes)
+        LR10KDataDeEncryptionSystem::trafficLog.LogNote("Write incomplete: " + std::to_string(written) + " of " + std::to_string(expectedBytes) + " bytes sent (error " + std::to_string(error) + ")");
+
     // If it fails to send data from COM
     if (written == 0)
     {
@@ -208,6 +221,85 @@ bool LR10KCOMSystem::SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE /*hS
 
     return true;
 }
+// -----------------------------------------------------------------------------
+// Serial traffic log ("Log serial traffic to file" in the menu)
+// -----------------------------------------------------------------------------
+
+namespace {
+    //! Documents\LR10K serial logs (wide-character path, so user names with e.g. "ø" work).
+    std::filesystem::path TrafficLogFolder()
+    {
+        std::filesystem::path folder;
+        PWSTR documents = nullptr;
+        if (SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_CREATE, NULL, &documents) == S_OK)
+            folder = std::filesystem::path(documents) / L"LR10K serial logs";
+        if (documents)
+            CoTaskMemFree(documents);
+        return folder;
+    }
+
+    //! A path as UTF-8 text for the console (path::u8string() is char8_t in C++20).
+    std::string PathText(const std::filesystem::path& path)
+    {
+        const auto text = path.u8string();
+        return std::string(text.begin(), text.end());
+    }
+
+    std::string LocalTimeString(const char* format)
+    {
+        std::time_t now = std::time(nullptr);
+        std::tm local{};
+        localtime_s(&local, &now);
+        char text[64];
+        std::strftime(text, sizeof(text), format, &local);
+        return text;
+    }
+}
+
+bool LR10KCOMSystem::StartTrafficLog()
+{
+    const std::filesystem::path folder = TrafficLogFolder();
+    if (folder.empty())
+    {
+        DockingApps::console.AddLog("[error] Serial traffic log: could not find the Documents folder.");
+        return false;
+    }
+
+    const std::filesystem::path file = folder / ("serial_" + LocalTimeString("%Y-%m-%d_%H-%M-%S") + ".log");
+    std::string description = "Started " + LocalTimeString("%Y-%m-%d %H:%M:%S") + ", app version " + LR10KAppVersion;
+    if (LR10KCOMSystem::CheckIfCOMIsConnected())
+        description += ", COM" + std::to_string(LR10KAppGlobals::connectedComPortNumber) + " 9600 baud 8N1";
+    else
+        description += ", no COM port open yet";
+
+    if (!LR10KDataDeEncryptionSystem::trafficLog.Start(file, description))
+    {
+        DockingApps::console.AddLog("[error] Serial traffic log: could not create %s", PathText(file).c_str());
+        return false;
+    }
+
+    DockingApps::console.AddLog("Logging serial traffic to %s", PathText(file).c_str());
+    return true;
+}
+
+void LR10KCOMSystem::StopTrafficLog()
+{
+    if (!LR10KDataDeEncryptionSystem::trafficLog.IsActive())
+        return;
+    LR10KDataDeEncryptionSystem::trafficLog.Stop();
+    DockingApps::console.AddLog("Stopped logging serial traffic (%s).", PathText(LR10KDataDeEncryptionSystem::trafficLog.Path()).c_str());
+}
+
+void LR10KCOMSystem::OpenTrafficLogFolder()
+{
+    const std::filesystem::path folder = TrafficLogFolder();
+    if (folder.empty())
+        return;
+    std::error_code ec;
+    std::filesystem::create_directories(folder, ec);
+    ShellExecuteW(NULL, L"open", folder.wstring().c_str(), NULL, NULL, SW_SHOWNORMAL);
+}
+
 /**
     @brief  Reads data sent back from the LR 10K Tensile Machine through the COM port. It waits for a certain HEX feedback.
     @param  hexdecimalData -

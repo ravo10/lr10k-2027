@@ -94,4 +94,5 @@ If PowerShell scripts are blocked on your PC, do it by hand: copy from `main\Llo
 | `opencv_world4120.dll was not found` when starting the app | The DLL is not next to the `.exe`. Rebuild (the build copies it), or check the `OpenCV DLL not found` line in the build output. |
 | `VCRUNTIME140.dll` / `MSVCP140.dll` / `VCRUNTIME140D.dll` was not found (lab PC) | Ship the Release build made with `package-release.ps1`, not the Debug folder. |
 | `UpgradeLog.htm` says the `.vdproj` project type "was not found" | Install the *Microsoft Visual Studio Installer Projects* extension, or ignore it: only the installer project is affected. |
+| Connection problems you want to look into (or send to someone) | In the app: menu *Log serial traffic to file*, then *Connect PC*. Every byte sent and received is written with timestamps to `Documents\LR10K serial logs`. Windows lets only one program open a COM port, so a separate terminal/sniffer program cannot listen while the app is connected. |
 | Help buttons open a web page instead of a video | The videos are not downloaded; run `scripts\fetch-videos.ps1`. |

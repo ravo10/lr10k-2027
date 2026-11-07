@@ -1002,6 +1002,13 @@ namespace LR10KCOMSystem {
     //! \brief Send a message through the open COM port (the handle parameter is not used anymore).
     bool    SendDataToCom(LR10KBufferMessage bufferMessage, HANDLE hSerial = INVALID_HANDLE_VALUE);
 
+    //! \brief Start logging all serial traffic to a new file in Documents\LR10K serial logs (see SerialTrafficLog).
+    bool    StartTrafficLog();
+    //! \brief Stop logging serial traffic.
+    void    StopTrafficLog();
+    //! \brief Open the folder with the serial traffic logs in Explorer.
+    void    OpenTrafficLogFolder();
+
     //! \brief Wait for a specific byte from the LR 10K. Returns false if it does not answer within the timeout.
     bool    WaitAndReadFromCOM(byte hexdecimalData, std::chrono::milliseconds timeout = std::chrono::milliseconds(15000));
 }

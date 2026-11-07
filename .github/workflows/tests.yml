@@ -45,3 +45,8 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
             -I main/LloydLR10KTensile tests/machine_test.cpp -o machine_test
           ./machine_test
+      - name: Serial traffic log (write, read back, replay; ThreadSanitizer)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
+            -I main/LloydLR10KTensile tests/serial_traffic_log_test.cpp -o serial_traffic_log_test
+          ./serial_traffic_log_test

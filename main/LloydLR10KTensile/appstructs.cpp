@@ -1097,6 +1097,22 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 {
                     LR10KControlSystem::GetCurrReportFromLR10K();
                 }
+
+                // Serial traffic log (for finding connection problems, and for recording sessions to replay in tests)
+                ImGui::SeparatorText("Troubleshooting");
+                {
+                    const bool logging = LR10KDataDeEncryptionSystem::trafficLog.IsActive();
+                    if (ImGui::MenuItem("Log serial traffic to file", nullptr, logging))
+                    {
+                        if (logging)
+                            LR10KCOMSystem::StopTrafficLog();
+                        else
+                            LR10KCOMSystem::StartTrafficLog();
+                    }
+                    ImGui::SetItemTooltip("Writes every byte sent to and received from the LR 10K, with timestamps,\nto a new file in Documents\\LR10K serial logs. Start it before \"Connect PC\"\nto record the whole connection. Click again to stop.");
+                    if (ImGui::MenuItem("Open serial log folder"))
+                        LR10KCOMSystem::OpenTrafficLogFolder();
+                }
                 ImGui::PopItemFlag();
 
                 ImGui::EndMenu();

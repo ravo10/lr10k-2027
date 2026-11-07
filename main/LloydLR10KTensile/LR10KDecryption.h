@@ -50,6 +50,7 @@ inline uint64_t getCurrentTime()
 #include "RingBuffer.h" //!< CRingBuffer (portable, unit tested in tests/ring_buffer_test.cpp)
 #include "LR10KMachine.h" //!< Ring buffer + reader and interpreter threads (portable, tested in tests/machine_test.cpp)
 #include "Win32SerialPort.h" //!< The COM port
+#include "SerialTrafficLog.h" //!< Optional log of all bytes sent/received (tested in tests/serial_traffic_log_test.cpp)
 
 /**
     @namespace LR10KDataDeEncryptionSystem
@@ -59,6 +60,7 @@ inline uint64_t getCurrentTime()
 namespace LR10KDataDeEncryptionSystem {
     //! \note Used for reading data from LR10K to buffer, and often includes a "m_SerialBuffer" pointer to written to as a paramter. Contains COM connection information.
     inline extern Win32SerialPort comPort{};       //!< The COM port connected to the LR 10K.
+    inline extern SerialTrafficLog trafficLog{};   //!< "Log serial traffic to file" (menu). Logs nothing while not started.
     inline extern LR10KMachine machine{};          //!< The connection: ring buffer, reader thread (comPort -> buffer) and interpreter thread.
     //! \note The handle of comPort, kept for code that still uses it (INVALID_HANDLE_VALUE when closed).
     inline extern HANDLE m_hSerial = INVALID_HANDLE_VALUE;
