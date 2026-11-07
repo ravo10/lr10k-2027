@@ -46,6 +46,7 @@ static const char* LR10KAppVersion = "1.1.2 [26.02.2026]"; //!< App version - E.
 // --------------------------------------------------------------------------------------------------------------###############################################
 
 #include "styles.h"
+#include "ExcelReport.h"
 #include <codecvt>
 
 // -----------------------------------------------------------------------------
@@ -1166,7 +1167,7 @@ struct AppMainExcel
         @param bold           -
         @param dataVariation  -
     **/
-    void write_worksheet_data(TabControl::TabTestDataClass tabData, lxw_workbook* workbook, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, AppMainExcel::ExcelDataVariationWorksheetData dataVariation);
+    void write_worksheet_data(const ExcelReport::Report& report, lxw_workbook* workbook, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, AppMainExcel::ExcelDataVariationWorksheetData dataVariation);
     /**
         @brief Add stress line chart.
         @param tabData          -
@@ -1176,7 +1177,7 @@ struct AppMainExcel
         @param date             -
         @param dataVariation    -
     **/
-    void CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_workbook* workbook, const char* sheet_name, lxw_worksheet* worksheet, const std::string date, ExcelDataVariationWorksheetData dataVariation);
+    void CreateGraphChart(const ExcelReport::Report& report, lxw_workbook* workbook, const char* sheet_name, lxw_worksheet* worksheet, ExcelDataVariationWorksheetData dataVariation);
 
     /**
         @brief  Save plot data and crucial points to a .xlsx file. Returns true on success.
@@ -1184,7 +1185,13 @@ struct AppMainExcel
         @param  filename -
         @retval          -
     **/
-    bool SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData, const char* filename);
+    bool SavePlotDataAsAnXlsxFile(const TabControl::TabTestDataClass& tabData, const char* filename);
+
+    //! Everything the export needs from a test tab, as plain data (ExcelReport.h).
+    static ExcelReport::Report MakeExcelReport(const TabControl::TabTestDataClass& tabData);
+
+    //! Write a report to a .xlsx file. Returns true on success.
+    bool SaveReportAsXlsxFile(const ExcelReport::Report& report, const char* filename);
 };
 
 /**

@@ -364,10 +364,10 @@ json AppMainFileSystem::CreateJSONDataFromCurrentTab(TabControl::TabTestDataClas
     tabDataJson["length"]       = tabData->length;
     tabDataJson["diameter"]     = tabData->diameter;
     tabDataJson["area"]         = tabData->area;
-    tabDataJson["areaOptionPicked"] = LR10KAppGlobals::areaOptionPicked;
-    tabDataJson["compressionOptionPicked"] = LR10KAppGlobals::compressionOptionPicked;
+    tabDataJson["areaOptionPicked"] = tabData->areaOptionPicked;               // The test's own (was the global value)
+    tabDataJson["compressionOptionPicked"] = tabData->compressionOptionPicked;
 
-    tabDataJson["offsetZeroPointExtensionAxis"] = defaultValuesGUI::offsetZeroPointExtensionAxis;
+    tabDataJson["offsetZeroPointExtensionAxis"] = tabData->LR10OffsetZeroPointExtensionAxis; // The test's own, in the saved (SI) units
 
     tabDataJson["description"] = tabData->description;
 

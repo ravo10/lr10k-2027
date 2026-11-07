@@ -2,7 +2,8 @@
 
     @file      ExcelExport.cpp
     @brief     Excel (.xlsx) export of test data, crucial points and report.
-    @details   Split out of common.cpp (code moved unchanged). Declarations are in common.h.
+    @details   Writes an ExcelReport::Report (plain data, see ExcelReport.h); MakeExcelReport() fills one from a test tab.
+               Declarations are in common.h.
     @author    Rasmus Ullestad Relling
     @date      3.09.2023
     @copyright (c) Rasmus Ullestad Relling, 2023. All right reserved.
@@ -11,13 +12,14 @@
 
 #include "common.h"
 #include "MaterialCalc.h"
+#include "ExcelReport.h"
 
 #include "LR10KController.h"
 
 // -----------------------------------------------------------------------------
 // ------------------------------- Excel related -------------------------------
 // ----------------------------------------------------------------------------- σ
-void create_style_gallery(TabControl::TabTestDataClass tabData) {
+void create_style_gallery() {
     lxw_workbook* workbook = workbook_new("chart_style_gallery.xlsx");
     lxw_worksheet* worksheet = workbook_add_worksheet(workbook, "Styles");
     lxw_worksheet* data_ws = workbook_add_worksheet(workbook, "Data");
@@ -58,7 +60,7 @@ void create_style_gallery(TabControl::TabTestDataClass tabData) {
     workbook_close(workbook);
 }
 
-void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, lxw_workbook* workbook, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, AppMainExcel::ExcelDataVariationWorksheetData dataVariation)
+void AppMainExcel::write_worksheet_data(const ExcelReport::Report& report, lxw_workbook* workbook, std::vector<lxw_chart_data_label*>* activeLabels, lxw_worksheet* worksheet, AppMainExcel::ExcelDataVariationWorksheetData dataVariation)
 {
     // Create your custom labels
     static lxw_chart_font labels_font_green     = { .color = LXW_COLOR_GREEN };
@@ -93,154 +95,69 @@ void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, lx
     format_set_num_format(fmt_decimal3, "0.000");
     format_set_align(fmt_decimal3, LXW_ALIGN_CENTER);
 
+    const ExcelReport::Units& units = report.units;
     std::string label = "";
     if (dataVariation == VAR_RAW)
     {
         // Crucial points
         worksheet_write_string(worksheet, CELL("A1"), "P ID", fmt_header);
-        label = "P X (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(0)) + ")";
+        label = "P X (" + units.length + ")";
         worksheet_write_string(worksheet, CELL("B1"), label.c_str(), fmt_header);
-        label = "P Y (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(1)) + ")";
+        label = "P Y (" + units.force + ")";
         worksheet_write_string(worksheet, CELL("C1"), label.c_str(), fmt_header);
 
         // Load-extension data
-        label = "X (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(0)) + ")";
+        label = "X (" + units.length + ")";
         worksheet_write_string(worksheet, CELL("D1"), label.c_str(), fmt_header);
-        label = "Y (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(1)) + ")";
+        label = "Y (" + units.force + ")";
         worksheet_write_string(worksheet, CELL("E1"), label.c_str(), fmt_header);
     }
     else
     {
-        // Crucial points
+        // Crucial points (strain in percent: the header used to say just "ε")
         worksheet_write_string(worksheet, CELL("A1"), "P ID", fmt_header);
-        label = "P X (ε)";
+        label = "P X (ε, %)";
         worksheet_write_string(worksheet, CELL("B1"), label.c_str(), fmt_header);
-        label = "P Y (σ, " + std::string(LR10KAppGlobals::GetUnitOption<const char*>(7)) + ")";
+        label = "P Y (σ, " + units.stress + ")";
         worksheet_write_string(worksheet, CELL("C1"), label.c_str(), fmt_header);
 
-        // Load-extension data
-        label = "X (ε)";
+        // Stress-strain data
+        label = "X (ε, %)";
         worksheet_write_string(worksheet, CELL("D1"), label.c_str(), fmt_header);
-        label = "Y (σ, " + std::string(LR10KAppGlobals::GetUnitOption<const char*>(7)) + ")";
+        label = "Y (σ, " + units.stress + ")";
         worksheet_write_string(worksheet, CELL("E1"), label.c_str(), fmt_header);
     }
 
-    // Main plot points (graph)
-    RollingBuffer tensileData = tabData.LR10KTensileData;
+    // The numbers (zero offset, stress/strain conversion, which crucial points) come from ExcelReport::BuildSheet,
+    // tested in tests/excel_report_test.cpp
+    const ExcelReport::Sheet sheet = dataVariation == VAR_RAW ? ExcelReport::Sheet::LoadExtension
+        : dataVariation == VAR_ENG_STRESS ? ExcelReport::Sheet::EngineeringStress : ExcelReport::Sheet::TrueStress;
+    const ExcelReport::SheetRows rows = ExcelReport::BuildSheet(report, sheet);
 
-    int colStartData = 3;
-    int rowStartPoint = 0;
-    int colStartPoint = 0;
+    const int colStartData = 3;
+    for (size_t row = 0; row < rows.curve.size(); row++)
+    {
+        worksheet_write_number(worksheet, (lxw_row_t)(row + 1), colStartData, rows.curve[row].x, fmt_decimal3);
+        worksheet_write_number(worksheet, (lxw_row_t)(row + 1), colStartData + 1, rows.curve[row].y, fmt_decimal3);
+    }
 
-    // Safe denominators for math. Recompute the area from the dimensions instead of trusting the stored
-    // value: files saved before this fix contain a wrong area for circular specimens (pi * d / 4).
-    double A_0 = MaterialCalc::CrossSectionArea(tabData.areaOptionPicked, tabData.thickness, tabData.width, tabData.diameter);
-    if (A_0 <= 0.0) A_0 = tabData.area > 0 ? tabData.area : 1.0;
-    double L_0 = tabData.length > 0 ? tabData.length : 1.0;
+    const int colStartPoint = 0;
+    for (size_t row = 0; row < rows.points.size(); row++)
+    {
+        const ExcelReport::PointRow& point = rows.points[row];
+        worksheet_write_string(worksheet, (lxw_row_t)(row + 1), colStartPoint, TabControl::plot_items[point.id], NULL);
+        worksheet_write_number(worksheet, (lxw_row_t)(row + 1), colStartPoint + 1, point.at.x, fmt_decimal3);
+        worksheet_write_number(worksheet, (lxw_row_t)(row + 1), colStartPoint + 2, point.at.y, fmt_decimal3);
 
-    const double zeroPointOffset = defaultValuesGUI::offsetZeroPointExtensionAxis;
-
-    for (size_t row = 0; row < tensileData.Data.size(); row++) {
-        const float originalX = tensileData.Data[row].x; // Before the zero point offset: crucial points are stored like this
-        tensileData.Data[row].x -= (float)zeroPointOffset;
-
-        ImVec2 dataPlotPointRaw = tensileData.Data[row];
-        ImVec2 dataPlotPointStress = tensileData.Data[row];
-
-        // Convert to STRESS
-        if (dataVariation != VAR_RAW)
-        {
-            // Nominal stress
-            dataPlotPointStress.x = LR10KAppGlobals::CalcEpsilon_e(dataPlotPointStress.x, L_0);
-            dataPlotPointStress.y = LR10KAppGlobals::CalcSigma_e(dataPlotPointStress.y, A_0);
-        }
-        if (dataVariation == VAR_TRUE_STRESS)
-        {
-            // True stress. Uses the ENGINEERING strain, so compute it before x is overwritten
-            // (this used the already converted true strain before: true stress came out too low).
-            const double engineeringStrain = dataPlotPointStress.x;
-            dataPlotPointStress.y = LR10KAppGlobals::CalcSigma_t(engineeringStrain, dataPlotPointStress.y);
-            dataPlotPointStress.x = LR10KAppGlobals::CalcEpsilon_t(engineeringStrain);
-        }
-
-        // -----------------------------------------------
-
-        // Plot point
-        if (dataVariation == VAR_RAW)
-        {
-            // Plot point (RAW)
-            worksheet_write_number(worksheet, row + 1, colStartData, dataPlotPointRaw.x, fmt_decimal3);
-            worksheet_write_number(worksheet, row + 1, colStartData + 1, dataPlotPointRaw.y, fmt_decimal3);
-        }
-        else
-        {
-            // Plot point (STRESS)
-            worksheet_write_number(worksheet, row + 1, colStartData, dataPlotPointStress.x*100, fmt_decimal3);
-            worksheet_write_number(worksheet, row + 1, colStartData + 1, dataPlotPointStress.y, fmt_decimal3);
-        }
-
-        // -----------------------------------------------
-
-        // Only crucial points for RAW and Engineering stress...
-        if (dataVariation == VAR_RAW || dataVariation == VAR_ENG_STRESS)
-        {
-            // Crucial points (UTS, E-Modulus etc.)
-            for (const auto& point_tuple : tabData.plot_dataPoints) {
-                // Get point
-                ImPlotPoint dataRaw = std::get<0>(point_tuple);
-                ImPlotPoint dataStress = std::get<0>(point_tuple);
-
-                int id = std::get<1>(point_tuple);
-
-                // A matching point the crucial point is "snapped" to. Compare before the offset is applied:
-                // comparing the stored point with the offset row never matched when a zero point offset was
-                // set, so the crucial points were missing from the Excel file.
-                const bool matchesRow = (dataRaw.x == (double)originalX);
-
-                // Same zero point as the data rows (and as the calculations in the app)
-                dataRaw.x -= zeroPointOffset;
-                dataStress.x -= zeroPointOffset;
-
-                if (dataVariation == VAR_ENG_STRESS)
-                {
-                    // Nominal stress
-                    dataStress.x = LR10KAppGlobals::CalcEpsilon_e(dataStress.x, L_0);
-                    dataStress.y = LR10KAppGlobals::CalcSigma_e(dataStress.y, A_0);
-                }
-
-                if (matchesRow)
-                {
-                    // Write into worksheet
-                    worksheet_write_string(worksheet, rowStartPoint + 1, colStartPoint, TabControl::plot_items[id], NULL);
-
-                    if (dataVariation == VAR_ENG_STRESS)
-                    {
-                        // ENG. STRESS
-                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 1, dataStress.x*100, fmt_decimal3);
-                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 2, dataStress.y, fmt_decimal3);
-                    }
-                    else
-                    {
-                        // RAW
-                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 1, dataRaw.x, fmt_decimal3);
-                        worksheet_write_number(worksheet, rowStartPoint + 1, colStartPoint + 2, dataRaw.y, fmt_decimal3);
-                    }
-
-                    // Add label to crucial point
-                    activeLabels->push_back(data_labels_options[id]);
-
-                    rowStartPoint++;
-                }
-            }
-        }
-
-        // -----------------------------------------------
+        // Label for the crucial point on the chart
+        activeLabels->push_back(data_labels_options[point.id]);
     }
     activeLabels->push_back(NULL); // Add NULL terminator for the C-style array
 }
 
-void AppMainExcel::CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_workbook* workbook, const char* sheet_name, lxw_worksheet* worksheet, const std::string date, AppMainExcel::ExcelDataVariationWorksheetData dataVariation)
+void AppMainExcel::CreateGraphChart(const ExcelReport::Report& report, lxw_workbook* workbook, const char* sheet_name, lxw_worksheet* worksheet, AppMainExcel::ExcelDataVariationWorksheetData dataVariation)
 {
+    const std::string& date = report.date;
     // ----------------------------------------------------
     // --------------- Chart styles and setup
     // ----------------------------------------------------
@@ -261,7 +178,7 @@ void AppMainExcel::CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_wo
     std::vector<lxw_chart_data_label*> activeLabels;
 
     /* Write some data for the chart. */
-    write_worksheet_data(tabData, workbook, &activeLabels, worksheet, dataVariation);
+    write_worksheet_data(report, workbook, &activeLabels, worksheet, dataVariation);
 
     // Set column width
     worksheet_set_column(worksheet, 0, 0, 7, NULL);
@@ -279,8 +196,8 @@ void AppMainExcel::CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_wo
 
     /* Add the first series to the chart (plot data). */
     lxw_chart_series* series = chart_add_series(chart, NULL, NULL);
-    chart_series_set_categories(series, sheet_name, CELL("D2"), (uint32_t)tabData.LR10KTensileData.Data.size() + 1, 3); // Column D (X-values) CELL("D2") = 1,3
-    chart_series_set_values(series, sheet_name, CELL("E2"), (uint32_t)tabData.LR10KTensileData.Data.size() + 1, 4); // Column E (Y-values) CELL("E2") = 1,4
+    chart_series_set_categories(series, sheet_name, CELL("D2"), (uint32_t)report.data.size() + 1, 3); // Column D (X-values) CELL("D2") = 1,3
+    chart_series_set_values(series, sheet_name, CELL("E2"), (uint32_t)report.data.size() + 1, 4); // Column E (Y-values) CELL("E2") = 1,4
 
     /* Set the name for the series instead of the default "Series 1". */
     chart_series_set_name(series, "Tensile stress");
@@ -295,8 +212,8 @@ void AppMainExcel::CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_wo
     {
         /* Add the second series to the chart (crucial points). */
         lxw_chart_series* series2 = chart_add_series(chart, NULL, NULL);
-        chart_series_set_categories(series2, sheet_name, CELL("B2"), (uint32_t)tabData.LR10KTensileData.Data.size() + 1, 1); // Column B (X-values) CELL("B2") = 1,1
-        chart_series_set_values(series2, sheet_name, CELL("C2"), (uint32_t)tabData.LR10KTensileData.Data.size() + 1, 2); // Column C (Y-values) CELL("C2") = 1,2
+        chart_series_set_categories(series2, sheet_name, CELL("B2"), (uint32_t)report.data.size() + 1, 1); // Column B (X-values) CELL("B2") = 1,1
+        chart_series_set_values(series2, sheet_name, CELL("C2"), (uint32_t)report.data.size() + 1, 2); // Column C (Y-values) CELL("C2") = 1,2
 
         /* Set the name for the series instead of the default "Series 2". */
         chart_series_set_name(series2, "Crucial point");
@@ -355,13 +272,13 @@ void AppMainExcel::CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_wo
     chart_title_set_name(chart, diagramName.c_str());
     if (dataVariation == AppMainExcel::VAR_RAW)
     {
-        chart_axis_set_name(chart->x_axis, ("Extension (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(0)) + ")").c_str());
-        chart_axis_set_name(chart->y_axis, ("Load (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(1)) + ")").c_str());
+        chart_axis_set_name(chart->x_axis, ("Extension (" + report.units.length + ")").c_str());
+        chart_axis_set_name(chart->y_axis, ("Load (" + report.units.force + ")").c_str());
     }
     else
     {
         chart_axis_set_name(chart->x_axis, "Strain (Epsilon %)");
-        chart_axis_set_name(chart->y_axis, ("Stress (" + std::string(LR10KAppGlobals::GetUnitOption<const char*>(6)) + ")").c_str());
+        chart_axis_set_name(chart->y_axis, ("Stress (" + report.units.stressAxis + ")").c_str());
     }
 
     /* Set an Excel chart style. */
@@ -399,7 +316,59 @@ void AppMainExcel::CreateGraphChart(TabControl::TabTestDataClass tabData, lxw_wo
     worksheet_insert_chart_opt(worksheet, CELL("G2"), chart, &options);
 }
 
-bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData, const char* filename)
+ExcelReport::Report AppMainExcel::MakeExcelReport(const TabControl::TabTestDataClass& tabData)
+{
+    ExcelReport::Report report;
+    report.date = tabData.date;
+    report.description = tabData.description;
+
+    // Units of the test itself (normally the same as the app's current units)
+    const int unitIndex = tabData.unitsConvertionIndex;
+    report.units.si = unitIndex == 0;
+    report.units.length = LR10KAppGlobals::GetUnitOption<const char*>(0, unitIndex);
+    report.units.force = LR10KAppGlobals::GetUnitOption<const char*>(1, unitIndex);
+    report.units.speed = LR10KAppGlobals::GetUnitOption<const char*>(2, unitIndex);
+    report.units.stressAxis = LR10KAppGlobals::GetUnitOption<const char*>(6, unitIndex);
+    report.units.stress = LR10KAppGlobals::GetUnitOption<const char*>(7, unitIndex);
+    report.units.modulus = report.units.si ? "GPa" : report.units.stress;
+
+    report.tension = tabData.tension;
+    report.specimen.crossSection = tabData.areaOptionPicked;
+    report.specimen.thickness = tabData.thickness;
+    report.specimen.width = tabData.width;
+    report.specimen.length = tabData.length;
+    report.specimen.diameter = tabData.diameter;
+    report.storedArea = tabData.area;
+    report.zeroOffset = tabData.LR10OffsetZeroPointExtensionAxis; // The test's own (was the global value of the active tab)
+
+    report.youngsModulus = tabData.calcYoungsModulus;
+    const double* nominal[TestCalc::TensileResults::kPoints] = { tabData.calcPoint_NominalStressStrain_PropLimit, tabData.calcPoint_NominalStressStrain_yield,
+        tabData.calcPoint_NominalStressStrainUTS, tabData.calcPoint_NominalStressStrain_fracture };
+    for (int i = 0; i < TestCalc::TensileResults::kPoints; i++)
+        report.nominal[i] = { nominal[i][0], nominal[i][1] };
+
+    report.crossheadSpeed = tabData.settings_speedAndPlot[0];
+    report.jogSpeed = tabData.settings_speedAndPlot[1];
+    report.loadErrorPercent = tabData.settings_speedAndPlot[2];
+    report.samplingRateHz = tabData.LR10KTensileData.SamplingRate;
+
+    report.data.reserve(tabData.LR10KTensileData.Data.size());
+    for (int i = 0; i < tabData.LR10KTensileData.Data.Size; i++)
+        report.data.push_back({ (double)tabData.LR10KTensileData.Data[i].x, (double)tabData.LR10KTensileData.Data[i].y });
+    for (const auto& point_tuple : tabData.plot_dataPoints)
+    {
+        const ImPlotPoint& p = std::get<0>(point_tuple);
+        report.points.push_back({ std::get<1>(point_tuple), { p.x, p.y } });
+    }
+    return report;
+}
+
+bool AppMainExcel::SavePlotDataAsAnXlsxFile(const TabControl::TabTestDataClass& tabData, const char* filename)
+{
+    return SaveReportAsXlsxFile(MakeExcelReport(tabData), filename);
+}
+
+bool AppMainExcel::SaveReportAsXlsxFile(const ExcelReport::Report& report, const char* filename)
 {
     std::string name = filename;
     if (name.find(".xlsx") == std::string::npos) name.append(".xlsx");
@@ -422,12 +391,13 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
     // ---------------------------------------------------------
     // A. FULL REPORT SHEET
     // ---------------------------------------------------------
-    bool dimensionsAdded = (tabData.thickness > 0 && tabData.width > 0 && tabData.length > 0);
+    // (Used to require thickness and width, so circular specimens got no report or stress sheets)
+    const bool dimensionsAdded = ExcelReport::HasStressSheets(report);
 
-    std::string unit_raw = LR10KAppGlobals::GetUnitOption<const char*>(0); //SI: mm
-    std::string unit_stress = LR10KAppGlobals::GetUnitOption<const char*>(7); //SI: N/mm^2 eller MPa
-    std::string unit_strain = "% (ɛ)"; //SI: N/mm^2 eller MPa
-    std::string unit_speed = LR10KAppGlobals::GetUnitOption<const char*>(2); //SI: mm/min
+    const std::string unit_raw = report.units.length;     //SI: mm
+    const std::string unit_stress = report.units.stress;  //SI: N/mm^2
+    const std::string unit_strain = "% (ɛ)";
+    const std::string unit_speed = report.units.speed;    //SI: mm/min
     std::string label = ""; // Container
 
     // Formats
@@ -462,28 +432,28 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
 
         worksheet_write_string(ws_report, CELL("A1"), "MATERIAL TESTING REPORT", fmt_header);
         worksheet_merge_range(ws_report, CELL("A1"), CELL("F1"), "MATERIAL TESTING REPORT", fmt_header);
-        worksheet_write_string(ws_report, 1, 0, std::string("Test date: " + tabData.date).c_str(), fmt_bold_left);
+        worksheet_write_string(ws_report, 1, 0, std::string("Test date: " + report.date).c_str(), fmt_bold_left);
 
         // Properties
-        std::string dim = tabData.unitsConvertionIndex == 0 ? "SI" : "English Engineering";
+        std::string dim = report.units.si ? "SI" : "English Engineering";
         dim = "Dimensions (" + dim + ")";
         worksheet_write_string(ws_report, CELL("A4"), dim.c_str(), fmt_bold_left);
 
         
 
-        if (tabData.areaOptionPicked == 0)
+        if (report.specimen.crossSection == MaterialCalc::Rectangular)
         {
             label = "Gauge Thickness (" + unit_raw + ")";
             worksheet_write_string(ws_report, CELL("A5"), label.c_str(), NULL);
-            worksheet_write_number(ws_report, CELL("B5"), tabData.thickness, fmt_decimal3);
+            worksheet_write_number(ws_report, CELL("B5"), report.specimen.thickness, fmt_decimal3);
             worksheet_write_string(ws_report, CELL("C5"), unit_raw.c_str(), fmt_bold_left);
 
             label = "Gauge Width (" + unit_raw + ")";
             worksheet_write_string(ws_report, CELL("A6"), label.c_str(), NULL);
-            worksheet_write_number(ws_report, CELL("B6"), tabData.width, fmt_decimal3);
+            worksheet_write_number(ws_report, CELL("B6"), report.specimen.width, fmt_decimal3);
             worksheet_write_string(ws_report, CELL("C6"), unit_raw.c_str(), fmt_bold_left);
         }
-        else if (tabData.areaOptionPicked == 1)
+        else if (report.specimen.crossSection == MaterialCalc::Circular)
         {
             label = "-";
             worksheet_write_string(ws_report, CELL("A5"), label.c_str(), NULL);
@@ -492,19 +462,19 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
 
             label = "Gauge Diameter (" + unit_raw + ")";
             worksheet_write_string(ws_report, CELL("A6"), label.c_str(), NULL);
-            worksheet_write_number(ws_report, CELL("B6"), tabData.diameter, fmt_decimal3);
+            worksheet_write_number(ws_report, CELL("B6"), report.specimen.diameter, fmt_decimal3);
             worksheet_write_string(ws_report, CELL("C6"), unit_raw.c_str(), fmt_bold_left);
         }
 
         label = "Gauge Length (L0) (" + unit_raw + ")";
         worksheet_write_string(ws_report, CELL("A7"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("B7"), tabData.length, fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("B7"), report.specimen.length, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("C7"), unit_raw.c_str(), fmt_bold_left);
 
         label = "Cross-sectional area (" + unit_raw + "^2)";
         std::string unit = unit_raw + "^2";
         worksheet_write_string(ws_report, CELL("A8"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("B8"), tabData.area, fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("B8"), ExcelReport::AreaForExport(report), fmt_decimal3);
         worksheet_write_string(ws_report, CELL("C8"), unit.c_str(), fmt_bold_left);
 
         // (Add other calculations like E-Modulus here if needed) σ
@@ -515,30 +485,30 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
         worksheet_write_string(ws_report, CELL("A10"), "Engineering stress (nominal stress)", fmt_bold_left);
 
         // GPa with SI units, psi with imperial units (same as in the app)
-        const std::string unit_modulus = LR10KAppGlobals::unitsConvertionIndex == 0 ? "GPa" : LR10KAppGlobals::GetUnitOption<const char*>(7);
+        const std::string unit_modulus = report.units.modulus;
         label = "Young's Modulus, E-Modulus (" + unit_modulus + ")";
         worksheet_write_string(ws_report, CELL("A11"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("B11"), tabData.calcYoungsModulus, fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("B11"), report.youngsModulus, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("C11"), unit_modulus.c_str(), fmt_bold_left);
 
         label = "Proportional Limit (" + unit_stress + ")";
         worksheet_write_string(ws_report, CELL("A12"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("B12"), tabData.calcPoint_NominalStressStrain_PropLimit[stress], fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("B12"), report.nominal[0].stress, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("C12"), unit_stress.c_str(), fmt_bold_left);
 
         label = "Yield Strength (" + unit_stress + ")";
         worksheet_write_string(ws_report, CELL("A13"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("B13"), tabData.calcPoint_NominalStressStrain_yield[stress], fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("B13"), report.nominal[1].stress, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("C13"), unit_stress.c_str(), fmt_bold_left);
 
         label = "Ultimate Tensile Stress (" + unit_stress + ")";
         worksheet_write_string(ws_report, CELL("A14"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("B14"), tabData.calcPoint_NominalStressStrainUTS[stress], fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("B14"), report.nominal[2].stress, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("C14"), unit_stress.c_str(), fmt_bold_left);
 
         label = "Fracture (" + unit_stress + ")";
         worksheet_write_string(ws_report, CELL("A15"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("B15"), tabData.calcPoint_NominalStressStrain_fracture[stress], fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("B15"), report.nominal[3].stress, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("C15"), unit_stress.c_str(), fmt_bold_left);
 
         // Strain
@@ -546,22 +516,22 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
 
         label = "Proportional Limit (" + unit_strain + ")";
         worksheet_write_string(ws_report, CELL("D12"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("E12"), tabData.calcPoint_NominalStressStrain_PropLimit[strain]*100, fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("E12"), report.nominal[0].strain*100, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("F12"), unit_strain.c_str(), fmt_bold_left);
 
         label = "Yield Strength (" + unit_strain + ")";
         worksheet_write_string(ws_report, CELL("D13"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("E13"), tabData.calcPoint_NominalStressStrain_yield[strain]*100, fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("E13"), report.nominal[1].strain*100, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("F13"), unit_strain.c_str(), fmt_bold_left);
 
         label = "Ultimate Tensile Stress (" + unit_strain + ")";
         worksheet_write_string(ws_report, CELL("D14"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("E14"), tabData.calcPoint_NominalStressStrainUTS[strain]*100, fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("E14"), report.nominal[2].strain*100, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("F14"), unit_strain.c_str(), fmt_bold_left);
 
         label = "Fracture (" + unit_strain + ")";
         worksheet_write_string(ws_report, CELL("D15"), label.c_str(), NULL);
-        worksheet_write_number(ws_report, CELL("E15"), tabData.calcPoint_NominalStressStrain_fracture[strain]*100, fmt_decimal3);
+        worksheet_write_number(ws_report, CELL("E15"), report.nominal[3].strain*100, fmt_decimal3);
         worksheet_write_string(ws_report, CELL("F15"), unit_strain.c_str(), fmt_bold_left);
 
         // ------------
@@ -570,8 +540,8 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
         worksheet_write_string(ws_report, CELL("A17"), "Description", fmt_bold_left);
         worksheet_merge_range(ws_report, CELL("A17"), CELL("C17"), "Description", fmt_bold_left);
 
-        worksheet_write_string(ws_report, CELL("A18"), tabData.description.c_str(), fmt_upper_right);
-        worksheet_merge_range(ws_report, CELL("A18"), CELL("C23"), tabData.description.c_str(), fmt_upper_right);
+        worksheet_write_string(ws_report, CELL("A18"), report.description.c_str(), fmt_upper_right);
+        worksheet_merge_range(ws_report, CELL("A18"), CELL("C23"), report.description.c_str(), fmt_upper_right);
     }
 
     // ---------------------------------------------------------
@@ -585,27 +555,27 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
     // (Write your setup values here as before)
     label = "Crosshead speed (" + unit_speed + ")";
     worksheet_write_string(ws_setup, CELL("A3"), label.c_str(), NULL);
-    worksheet_write_number(ws_setup, CELL("B3"), tabData.settings_speedAndPlot[0], fmt_decimal2);
+    worksheet_write_number(ws_setup, CELL("B3"), report.crossheadSpeed, fmt_decimal2);
     worksheet_write_string(ws_setup, CELL("C3"), unit_speed.c_str(), fmt_bold_left);
 
     label = "Jog speed (" + unit_speed + ")";
     worksheet_write_string(ws_setup, CELL("A4"), label.c_str(), NULL);
-    worksheet_write_number(ws_setup, CELL("B4"), tabData.settings_speedAndPlot[1], fmt_decimal2);
+    worksheet_write_number(ws_setup, CELL("B4"), report.jogSpeed, fmt_decimal2);
     worksheet_write_string(ws_setup, CELL("C4"), unit_speed.c_str(), fmt_bold_left);
 
     label = "Load Error (%)";
     worksheet_write_string(ws_setup, CELL("A5"), label.c_str(), NULL);
-    worksheet_write_number(ws_setup, CELL("B5"), tabData.settings_speedAndPlot[2], fmt_decimal2);
+    worksheet_write_number(ws_setup, CELL("B5"), report.loadErrorPercent, fmt_decimal2);
     worksheet_write_string(ws_setup, CELL("C5"), "%", fmt_bold_left);
 
     label = "Test Type (Tension or Compr.)";
     worksheet_write_string(ws_setup, CELL("A6"), label.c_str(), NULL);
-    worksheet_write_string(ws_setup, CELL("B6"), tabData.tension ? "Tension Testing" : "Compression Testing", fmt_bold_right);
+    worksheet_write_string(ws_setup, CELL("B6"), report.tension ? "Tension Testing" : "Compression Testing", fmt_bold_right);
 
     // Some old saves won't have this data, and is set to 0 after loading it in (before 2026)
     label = "Sampling Rate (Hz)";
     worksheet_write_string(ws_setup, CELL("A7"), label.c_str(), NULL);
-    worksheet_write_number(ws_setup, CELL("B7"), tabData.LR10KTensileData.SamplingRate, fmt_decimal0);
+    worksheet_write_number(ws_setup, CELL("B7"), report.samplingRateHz, fmt_decimal0);
     worksheet_write_string(ws_setup, CELL("C7"), "Hz", fmt_bold_left);
 
     // ---------------------------------------------------------
@@ -613,21 +583,6 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
     // ---------------------------------------------------------
     // For this one, we stick to the existing pattern:
     // Create a sheet -> Write the data -> Add the chart.
-
-    // Prep Data (Zero Offset)
-    RollingBuffer tensileData = tabData.LR10KTensileData;
-    for (size_t i = 0; i < tensileData.Data.size(); i++) {
-        tensileData.Data[i].x -= (float)defaultValuesGUI::offsetZeroPointExtensionAxis;
-    }
-
-    // Calculate Limits (Safe Defaults)
-    float maxX = 0.0f; float maxY = 0.0f;
-    for (const auto& point : tensileData.Data) {
-        if (point.x > maxX) maxX = point.x;
-        if (point.y > maxY) maxY = point.y;
-    }
-    if (maxX <= 0) maxX = 1.0f;
-    if (maxY <= 0) maxY = 1.0f;
 
     // Worksheet names
     const char* sheetNameGraphNmm   = "Graph N-mm";
@@ -640,7 +595,7 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
     lxw_worksheet* worksheetTrueStress  = workbook_add_worksheet(workbook, sheetNameTrueStress);
 
     // Call the Load-Extension Chart
-    CreateGraphChart(tabData, workbook, sheetNameGraphNmm, worksheetGraphNmm, tabData.date, AppMainExcel::VAR_RAW);
+    CreateGraphChart(report, workbook, sheetNameGraphNmm, worksheetGraphNmm, AppMainExcel::VAR_RAW);
 
 
     // ---------------------------------------------------------
@@ -654,11 +609,11 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
 
         // 1. Engineering Stress (Nominal)
         // Pass NULL for the worksheet because the function creates a new one.
-        CreateGraphChart(tabData, workbook, sheetNameEngStress, worksheetEngStress, tabData.date, AppMainExcel::VAR_ENG_STRESS);
+        CreateGraphChart(report, workbook, sheetNameEngStress, worksheetEngStress, AppMainExcel::VAR_ENG_STRESS);
 
         // 2. True Stress (Optional)
         // Only call this if you want a SECOND sheet for True Stress
-        CreateGraphChart(tabData, workbook, sheetNameTrueStress, worksheetTrueStress, tabData.date, AppMainExcel::VAR_TRUE_STRESS);
+        CreateGraphChart(report, workbook, sheetNameTrueStress, worksheetTrueStress, AppMainExcel::VAR_TRUE_STRESS);
     }
 
     // ---------------------------------------------------------

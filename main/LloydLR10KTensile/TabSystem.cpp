@@ -677,6 +677,7 @@ void TabControl::TabTestDataClass::ConvertUnitsBackToBase(TabControl::TabTestDat
         tabData->width      /= unitConvOld_dist;
         tabData->length     /= unitConvOld_dist;
         tabData->diameter   /= unitConvOld_dist;
+        tabData->LR10OffsetZeroPointExtensionAxis = (float)(tabData->LR10OffsetZeroPointExtensionAxis / unitConvOld_dist); // Zero point is a length too
         // Area will be calculated automatically
 
         // "Normal" plot data
@@ -734,6 +735,7 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestData
     tabData->width      *= unitConv_dist;
     tabData->length     *= unitConv_dist;
     tabData->diameter   *= unitConv_dist;
+    tabData->LR10OffsetZeroPointExtensionAxis = (float)(tabData->LR10OffsetZeroPointExtensionAxis * unitConv_dist);
     // Area will be calculated automatically
 
     // "Normal" plot data
@@ -795,6 +797,7 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::Ta
     tabData->width *= unitConv_dist;
     tabData->length *= unitConv_dist;
     tabData->diameter *= unitConv_dist;
+    tabData->LR10OffsetZeroPointExtensionAxis = (float)(tabData->LR10OffsetZeroPointExtensionAxis * unitConv_dist);
     // Area will be calculated automatically
 
     // "Normal" plot data
