@@ -1,5 +1,6 @@
-# Builds the Doxygen documentation and publishes it to GitHub Pages.
-# One-time setup: Settings -> Pages -> Source: "GitHub Actions".
+# Builds the Doxygen documentation and uploads it as a downloadable
+# workflow artifact (Actions -> Docs -> latest run -> "docs-html").
+# GitHub Pages is not used because it needs a paid plan for private repos.
 name: Docs
 
 on:
@@ -9,12 +10,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
   build:
@@ -26,16 +21,8 @@ jobs:
       - name: Generate docs
         working-directory: docs
         run: doxygen Doxyfile
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
+          name: docs-html
           path: docs/html
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          retention-days: 90

@@ -188,7 +188,7 @@ struct Extra_Tools {
         // See README "Tutorial videos" and scripts/fetch-videos.ps1.
         std::error_code ec;
         if (!std::filesystem::exists(absolutePath, ec)) {
-            std::system("start \"\" \"https://github.com/ravo10/lr10k/releases/tag/demo-videos\"");
+            std::system("start \"\" \"https://github.com/ravo10/lr10k-2027/releases/tag/demo-videos-1.0\"");
             return;
         }
 
