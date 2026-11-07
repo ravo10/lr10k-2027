@@ -1368,9 +1368,17 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
     if (TabControl::allTabTestData.size() > 0)
     {
+        // Menu "Exit application" or the window's X button / Alt+F4 (see WM_CLOSE in main.cpp):
+        // asks first if a test is unsaved, otherwise closes right away
         DockingApps::mainFileSystem.PromptUserToCloseTabBeforeSaving("Exit the application?", mainGUIGlobals::openPopupCloseApp, &mainGUIGlobals::done);
         mainGUIGlobals::openPopupCloseApp = false;
         mainGUIGlobals::forcePopupCloseApp = false;
+    }
+    else if (mainGUIGlobals::openPopupCloseApp)
+    {
+        // No tests open: nothing to lose (before, "Exit application" did nothing in this case)
+        mainGUIGlobals::openPopupCloseApp = false;
+        mainGUIGlobals::done = true;
     }
 
     // Create the tab menu system.
@@ -3489,7 +3497,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
     ImGui::PopFont();
 
     // Remove a crucial point with hotkey
-    if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z))
+    if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false)) // false: one point per key press, also when Z is held
         TabControl::CrucialPointsUndoPoint(tabData);
 
     ImGui::End();

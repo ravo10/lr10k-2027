@@ -1119,6 +1119,14 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
             return 0;
         break;
+    case WM_CLOSE:
+        // The window's X button or Alt+F4: show the same "Exit the application?" prompt as
+        // Menu > Exit application (it only asks when a test is unsaved, otherwise the app closes).
+        // The main loop then ends and cleans up. Without this, unsaved tests were lost without a warning.
+        if (::IsIconic(hWnd))
+            ::ShowWindow(hWnd, SW_RESTORE); // Closed from the taskbar while minimized: the prompt is only drawn when visible
+        mainGUIGlobals::openPopupCloseApp = true;
+        return 0;
     case WM_DESTROY:
         ::PostQuitMessage(0);
         return 0;

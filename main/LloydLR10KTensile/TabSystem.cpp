@@ -80,18 +80,22 @@ void TabControl::CrucialPointsUndoPoint(TabControl::TabTestDataClass* tabData)
 {
     if (tabData == nullptr) return;
 
-    std::vector<std::tuple<ImPlotPoint, int>>* dataPoints = &tabData->plot_dataPoints;
+    // Remove the most recently added point, whatever its type. (Before, only points of the LAST type in
+    // plot_items were removed: that was "Other" until the E-modulus bounds were added after it, so undo
+    // stopped working for normal points. The loop also never reached the first point.)
+    std::vector<std::tuple<ImPlotPoint, int>>& dataPoints = tabData->plot_dataPoints;
+    if (dataPoints.empty())
+        return;
 
-    // Check if the last point has an property ID == 4, or contiune to check
-    for (int i = dataPoints->size() - 1; i > 0; i--)
-    {
-        // Check if valid...
-        if (dataPoints->size() > 0 && std::get<int>(dataPoints->at(i)) == IM_ARRAYSIZE(TabControl::plot_items) - 1)
-        {
-            dataPoints->erase(dataPoints->begin() + i);
-            break;
-        }
-    }
+    const int id = std::get<int>(dataPoints.back());
+    dataPoints.pop_back();
+
+    const bool knownId = id >= 0 && id < IM_ARRAYSIZE(TabControl::plot_items);
+    DockingApps::console.AddLog("Removed the last added point (%s).", knownId ? TabControl::plot_items[id] : "unknown");
+
+    // Results that depend on the point (stress points, E-modulus) are recalculated; the tab must be saved again
+    tabData->NeedsRecalculation.markAsUnsaved = true;
+    tabData->NeedsRecalculation.recalculate = true;
 }
 
 /**
