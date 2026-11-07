@@ -51,6 +51,7 @@ static const char* LR10KSettingsFileVersion = "1.1.2 [26.02.2026]";
 
 #include "styles.h"
 #include "ExcelReport.h"
+#include "CrashReport.h"
 #include <codecvt>
 
 // -----------------------------------------------------------------------------
@@ -308,24 +309,24 @@ extern AppWindowStates g_WindowStates;
     @brief     These values are used for controlling special features in GUI. They are also saved in settings file that load on start.
 **/
 namespace mainGUIGlobals {
-    inline extern bool enableSound = true;               //!< Used for enabling sound for the GUI.
-    inline extern bool fullScreen = false;               //!< Used for enabling fullscreen for the GUI.
-    inline extern bool enableDPIAwareness = false;       //!< Used for enabling DPI Awerness for high resolution screens.
+    inline bool enableSound = true;               //!< Used for enabling sound for the GUI.
+    inline bool fullScreen = false;               //!< Used for enabling fullscreen for the GUI.
+    inline bool enableDPIAwareness = false;       //!< Used for enabling DPI Awerness for high resolution screens.
 
-    inline extern bool done = false;                        //!< Used for keeping the main hook alive.
-    inline extern bool openPopupCloseApp = false;           //!< Used for opening the "close window" pop up. (used for when clicking in "X" button or "Exit" from menu)
-    inline extern bool forcePopupCloseApp = false;          //!< Used for force open the "close window" dialog. (used for when clicking in "X" button)
-    inline extern bool useDemoMode = false;                 //!< Used for demostrating the graph functionality with demo or real data.
-    inline extern bool useDemoModeLiveLoad = false;         //!< Used for taking mouse pointer demo input as test data, or not.
-    inline extern bool useDemoModeLiveExtension = false;    //!< Used for taking incrementer demo input as test data, or not.
-    inline extern float dpiScale = 1.0f;                    //!< Used for getting the High DPI scale currently at use.
+    inline bool done = false;                        //!< Used for keeping the main hook alive.
+    inline bool openPopupCloseApp = false;           //!< Used for opening the "close window" pop up. (used for when clicking in "X" button or "Exit" from menu)
+    inline bool forcePopupCloseApp = false;          //!< Used for force open the "close window" dialog. (used for when clicking in "X" button)
+    inline bool useDemoMode = false;                 //!< Used for demostrating the graph functionality with demo or real data.
+    inline bool useDemoModeLiveLoad = false;         //!< Used for taking mouse pointer demo input as test data, or not.
+    inline bool useDemoModeLiveExtension = false;    //!< Used for taking incrementer demo input as test data, or not.
+    inline float dpiScale = 1.0f;                    //!< Used for getting the High DPI scale currently at use.
 
-    inline extern bool ignoreSavingPrompt = false;                      //!< Used for getting a notification when trying to close an unsaved document.
-    inline extern bool ignoreSavingPrompt2 = false;                     //!< (Unused: the pop up it controlled could never appear. Kept so existing settings files stay valid.)
-    inline extern std::string guiTheme = mainGUIThemes::Default;        //!< Used for getting the active theme the user picked.
+    inline bool ignoreSavingPrompt = false;                      //!< Used for getting a notification when trying to close an unsaved document.
+    inline bool ignoreSavingPrompt2 = false;                     //!< (Unused: the pop up it controlled could never appear. Kept so existing settings files stay valid.)
+    inline std::string guiTheme = mainGUIThemes::Default;        //!< Used for getting the active theme the user picked.
 
     static const char* popUpID_ConnectionTimout = "Connection timeout";                     //!< Pop Up ID for the Connection timeout.
-    inline extern bool showPopUp_ConnectionTimeout = false;                                 //!< Will display the pop up when true.
+    inline bool showPopUp_ConnectionTimeout = false;                                 //!< Will display the pop up when true.
     static const char* popUpID_DimensionsNotAdded = "Dimensions for test piece not added";  //!< Pop Up ID for Dimension not added..
     static const char* popUpID_SomethingUnexpectedHappend = "Something unexpeced happend";  //!< Pop Up ID for the Something unexpeced happend.
     static const char* popUpID_ConnectionLost = "Connection lost";                          //!< Pop Up ID for when the COM port stops working (e.g. cable/USB adapter unplugged).
@@ -431,7 +432,7 @@ extern TextureUploadContext g_MaskUploadCtx;
 
 // -----------------------------------------------
 //! \note A struct to hold everything the getter needs. RawData (Assuming your data is stored as ImVec2 (x=ext, y=load)), Area0 and Length0.
-extern struct StressStrainContext {
+struct StressStrainContext {
     const ImVec2* RawData; // Assuming your data is stored as ImVec2 (x=ext, y=load)
     double Area0;
     double Length0;
@@ -449,11 +450,11 @@ extern bool g_hasNewFrame; //!< Flag to tell Main thread to upload
 
 //! Create a file browser instances
 //! 
-inline extern ImGui::FileBrowser fileBrowserSaveAsLR10KTest = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename); //!< File browser window settings for when saving an opening a LR10K file.
-inline extern ImGui::FileBrowser fileBrowserPreSaveLR10KTest = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_SelectDirectory); //!< File browser window settings for when pre-saving an opening a LR10K file.
-inline extern ImGui::FileBrowser fileBrowserSaveXlsx = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename); //!< File browser window settings for when saving an LR10K file.
-inline extern ImGui::FileBrowser fileBrowserOpenLR10KTest = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir); //!< File browser window settings for when saving an excel file.
-inline extern ImGui::FileBrowser fileBrowserSaveVideoRecordingExt = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_SelectDirectory); //!< File browser window settings for when setting save position for video recording.
+inline ImGui::FileBrowser fileBrowserSaveAsLR10KTest = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename); //!< File browser window settings for when saving an opening a LR10K file.
+inline ImGui::FileBrowser fileBrowserPreSaveLR10KTest = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_SelectDirectory); //!< File browser window settings for when pre-saving an opening a LR10K file.
+inline ImGui::FileBrowser fileBrowserSaveXlsx = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename); //!< File browser window settings for when saving an LR10K file.
+inline ImGui::FileBrowser fileBrowserOpenLR10KTest = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir); //!< File browser window settings for when saving an excel file.
+inline ImGui::FileBrowser fileBrowserSaveVideoRecordingExt = ImGui::FileBrowser(ImGuiFileBrowserFlags_CloseOnEsc | ImGuiFileBrowserFlags_CreateNewDir | ImGuiFileBrowserFlags_EnterNewFilename | ImGuiFileBrowserFlags_SelectDirectory); //!< File browser window settings for when setting save position for video recording.
 
 // -----------------------------------------------------------------------------
 
@@ -463,44 +464,44 @@ inline extern ImGui::FileBrowser fileBrowserSaveVideoRecordingExt = ImGui::FileB
 **/
 namespace defaultValuesGUI {
     //! \details Used for the setting the settings on the control panel (settings panel)
-    inline extern float speedAndPlot[3]{ 30.0f, 100.0f, 0.0f };             //!< mm (this is later calculated auto. from "testing_speedAndPlotMaxValuesActual")
+    inline float speedAndPlot[3]{ 30.0f, 100.0f, 0.0f };             //!< mm (this is later calculated auto. from "testing_speedAndPlotMaxValuesActual")
     //! \details Used for the setting the settings on the control panel (settings panel)
-    inline extern const float speedAndPlotGUI[3]{ 6.0f, 20.0f, 0.0f };      //!< percentage (this is what is displayed in the sliders) (this is what sets the values)
+    inline const float speedAndPlotGUI[3]{ 6.0f, 20.0f, 0.0f };      //!< percentage (this is what is displayed in the sliders) (this is what sets the values)
 
     //! \details Used for controlling the view area of the plot graph
-    inline extern const float loadAxis{ 1000.0f };      //!< Newton
+    inline const float loadAxis{ 1000.0f };      //!< Newton
     //! \details Used for controlling the view area of the plot graph
-    inline extern const float extensionAxis{ 5.0f };    //!< mm
+    inline const float extensionAxis{ 5.0f };    //!< mm
 
     //! \details Used for controlling the amount of increment each axis should expand when hitting the "end point" of the graph (loadAxis and extensionAxis)
-    inline extern const float loadAxisIncrement{ 800.0f };       //!< Newton
+    inline const float loadAxisIncrement{ 800.0f };       //!< Newton
     //! \details Used for controlling the amount of increment each axis should expand when hitting the "end point" of the graph (loadAxis and extensionAxis)
-    inline extern const float extensionAxisIncrement{ 0.6f };    //!< mm
+    inline const float extensionAxisIncrement{ 0.6f };    //!< mm
 
     //! \details Used for controlling the amount of increment each axis should expand when hitting the "end point" of the graph (loadAxis and extensionAxis), when showing the stress-graph
-    inline extern const float stressAxisIncrement{ 20.0f };    //!< N/mm^2 sigma (MPa)
+    inline const float stressAxisIncrement{ 20.0f };    //!< N/mm^2 sigma (MPa)
     //! \details Used for controlling the amount of increment each axis should expand when hitting the "end point" of the graph (loadAxis and extensionAxis), when showing the stress-graph
-    inline extern const float strainAxisIncrement{ 0.0015f };    //!< Unit less epsilon
+    inline const float strainAxisIncrement{ 0.0015f };    //!< Unit less epsilon
 
     //! \details Used for calculator, for calculating material properties
-    inline extern float calc_thickness{ 0.0f }; //!< mm
+    inline float calc_thickness{ 0.0f }; //!< mm
     //! \details Used for calculator, for calculating material properties
-    inline extern float calc_width{ 0.0f };     //!< mm
+    inline float calc_width{ 0.0f };     //!< mm
     //! \details Used for calculator, for calculating material properties
-    inline extern float calc_length{ 0.0f };    //!< mm
+    inline float calc_length{ 0.0f };    //!< mm
     //! \details Used for calculator, for calculating material properties
-    inline extern bool useGlobalValuesOnNewTests = false;
+    inline bool useGlobalValuesOnNewTests = false;
 
     //! \details Used for calculator, for calculating material properties when there is a circular area
-    inline extern float calc_diameter{ 0.0f };    //!< mm
+    inline float calc_diameter{ 0.0f };    //!< mm
 
     //! \details Used for setting an offset from zero point on the extension axis
-    inline extern float offsetZeroPointExtensionAxis{ 0.0f };   //!< mm
+    inline float offsetZeroPointExtensionAxis{ 0.0f };   //!< mm
 
     //! \details Used for disabling the toogle graph button or when user wants to save (need to calculate first)
 
     //! \details Used to reset translation GUI if the crosshead e.g. suddenly stops
-    inline extern bool resetNavigationGUIButtons = false;
+    inline bool resetNavigationGUIButtons = false;
 }
 
 /**
@@ -518,9 +519,9 @@ namespace LR10KAppGlobals {
     static const float Convert_extension_to_mm{ 1.0f / -10.25f };   //!< \details Multiply this value to convert extension data to mm from the extra equipment.
 
     //! \note Use optical source as extensiometer (experimental)
-    inline extern bool opticalSourceAsExtensiometer = false;
+    inline bool opticalSourceAsExtensiometer = false;
     //! \note Target color to use for the extensiometer
-    inline extern float opticalSourceExtensiometerTargetColor[3] = { 0.286442f, 0.598039f, 0.228662f }; //!< #49993A is the default color
+    inline float opticalSourceExtensiometerTargetColor[3] = { 0.286442f, 0.598039f, 0.228662f }; //!< #49993A is the default color
 
     //! \brief Converts a unit to another by multiplying the double constants.
     //! \details Index 8 is e.g. inches and index 9 is e.g. the lbf convertion scalar. and index 10 is e.g. the lbf/in^2 scalar
@@ -530,7 +531,7 @@ namespace LR10KAppGlobals {
         { "in", "lbf", "in/min", "lbf/in^2", "inches", "pound-force", "psi [lbf/in^2]", "psi", 0.0393700787, 0.2248089431, 0.2248089431 / (0.0393700787 * 0.0393700787), "psi"}
     };
     //! \details The index of the unit vector.
-    inline extern int unitsConvertionIndex = 0;
+    inline int unitsConvertionIndex = 0;
 
     /**
         @brief  Gets the correct value from the units conversion.
@@ -540,7 +541,7 @@ namespace LR10KAppGlobals {
     template <typename ReturnType>
     ReturnType GetUnitOption(int index, int unitIndex = unitsConvertionIndex)
     {
-        if (unitIndex < LR10KAppGlobals::unitsConvertion.size()) {
+        if (unitIndex >= 0 && unitIndex < (int)LR10KAppGlobals::unitsConvertion.size()) {
             if (std::holds_alternative<ReturnType>(LR10KAppGlobals::unitsConvertion[unitIndex][index]))
             {
                 return std::get<ReturnType>(LR10KAppGlobals::unitsConvertion[unitIndex][index]);
@@ -550,7 +551,7 @@ namespace LR10KAppGlobals {
         return ReturnType{};
     }
 
-   inline extern std::string pendingFileToLoad = "";
+   inline std::string pendingFileToLoad = "";
 
     //! Connection state and status texts of the LR 10K (COM port, connected, live data, zero point, status/warning
     //! texts). Thread safe: written by the connect/setup/reconnect and interpreter threads, read by the GUI.
@@ -559,81 +560,81 @@ namespace LR10KAppGlobals {
     inline LR10KStatus& MachineStatus() { return LR10KDataDeEncryptionSystem::machineStatus; }
 
     //! \note Security toogle for stopping LR 10K crosshead when translating down.
-    inline extern bool  shutLR10KDownIfLoadToHigh = true;
+    inline bool  shutLR10KDownIfLoadToHigh = true;
 
     //! \note Settings related to Real Time testing
-    inline extern bool tensionTesting = true; //!< false = compression testing.
+    inline bool tensionTesting = true; //!< false = compression testing.
     //! \note Decides if the zero point is going to be set or not on start test.
-    inline extern bool setZeroPointOnStarTest = true;
+    inline bool setZeroPointOnStarTest = true;
     //! \note Decides if the crosshead is going to stop automatically if it reaches it load limit when a test is not started.
-    inline extern bool stopTranslationOfCrossheadSaftey = true;
+    inline bool stopTranslationOfCrossheadSaftey = true;
 
     //! \note Related to Real Time testing data
     static const float testing_speedAndPlotMinValuesGUI[3]{ 1.0f, 1.0f, -10.0f };        //!< \note percentage.
     //! \note Related to Real Time testing data
     static const float testing_speedAndPlotMaxValuesGUI[3]{ 100.0f, 100.0f, 10.0f };     //!< \note percentage.
     //! \details Related to Real Time testing data. This is good to use to see changes from GUI adjustment in realtime. (but is not the finished set data)
-    inline extern float testing_speedAndPlotGUI[3]{
+    inline float testing_speedAndPlotGUI[3]{
             defaultValuesGUI::speedAndPlotGUI[0]    //!< \note percentage
         ,   defaultValuesGUI::speedAndPlotGUI[1]    //!< \note percentage
         ,   defaultValuesGUI::speedAndPlotGUI[2]    //!< \note percentage
     }; //!< (These are changing values)
 
     //! \details The break threshold for a live testing. Will stop the test if the break point is e.g. 30 % lower than the UTS point.
-    //inline extern std::atomic<float> breakThreshold = 0.1f;  //!< \note percentage. This setting is not sent to the LR 10K, but calculated inside the software.
+    //inline std::atomic<float> breakThreshold = 0.1f;  //!< \note percentage. This setting is not sent to the LR 10K, but calculated inside the software.
     //! \brief Enable or disable break threshold automatic detection.
-    //inline extern std::atomic<int> enable_breakThreshold = 1;
+    //inline std::atomic<int> enable_breakThreshold = 1;
 
     //! \details The break threshold for a live testing. Will stop the test if the break point is e.g. 30 % lower than the UTS point.
-    inline extern float breakThreshold = 0.2f;  //!< \note percentage. This setting is not sent to the LR 10K, but calculated inside the software.
+    inline float breakThreshold = 0.2f;  //!< \note percentage. This setting is not sent to the LR 10K, but calculated inside the software.
     //! \brief Enable or disable break threshold automatic detection.
-    inline extern int enable_breakThreshold = 0;
+    inline int enable_breakThreshold = 0;
 
     //! \brief The range of which the extensiometer can travle.
-    inline extern float extensiometerRange = 1000.0f;
+    inline float extensiometerRange = 1000.0f;
     //! \brief Enables or disable extensiometer
-    inline extern int enable_extensiomter = 0;
+    inline int enable_extensiomter = 0;
 
     //! \details The max load the LR 10K will allow before automatically ending the test.
     //! \note This is sent to the LR 10K, and handled by the LR 10K. In Newtons
-    inline extern float maximumLoadAllowedInsideLR10K = 10000.0f;
+    inline float maximumLoadAllowedInsideLR10K = 10000.0f;
     //! \details The max extension the LR 10K will allow before automatically ending the test.
     //! \note This is sent to the LR 10K, and handled by the LR 10K. In millimeter
-    inline extern float maximumExtensionAllowedInsideLR10K = 500.0f;
+    inline float maximumExtensionAllowedInsideLR10K = 500.0f;
 
     //! \note Related to Real Time testing data
     static float testing_speedAndPlotMinValuesActual[3]{ 0.1f, 0.1f, -0.1f };     //!< \note mm/min, mm/min & percentage.
     //! \note Related to Real Time testing data
     static float testing_speedAndPlotMaxValuesActual[3]{ 500.0f, 500.0f, 0.1f };  //!< \note mm/min, mm/min & percentage.
     //! \details Related to Real Time testing data. This is the actual set data when the vertical sliders gets released. (also used for tab-data)
-    inline extern float testing_speedAndPlotActual[3]{
+    inline float testing_speedAndPlotActual[3]{
             defaultValuesGUI::speedAndPlot[0]   //!< \note mm/min
         ,   defaultValuesGUI::speedAndPlot[1]   //!< \note mm/min
         ,   defaultValuesGUI::speedAndPlot[2]   //!< \note percentage
     }; //!< (These are changing values)
 
     //! \note Plot adjustment setting
-    inline extern bool showStressStrain = true; //!< \details Graph type for viewing nominal and true stress and strain. False if stress graph is visible.
+    inline bool showStressStrain = true; //!< \details Graph type for viewing nominal and true stress and strain. False if stress graph is visible.
 
     //! \note Plot adjustment setting
-    inline extern std::atomic<float> testing_plot_only_loadAxis(defaultValuesGUI::loadAxis);            //!< \details This controls how far the y-axis goes.
+    inline std::atomic<float> testing_plot_only_loadAxis(defaultValuesGUI::loadAxis);            //!< \details This controls how far the y-axis goes.
     //! \note Plot adjustment setting
-    inline extern std::atomic<float> testing_plot_only_extensionAxis(defaultValuesGUI::extensionAxis);  //!< \details This controls how far the x-axis goes.
+    inline std::atomic<float> testing_plot_only_extensionAxis(defaultValuesGUI::extensionAxis);  //!< \details This controls how far the x-axis goes.
 
     //! \details Used for picking the area you want to calculate
-    inline extern int areaOptionPicked = 0; //!< mm
+    inline int areaOptionPicked = 0; //!< mm
     //! \details Used for picking the correct compression option normal or 3-point
-    inline extern int compressionOptionPicked = 0; //!< 0 or 1
+    inline int compressionOptionPicked = 0; //!< 0 or 1
     //! \note Calculator values; these will only be reset when the software closes
-    inline extern float calc_thickness = defaultValuesGUI::calc_thickness;  //!< mm
+    inline float calc_thickness = defaultValuesGUI::calc_thickness;  //!< mm
     //! \note Calculator values; these will only be reset when the software closes
-    inline extern float calc_width = defaultValuesGUI::calc_width;      //!< mm
+    inline float calc_width = defaultValuesGUI::calc_width;      //!< mm
     //! \note Calculator values; these will only be reset when the software closes
-    inline extern float calc_length = defaultValuesGUI::calc_length;     //!< mm
+    inline float calc_length = defaultValuesGUI::calc_length;     //!< mm
     //! \note Calculator values; these will only be reset when the software closes
-    inline extern float calc_diameter = defaultValuesGUI::calc_diameter;   //!< mm
+    inline float calc_diameter = defaultValuesGUI::calc_diameter;   //!< mm
     //! \note Use global values on new tests
-    inline extern bool useGlobalValuesOnNewTests = false;
+    inline bool useGlobalValuesOnNewTests = false;
 
     //! \note Calculator: For Nominal Stress
     double CalcSigma_e(double f, double a_0);
@@ -652,7 +653,7 @@ namespace LR10KAppGlobals {
     static std::filesystem::path LocalFolderPath;           //!< Used for getting the Local AppData folder.
     static std::filesystem::path configSettingPathFile;     //!< Used for getting the configuration settings file.
 
-    inline extern bool showHotkeyTips = false; //!< Used to show/hide the hot key tips for controlling the LR 10K Tensile Machine.
+    inline bool showHotkeyTips = false; //!< Used to show/hide the hot key tips for controlling the LR 10K Tensile Machine.
 }
 
 namespace LR10KDataDeEncryptionSystem {
@@ -689,11 +690,11 @@ struct MutexControl {
     @brief     This is used to have have control over each tab currently active, and also common tab variables.
 **/
 namespace TabControl {
-    inline extern const int MAXTABS = 12;              //!< Maximum amount of tabs allowed.
-    inline extern int currActiveTabIndexId = 0;        //!< Hold the current active tab index.
-    inline extern int forcedTabIndexId = 0;             //!< Hold the tab index that will be forced to be set, if a test has started running.
-    inline extern ImVector<int> activeTestTabsId{ };   //!< Holds the index ID of all of the current tabs open.
-    inline extern int aTestIsStartedOnTabIndexId = -1; //!< Hold the current tab that has an active test running on. -1 if there is no tests running.
+    inline const int MAXTABS = 12;              //!< Maximum amount of tabs allowed.
+    inline int currActiveTabIndexId = 0;        //!< Hold the current active tab index.
+    inline int forcedTabIndexId = 0;             //!< Hold the tab index that will be forced to be set, if a test has started running.
+    inline ImVector<int> activeTestTabsId{ };   //!< Holds the index ID of all of the current tabs open.
+    inline int aTestIsStartedOnTabIndexId = -1; //!< Hold the current tab that has an active test running on. -1 if there is no tests running.
     static const char* plot_items[7]{ "Proportional Limit", "Yielding Strength", "Ultimate Tensile Strength", "Fracture", "Other", "E-Lower Bound", "E-Upper Bound" }; //!< All of the available crucial/important points options.
     static const char* plot_items_short[7]{ "Prop. Limit", "Yield Str.", "UTS", "Fracture", "Other", "E-Lower", "E-Upper" }; //!< All of the available crucial/important points options (short-handed).
     static const char* compression_options[2]{ "Normal", "3-point" }; //!< 3-point test will have it's own "logic" for calculating stresses
@@ -702,14 +703,14 @@ namespace TabControl {
     // LR10KDataDeEncryptionSystem::Measurement() (zero point), read with InterpetWrittenRingBufferData_getLoad()/
     // _getExtension(). (The raw/offset/text copies that were here were written by the interpreter thread while the
     // GUI read them, and demo mode wrote newtons into the raw-count variable.)
-    inline extern float LR10KOffsetExtension = 0.0f;            //!< Demo mode only: the simulated extension (mm), increased while a demo test runs.
+    inline float LR10KOffsetExtension = 0.0f;            //!< Demo mode only: the simulated extension (mm), increased while a demo test runs.
 
-    inline extern float LR10KTravelDistanceControl = 0.0f;          //!< This controls how long the LR 10K Tensile Machine can travel.
-    inline extern int LR10KTravelDistanceActionAfter = 0;           //!< 0 = End Test, 1 = Pause Test.
+    inline float LR10KTravelDistanceControl = 0.0f;          //!< This controls how long the LR 10K Tensile Machine can travel.
+    inline int LR10KTravelDistanceActionAfter = 0;           //!< 0 = End Test, 1 = Pause Test.
 
-    inline extern std::chrono::steady_clock::time_point timestampForLastAddedRegressionPoint = std::chrono::high_resolution_clock::now(); //!< Time stamp since the last test was started. Used for linear regression of proportional limit.
+    inline std::chrono::steady_clock::time_point timestampForLastAddedRegressionPoint = std::chrono::high_resolution_clock::now(); //!< Time stamp since the last test was started. Used for linear regression of proportional limit.
 
-    inline extern char tempDescription[87 * 5]{};   //!< Used for storing a temporary description of the current test, before being saved to tabData.
+    inline char tempDescription[87 * 5]{};   //!< Used for storing a temporary description of the current test, before being saved to tabData.
 
     /**
 
@@ -718,7 +719,7 @@ namespace TabControl {
         @details ~
 
     **/
-    extern struct NeedsRecalculation { bool recalculate; bool markAsUnsaved; };
+    struct NeedsRecalculation { bool recalculate; bool markAsUnsaved; };
 
     class TabTestDataClass
     {
@@ -912,24 +913,24 @@ namespace TabControl {
         void MarkTabAsUnsaved();
     };
 
-    inline extern void AddNewPointFromLoadAndExtension(TabTestDataClass* tabData, float LR10KExtension, float LR10KLoad);
+    void AddNewPointFromLoadAndExtension(TabTestDataClass* tabData, float LR10KExtension, float LR10KLoad);
 
-    inline extern std::vector<TabTestDataClass*> allTabTestData = {}; //!< Containts all tests added. Maximum 20 tests.
-    inline extern TabTestDataClass* FindTabTestData(int tabId);
+    inline std::vector<TabTestDataClass*> allTabTestData = {}; //!< Containts all tests added. Maximum 20 tests.
+    TabTestDataClass* FindTabTestData(int tabId);
 
-    //inline extern void RefreshUpdateImportantDataPoints(TabTestDataClass* tabData, bool markTabUnsaved = true);
-    inline extern void CrucialPointsUndoPoint(TabTestDataClass* tabData);
+    //inline void RefreshUpdateImportantDataPoints(TabTestDataClass* tabData, bool markTabUnsaved = true);
+    void CrucialPointsUndoPoint(TabTestDataClass* tabData);
 
-    //inline extern void AutoAdjustNormalExtensionLoadVariabels(TabTestDataClass* tabData, bool doNotMarkAsUnsaved = false);
+    //inline void AutoAdjustNormalExtensionLoadVariabels(TabTestDataClass* tabData, bool doNotMarkAsUnsaved = false);
     // (The load limit checks and the 50 N blocker are LR10KControlSystem::LoadSafetyTick() now.)
 
 
-    //inline extern bool DetectIfABreakHasOccured(TabTestDataClass* tabData, ImPlotPoint UTSPoint, int enable_automaticBreakDetection = 0, float breakThreshold = 0.3f);
+    //inline bool DetectIfABreakHasOccured(TabTestDataClass* tabData, ImPlotPoint UTSPoint, int enable_automaticBreakDetection = 0, float breakThreshold = 0.3f);
 
-    inline extern bool CheckIfDistanceTravelControlActivated();
-    inline extern void CheckIfDistanceTraveledToLimit(TabTestDataClass* tabData, float LR10KExtension);
+    bool CheckIfDistanceTravelControlActivated();
+    void CheckIfDistanceTraveledToLimit(TabTestDataClass* tabData, float LR10KExtension);
 
-    //inline extern void CleanUpImportantPoints(TabTestDataClass* tabData);
+    //inline void CleanUpImportantPoints(TabTestDataClass* tabData);
 
     //! \note Main calculator function
     void CalculateDataFromTest(TabTestDataClass* tabData);
@@ -1345,6 +1346,7 @@ struct AppConsole
     //! GUI thread moves them into Items (FlushPending(), once per frame).
     std::mutex               PendingMutex;
     std::vector<std::string> Pending;
+    CrashReport::RecentLines Recent;  //!< The last 200 lines again, for a crash report (readable from any thread)
     static constexpr int     MaxItems = 5000; //!< Oldest lines are dropped beyond this (drawing every line slowed the GUI)
     ImVector<const char*> Commands;         //!< All of the commands possible to type in.
     ImVector<char*>       History;          //!< The history of past input sent.
@@ -1464,8 +1466,8 @@ struct AppConsole
     @brief     Contains functionallity for widgets - like pre-made GUI elements and "NiceText" output handling.
 **/
 namespace Extra {
-    inline extern Extra_Tools           tools = Extra_Tools(); //!< This is a global variable for the extra toolsbox.
-    inline extern CustomFonts           fonts = CustomFonts(); //!< This is a global variable for the custom fonts.
+    inline Extra_Tools           tools = Extra_Tools(); //!< This is a global variable for the extra toolsbox.
+    inline CustomFonts           fonts = CustomFonts(); //!< This is a global variable for the custom fonts.
 }
 
 /**
@@ -1473,12 +1475,12 @@ namespace Extra {
     @brief     Contains all normal API for handling different tasks - different small programs within the application.
 **/
 namespace DockingApps {
-    inline extern AppCalculator         calculator = AppCalculator();      //!< Full report window that can be used to calculate material properties.
-    inline extern AppMainExcel          mainExcel = AppMainExcel();       //!< Main excel file creation.
-    inline extern AppMainFileSystem     mainFileSystem = AppMainFileSystem();  //!< Main file system manipulation.
-    inline extern AppMainTabSystem      mainTabSystem = AppMainTabSystem();   //!< Main Tab control for creating new tabs and drawing them.
-    inline extern AppConsole            console = AppConsole();         //!< Console window that can be used for e.g. debugging or sending commands.
-    inline extern MutexControl          mutexControl = MutexControl();       //!< Gives tools for controlling the mutex for certain operations that invlovs std::atomic.
+    inline AppCalculator         calculator = AppCalculator();      //!< Full report window that can be used to calculate material properties.
+    inline AppMainExcel          mainExcel = AppMainExcel();       //!< Main excel file creation.
+    inline AppMainFileSystem     mainFileSystem = AppMainFileSystem();  //!< Main file system manipulation.
+    inline AppMainTabSystem      mainTabSystem = AppMainTabSystem();   //!< Main Tab control for creating new tabs and drawing them.
+    inline AppConsole            console = AppConsole();         //!< Console window that can be used for e.g. debugging or sending commands.
+    inline MutexControl          mutexControl = MutexControl();       //!< Gives tools for controlling the mutex for certain operations that invlovs std::atomic.
 }
 
 // -----------------------------------------------------------------------------

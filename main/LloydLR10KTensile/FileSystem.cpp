@@ -716,7 +716,7 @@ void AppMainFileSystem::LR10KGUISettingsInitialization(const std::string folderP
             DockingApps::console.AddLog("*First time GUI settings initialization successful!");
         }
         else
-            DockingApps::console.AddLog("[error] First time initialization failed... Could not create \"%s\"", fileName);
+            DockingApps::console.AddLog("[error] First time initialization failed... Could not create \"%s\"", fileName.c_str());
     }
 
     // Load default application settings
@@ -725,14 +725,14 @@ void AppMainFileSystem::LR10KGUISettingsInitialization(const std::string folderP
         DockingApps::console.AddLog("*Initialization of GUI settings successful!");
     }
     else
-        DockingApps::console.AddLog("[error] Initialization failed... Could not load \"%s\"", fileName);
+        DockingApps::console.AddLog("[error] Initialization failed... Could not load \"%s\"", fileName.c_str());
 }
 
 void AppMainFileSystem::PromptUserToCloseTabBeforeSaving(const char* popUpID, bool openPopup, bool* closeTabCheck)
 {
     // Check if any tab has unsaved things
     bool unsavedThings = false;
-    for (int i = 0; i < TabControl::allTabTestData.size(); i++)
+    for (int i = 0; i < (int)TabControl::allTabTestData.size(); i++)
     {
         if (TabControl::allTabTestData[i]->unsavedThingsInTab)
             unsavedThings = true;

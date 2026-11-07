@@ -43,9 +43,11 @@ void TabControl::AddNewPointFromLoadAndExtension(TabControl::TabTestDataClass* t
         // The extension must be higher (saftey if the rig is shaking or something..)
         // !!Important to prevent negative values!!
         if (newPoint.x >= 0.0f && newPoint.y >= 0.0f && (lastPointAdded.x == 0.0f || newPoint.x > lastPointAdded.x))
-            // Add point
+        {
+            // Add point (and its time: the sampling rate counts the points kept, and TimeData[i] belongs to Data[i])
             tabData->LR10KTensileData.AddPoint(newPoint.x, newPoint.y);
             tabData->LR10KTensileData.AddTime();
+        }
 
         // Increment data (used always for both real and fake load)
         if (mainGUIGlobals::useDemoMode
@@ -64,10 +66,10 @@ void TabControl::AddNewPointFromLoadAndExtension(TabControl::TabTestDataClass* t
 TabControl::TabTestDataClass* TabControl::FindTabTestData(int tabId)
 {
     // Find the tab that contains the tabId
-    for (int i = 0; i < allTabTestData.size(); i++)
+    for (int i = 0; i < (int)allTabTestData.size(); i++)
     {
         // Check if it matches any tabId
-        if (allTabTestData[i]->tabId == tabId)
+        if ((int)allTabTestData[i]->tabId == tabId)
             return allTabTestData[i]; // Success
     }
 
@@ -439,7 +441,6 @@ ImPlotPoint TabControl::TabTestDataClass::GetFracturePoint(TabTestDataClass* tab
     if (it != tabData->plot_dataPoints.end()) {
         // ID 3 exists! Access the data:
         ImPlotPoint pointData = std::get<0>(*it);
-        int id = std::get<1>(*it);
 
         fracturePoint = pointData;
     }
@@ -535,8 +536,6 @@ void TabControl::TabTestDataClass::ConvertUnitsBackToBase(TabControl::TabTestDat
         const double unitConvOld_dist = LR10KAppGlobals::GetUnitOption<double>(8, oldUnitIndex);
         // E.g. N an lbf
         const double unitConvOld_force = LR10KAppGlobals::GetUnitOption<double>(9, oldUnitIndex);
-        // E.g. n/mm^2 and lbs/in^2
-        const double unitConvOld_stress = LR10KAppGlobals::GetUnitOption<double>(10, oldUnitIndex);
 
         tabData->thickness  /= unitConvOld_dist;
         tabData->width      /= unitConvOld_dist;
@@ -553,7 +552,7 @@ void TabControl::TabTestDataClass::ConvertUnitsBackToBase(TabControl::TabTestDat
         }
 
         // Plot points
-        for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
+        for (int i = 0; i < (int)tabData->plot_dataPoints.size(); i++)
         {
             ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_dataPoints[i]);
             points.x /= unitConvOld_dist;
@@ -579,7 +578,7 @@ void TabControl::TabTestDataClass::ConvertUnitsBackToBase(TabControl::TabTestDat
         //}
     }
 }
-void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestDataClass* tabData, int unitsIndex, bool saveUnitIndex, bool updateGlobals, bool markAsSaved)
+void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestDataClass* tabData, int unitsIndex, bool saveUnitIndex, bool updateGlobals, bool /*markAsSaved*/)
 {
     if (tabData == nullptr) return;
 
@@ -593,8 +592,6 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestData
     const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8, unitsIndex);
     // E.g. N an lbf
     const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9, unitsIndex);
-    // E.g. n/mm^2 and lbs/in^2
-    const double unitConv_stress = LR10KAppGlobals::GetUnitOption<double>(10, unitsIndex);
 
     tabData->thickness  *= unitConv_dist;
     tabData->width      *= unitConv_dist;
@@ -611,7 +608,7 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnit(TabControl::TabTestData
     }
 
     // Plot points
-    for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
+    for (int i = 0; i < (int)tabData->plot_dataPoints.size(); i++)
     {
         ImPlotPoint points    = std::get<ImPlotPoint>(tabData->plot_dataPoints[i]);
         points.x *= unitConv_dist;
@@ -655,8 +652,6 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::Ta
     const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8, tabData->unitsConvertionIndex);
     // E.g. N an lbf
     const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9, tabData->unitsConvertionIndex);
-    // E.g. n/mm^2 and lbs/in^2
-    const double unitConv_stress = LR10KAppGlobals::GetUnitOption<double>(10, tabData->unitsConvertionIndex);
 
     tabData->thickness *= unitConv_dist;
     tabData->width *= unitConv_dist;
@@ -673,7 +668,7 @@ void TabControl::TabTestDataClass::ConvertUnitsToNewUnitAfterLoad(TabControl::Ta
     }
 
     // Plot points
-    for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
+    for (int i = 0; i < (int)tabData->plot_dataPoints.size(); i++)
     {
         ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_dataPoints[i]);
         points.x *= unitConv_dist;

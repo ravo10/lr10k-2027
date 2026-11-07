@@ -435,7 +435,7 @@ bool LR10KControlSystem::StartReconnect()
 **/
 bool LR10KControlSystem::SetZeroPoint(TabControl::TabTestDataClass* tabData)
 {
-    if ((LR10KAppGlobals::MachineStatus().IsMachineConnected() || mainGUIGlobals::useDemoMode) && (tabData == nullptr || !tabData->test_unfinished_test_started && !tabData->test_finished))
+    if ((LR10KAppGlobals::MachineStatus().IsMachineConnected() || mainGUIGlobals::useDemoMode) && (tabData == nullptr || (!tabData->test_unfinished_test_started && !tabData->test_finished)))
     {
         if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             _LR10KController.w_SetZero();
@@ -768,7 +768,7 @@ bool LR10KControlSystem::Translation_STOP(TabControl::TabTestDataClass* tabData)
     @param  velocity - 
     @retval          - 
 **/
-bool LR10KControlSystem::Translation_UP(TabControl::TabTestDataClass* tabData, float velocity)
+bool LR10KControlSystem::Translation_UP(TabControl::TabTestDataClass* tabData, float /*velocity*/)
 {
     if (tabData == nullptr) return false;
 
@@ -789,7 +789,7 @@ bool LR10KControlSystem::Translation_UP(TabControl::TabTestDataClass* tabData, f
     @param  velocity - 
     @retval          - 
 **/
-bool LR10KControlSystem::Translation_DOWN(TabControl::TabTestDataClass* tabData, float velocity)
+bool LR10KControlSystem::Translation_DOWN(TabControl::TabTestDataClass* tabData, float /*velocity*/)
 {
     if (tabData == nullptr) return false;
 

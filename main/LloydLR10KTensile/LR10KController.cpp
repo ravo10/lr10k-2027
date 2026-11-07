@@ -17,7 +17,7 @@
 #include <array>
 
 
-bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte, bool>> HEXSequence, bool sendPercentageFinished, bool allowSendingDataEvenIfMainLoopIsEnded)
+bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte, bool>> HEXSequence, bool /*sendPercentageFinished*/, bool allowSendingDataEvenIfMainLoopIsEnded)
 {
     if (!allowSendingDataEvenIfMainLoopIsEnded && mainGUIGlobals::done) return false;
 

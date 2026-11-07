@@ -23,9 +23,11 @@
 #include <windows.h>
 #include <shellapi.h>
 #pragma comment(lib, "Shell32.lib")
+#include <cstring>
 
 #include "resource.h"
 #include "appstructs.h"
+#include "CrashHandler.h"
 
 #ifdef _DEBUG
 #define DX12_ENABLE_DEBUG_LAYER
@@ -219,6 +221,27 @@ namespace fs = std::filesystem;
 **/
 int main(int argc, char** argv)
 {
+    // Crash reports (Documents\LR10K crash reports): installed first, so a crash during start-up is caught too
+    CrashHandler::Install(LR10KAppVersion, [](std::vector<std::string>& out) { return DockingApps::console.Recent.TryCopy(out); });
+    if (argc > 1 && std::strcmp(argv[1], "--test-crash") == 0)
+        CrashHandler::TestCrash();
+    {
+        const std::wstring previousReport = CrashHandler::TakePreviousCrashReport();
+        if (!previousReport.empty())
+        {
+            const std::wstring message = L"The LR 10K software closed unexpectedly the last time it was used.\n\n"
+                L"A crash report was saved:\n" + previousReport + L"\n\n"
+                L"Please send it, and the .dmp file with the same name, to the developer, with a few words on what you were doing.\n\n"
+                L"Open the folder now?";
+            if (MessageBoxW(NULL, message.c_str(), L"Crash report", MB_YESNO | MB_ICONWARNING) == IDYES)
+            {
+                const std::wstring select = L"/select,\"" + previousReport + L"\"";
+                ShellExecuteW(NULL, L"open", L"explorer.exe", select.c_str(), NULL, SW_SHOWNORMAL);
+            }
+            DockingApps::console.AddLog("[error] The app closed unexpectedly last time. The crash report is in Documents\\LR10K crash reports\n (menu: Troubleshooting > Open crash report folder).");
+        }
+    }
+
     // Boot up a message box with some information about the software, and the responsible for it. This is to make sure the user gets some information about the software before using it, and to give credit to the responsible for it.
     std::string messageStringStartup = "- Documentation videos (+PDF) in application 'Help' menu.\n";
     messageStringStartup.append("- .lr10k files are associated by software. Supports drag/drop on window.\n");
@@ -714,7 +737,6 @@ int main(int argc, char** argv)
                 if (tabData != nullptr)
                 {
                     // Main widgets
-                    bool disableWidgets1 = tabData->test_unfinished_test_started || DockingApps::mainTabSystem.ThisTabIsNotRunningATest();
                     bool disableWidgets2 = tabData->test_unfinished_test_started;
 
 					// View Options

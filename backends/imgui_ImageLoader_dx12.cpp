@@ -181,9 +181,13 @@ bool LoadTextureFromFile(const char* file_name, ID3D12Device* d3d_device, D3D12_
     if (f == NULL)
         return false;
     fseek(f, 0, SEEK_END);
-    size_t file_size = (size_t)ftell(f);
-    if (file_size == -1)
+    const long end = ftell(f);
+    if (end < 0)
+    {
+        fclose(f); // Was left open
         return false;
+    }
+    size_t file_size = (size_t)end;
     fseek(f, 0, SEEK_SET);
     void* file_data = IM_ALLOC(file_size);
     fread(file_data, 1, file_size, f);
@@ -258,7 +262,7 @@ bool UpdateTextureFromRawData(ID3D12Device* d3d_device,
     // If we have a texture but it's the wrong size, release it.
     if (*out_tex_resource != nullptr) {
         D3D12_RESOURCE_DESC existingDesc = (*out_tex_resource)->GetDesc();
-        if (existingDesc.Width != width || existingDesc.Height != height) {
+        if (existingDesc.Width != (UINT64)width || existingDesc.Height != (UINT)height) {
             (*out_tex_resource)->Release();
             *out_tex_resource = nullptr;
         }

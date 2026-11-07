@@ -68,6 +68,8 @@ By going to *Menu* > *Open*, you can load previous tests that are saved as a `.l
 
 ### Problems with the software (crashing etc.)
 ___
+If the software crashes, it saves a crash report in *Documents\\LR10K crash reports*: a `.txt` file (what happened, where in the code, and the last lines of the console) and a `.dmp` file with the same name. The next time the software starts, it says so and can open the folder (also: *Menu* > *Troubleshooting* > *Open crash report folder*). Please send both files to the developer, with a few words on what you were doing. The newest 10 reports are kept.
+
 If you have trouble opening the software, try and delete the application data folder located in your users *AppData* folder. Delete this folder: *C:\\Users\\YourUser\\AppData\\Local\\LR10K*. The *LR10K* folder contains two files. One for remembering the docking positions of each window (ImGui) and one for remembering the custom GUI settings. You can also try only deleting the GUI settings file, and then try to open the software. This will generate a new fresh settings file. The application will generate a fresh settings file for the GUI for each new version released - this is for **not** getting backwards compatibility issues.
 
 ### Communication & Decryption/Encryption, and the interpeted results. (Development)

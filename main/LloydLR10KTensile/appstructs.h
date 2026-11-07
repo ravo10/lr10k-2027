@@ -140,6 +140,6 @@ struct AppMainWidgets {
     @brief     Contains all normal API for handling different tasks - different small programs within the application.
 **/
 namespace DockingApps {
-    inline extern AppMain              main             = AppMain();           //!< Main window that is used to contain the main contents that is always going to show. (cant be closed)
-    inline extern AppMainWidgets       mainWidgets      = AppMainWidgets();    //!< Main window widgets like e.g. plot window or settings window.
+    inline AppMain              main             = AppMain();           //!< Main window that is used to contain the main contents that is always going to show. (cant be closed)
+    inline AppMainWidgets       mainWidgets      = AppMainWidgets();    //!< Main window widgets like e.g. plot window or settings window.
 }

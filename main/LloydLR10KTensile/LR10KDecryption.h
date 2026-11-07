@@ -61,36 +61,36 @@ inline uint64_t getCurrentTime()
 **/
 namespace LR10KDataDeEncryptionSystem {
     //! \note Used for reading data from LR10K to buffer, and often includes a "m_SerialBuffer" pointer to written to as a paramter. Contains COM connection information.
-    inline extern Win32SerialPort comPort{};       //!< The COM port connected to the LR 10K.
-    inline extern SerialTrafficLog trafficLog{};   //!< "Log serial traffic to file" (menu). Logs nothing while not started.
-    inline extern LR10KMachine machine{};          //!< The connection: ring buffer, reader thread (comPort -> buffer) and interpreter thread.
-    inline extern LR10KStatus machineStatus{};     //!< Connection state and status texts the GUI shows (written by the worker threads).
+    inline Win32SerialPort comPort{};       //!< The COM port connected to the LR 10K.
+    inline SerialTrafficLog trafficLog{};   //!< "Log serial traffic to file" (menu). Logs nothing while not started.
+    inline LR10KMachine machine{};          //!< The connection: ring buffer, reader thread (comPort -> buffer) and interpreter thread.
+    inline LR10KStatus machineStatus{};     //!< Connection state and status texts the GUI shows (written by the worker threads).
     //! \note The handle of comPort, kept for code that still uses it (INVALID_HANDLE_VALUE when closed).
-    inline extern HANDLE m_hSerial = INVALID_HANDLE_VALUE;
+    inline HANDLE m_hSerial = INVALID_HANDLE_VALUE;
 #if UNICODE
     //! \note Show the connected COM port as a world string. E.g. COM1.
-    inline extern std::wstring ConnectedCOMPortName = L"";
+    inline std::wstring ConnectedCOMPortName = L"";
 #else
     //! \note Show the connected COM port as a string. E.g. COM1.
-    inline extern std::string ConnectedCOMPortName = "";
+    inline std::string ConnectedCOMPortName = "";
 #endif
     //! \note Used for reading data from LR10K to buffer, and often includes a "m_SerialBuffer" pointer to written to as a paramter. Contains COM data. (a ring buffer)
-    inline extern CRingBuffer& m_SerialBuffer = machine.Buffer(); //!< The machine's ring buffer (one shared instance).
+    inline CRingBuffer& m_SerialBuffer = machine.Buffer(); //!< The machine's ring buffer (one shared instance).
 
-    inline extern std::unique_ptr<std::thread> m_pThreadReadCom = nullptr;      //!< (INPUT) The thread that reads data from the COM port.
+    inline std::unique_ptr<std::thread> m_pThreadReadCom = nullptr;      //!< (INPUT) The thread that reads data from the COM port.
 
-    inline extern std::unique_ptr<std::thread> m_pThreadConnectingToLR10K   = nullptr;   //!< The thread that contains a hooks that connects to the LR 10K Tensile Machine
-    inline extern std::unique_ptr<std::thread> m_pThreadLR10KIsLoading      = nullptr;   //!< The thread that contains a hooks that setups to the LR 10K Tensile Machine
+    inline std::unique_ptr<std::thread> m_pThreadConnectingToLR10K   = nullptr;   //!< The thread that contains a hooks that connects to the LR 10K Tensile Machine
+    inline std::unique_ptr<std::thread> m_pThreadLR10KIsLoading      = nullptr;   //!< The thread that contains a hooks that setups to the LR 10K Tensile Machine
 
-    inline extern std::atomic<bool> m_pThreadReadLR10K_stopFlag(true);          //!< Need to stop the threads "while loop" before joining it. For reading LR 10K serial buffer data.
-    inline extern std::atomic<bool> m_pThreadReadCom_stopFlag(true);            //!< Need to stop the threads "while loop" before joining it. For reading COM port data.
-    inline extern std::atomic<bool> m_pThreadLR10KIsLoading_isLoading(false);   //!< Can disable the GUI, so no commands gets sent before setup is complete.
+    inline std::atomic<bool> m_pThreadReadLR10K_stopFlag(true);          //!< Need to stop the threads "while loop" before joining it. For reading LR 10K serial buffer data.
+    inline std::atomic<bool> m_pThreadReadCom_stopFlag(true);            //!< Need to stop the threads "while loop" before joining it. For reading COM port data.
+    inline std::atomic<bool> m_pThreadLR10KIsLoading_isLoading(false);   //!< Can disable the GUI, so no commands gets sent before setup is complete.
 
-    inline extern std::atomic<bool> somethingUnexpectedHappend(false);  //!< If this is true, then the hooks will shut down and display a pop up.
-    inline extern std::atomic<bool> comConnectionLost(false);           //!< Set by the COM reader thread when reading from the port keeps failing (e.g. USB adapter unplugged). Handled on the GUI thread.
+    inline std::atomic<bool> somethingUnexpectedHappend(false);  //!< If this is true, then the hooks will shut down and display a pop up.
+    inline std::atomic<bool> comConnectionLost(false);           //!< Set by the COM reader thread when reading from the port keeps failing (e.g. USB adapter unplugged). Handled on the GUI thread.
 
-    inline extern std::unique_ptr<std::thread> m_pThreadReconnecting = nullptr; //!< Runs LR10KControlSystem::StartReconnect() work off the GUI thread.
-    inline extern std::atomic<bool> reconnectInProgress(false);         //!< True while a reconnect is running.
+    inline std::unique_ptr<std::thread> m_pThreadReconnecting = nullptr; //!< Runs LR10KControlSystem::StartReconnect() work off the GUI thread.
+    inline std::atomic<bool> reconnectInProgress(false);         //!< True while a reconnect is running.
 
     /**
         @brief  Milliseconds from a monotonic clock (not affected by changes to the PC clock).
@@ -99,9 +99,9 @@ namespace LR10KDataDeEncryptionSystem {
     {
         return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     }
-    inline extern std::atomic<long long> lastByteReceivedMs(0);         //!< SteadyNowMs() when the COM reader last received a byte. Used by the watchdog.
-    inline extern std::atomic<bool> lr10kNotResponding(false);          //!< Set by the watchdog when the LR 10K stops answering. Shows a pop up.
-    inline extern std::atomic<bool> watchdogProbeReplyPending(false);   //!< The next status message is the answer to a watchdog probe: update the status quietly.
+    inline std::atomic<long long> lastByteReceivedMs(0);         //!< SteadyNowMs() when the COM reader last received a byte. Used by the watchdog.
+    inline std::atomic<bool> lr10kNotResponding(false);          //!< Set by the watchdog when the LR 10K stops answering. Shows a pop up.
+    inline std::atomic<bool> watchdogProbeReplyPending(false);   //!< The next status message is the answer to a watchdog probe: update the status quietly.
 
 
     /**

@@ -90,6 +90,11 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/extensometer_tracking_test.cpp -o extensometer_tracking_test
           ./extensometer_tracking_test
+      - name: Crash report text and last console lines (ThreadSanitizer)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread \
+            -I main/LloydLR10KTensile tests/crash_report_test.cpp -o crash_report_test
+          ./crash_report_test
 
   excel-files:
     # Writes sample .xlsx reports with the real libxlsxwriter and checks them with openpyxl

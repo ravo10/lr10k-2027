@@ -96,6 +96,10 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <!-- Warnings from third-party headers included with <...> (OpenCV, libxlsxwriter, Windows SDK) are hidden, so the list shows our own code -->
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\..;..\..\backends;%(AdditionalIncludeDirectories);$(DXSDK_DIR)Include;</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -110,6 +114,10 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <!-- Warnings from third-party headers included with <...> (OpenCV, libxlsxwriter, Windows SDK) are hidden, so the list shows our own code -->
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(OpenCVDir)\include;..\..;..\..\backends;%(AdditionalIncludeDirectories);$(DXSDK_DIR)Include</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -137,11 +145,14 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <!-- Warnings from third-party headers included with <...> (OpenCV, libxlsxwriter, Windows SDK) are hidden, so the list shows our own code -->
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>..\..;..\..\backends;%(AdditionalIncludeDirectories);$(DXSDK_DIR)Include;</AdditionalIncludeDirectories>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -157,11 +168,14 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
+      <!-- Warnings from third-party headers included with <...> (OpenCV, libxlsxwriter, Windows SDK) are hidden, so the list shows our own code -->
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>$(OpenCVDir)\include;..\..;..\..\backends;%(AdditionalIncludeDirectories);$(DXSDK_DIR)Include</AdditionalIncludeDirectories>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <CompileAsWinRT>
@@ -189,18 +203,52 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\backends\imgui_ImageLoader_dx12.cpp" />
-    <ClCompile Include="..\..\backends\imgui_impl_dx12.cpp" />
-    <ClCompile Include="..\..\imgui.cpp" />
-    <ClCompile Include="..\..\imgui_demo.cpp" />
-    <ClCompile Include="..\..\imgui_draw.cpp" />
-    <ClCompile Include="..\..\imgui_tables.cpp" />
-    <ClCompile Include="..\..\imgui_widgets.cpp" />
-    <ClCompile Include="..\..\backends\imgui_impl_win32.cpp" />
-    <ClCompile Include="..\..\implot.cpp" />
-    <ClCompile Include="..\..\implot_demo.cpp" />
-    <ClCompile Include="..\..\implot_items.cpp" />
-    <ClCompile Include="..\..\misc\cpp\imgui_stdlib.cpp" />
+    <ClCompile Include="..\..\backends\imgui_impl_dx12.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\..\imgui.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\..\imgui_demo.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\..\imgui_draw.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\..\imgui_tables.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\..\imgui_widgets.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\..\backends\imgui_impl_win32.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\..\implot.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\..\implot_demo.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\..\implot_items.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+    <ClCompile Include="..\..\misc\cpp\imgui_stdlib.cpp">
+      <!-- Third-party (ImGui/ImPlot): their warnings are not ours to fix -->
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
     <ClCompile Include="Calculator.cpp" />
+    <ClCompile Include="CrashHandler.cpp" />
     <ClCompile Include="ExcelExport.cpp" />
     <ClCompile Include="ExcelWriter.cpp" />
     <ClCompile Include="FileSystem.cpp" />
@@ -254,6 +302,8 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClInclude Include="LoadSafety.h" />
     <ClInclude Include="ExtensometerFilter.h" />
     <ClInclude Include="ExtensometerTracking.h" />
+    <ClInclude Include="CrashReport.h" />
+    <ClInclude Include="CrashHandler.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="styles.h" />
   </ItemGroup>

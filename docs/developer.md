@@ -60,4 +60,8 @@ Rules learned the hard way:
 
 **Add a unit test:** copy a small test such as `tests/load_safety_test.cpp`, and add a step to `.github/workflows/tests.yml`. The tests are built with `g++` and a sanitizer (AddressSanitizer + UBSan, or ThreadSanitizer for code with threads), so out-of-bounds reads and data races fail the test.
 
+**Read a crash report:** the `.txt` names the crash, the thread and the call stack (function names and lines when the `.pdb` was next to the `.exe`, which `scripts\package-release.ps1` copies). For more, open the `.dmp` in Visual Studio (*File* > *Open*, then *Debug with Native Only*) with the `.pdb` of the same build: it shows every thread's call stack and the local variables at the crash. To try it, start the app with `--test-crash` outside Visual Studio (Ctrl+F5); with the debugger attached, Visual Studio stops at the crash and no report is written. See CrashHandler.h for what is and is not caught.
+
+**Compiler warnings:** the project builds with `/W4`. Headers included with `<...>` (OpenCV, libxlsxwriter, Windows SDK) and the ImGui/ImPlot sources are compiled with their warnings off, so the *Error List* only shows our own code. Keep it at zero new warnings: most of the ones fixed so far were real bugs (a `std::string` passed to `%s`, a missing `{ }` after an `if`, the week-based year `%G` in a file name). For a deeper check, run *Analyze* > *Run Code Analysis* > *On Solution* now and then.
+
 **Test the serial code without the machine:** `tests/connect_replay_test.cpp` plays a recorded LR 10K session (`tests/data/*.log`) through a fake serial port. Record a new log with *Log serial traffic to file* (under *Troubleshooting* in the menu), started before *Connect PC*.

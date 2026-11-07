@@ -15,6 +15,7 @@
 #include "MaterialCalc.h"
 #include "ExtensometerFilter.h"
 #include "ExtensometerTracking.h"
+#include "CrashHandler.h"
 AppWindowStates g_WindowStates; //!< Create the variable in memory.
 AppExtensiometer g_Extensiometer; //!< Create the variable in memory.
 
@@ -360,7 +361,7 @@ json AppMainFileSystem::CreateJSONDataFromCurrentTab(TabControl::TabTestDataClas
     tabDataJson["LR10KTensileData_SmoothedDataWindowIndex"] = tabData->LR10KTensileData.SmoothedDataWindowIndex;
     
     // Crucial points
-    for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
+    for (int i = 0; i < (int)tabData->plot_dataPoints.size(); i++)
     {
         std::ostringstream ss2_x;
         std::ostringstream ss2_y;
@@ -420,7 +421,7 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
         tabData->oldLoadErrorValue = tabDataJson["appliedLoadError"]; // Files saved before this was added: assume the slider value was applied
 
     // Plot data
-    for (int i = 0; i < tabDataJson["LR10KTensileData"].size(); i++)
+    for (int i = 0; i < (int)tabDataJson["LR10KTensileData"].size(); i++)
     {
         json::array_t data = tabDataJson["LR10KTensileData"][i];
 
@@ -455,7 +456,7 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
 		tabData->LR10KTensileData.SamplingRate = 0.0;
     
     // Crucial points
-    for (int i = 0; i < tabDataJson["plot_dataPoints"].size(); i++)
+    for (int i = 0; i < (int)tabDataJson["plot_dataPoints"].size(); i++)
     {
         json::array_t data = tabDataJson["plot_dataPoints"][i];
 
@@ -641,7 +642,7 @@ std::filesystem::path AppMainFileSystem::CreateFilepathForTabWNoFileExtension(Ta
 #endif
 
     char buffer[20];
-    std::strftime(buffer, sizeof(buffer), "%b-%d-%G", &timeinfo);
+    std::strftime(buffer, sizeof(buffer), "%b-%d-%Y", &timeinfo);
     filename += buffer;
     filename += "(Time_";
     std::strftime(buffer, sizeof(buffer), "%H", &timeinfo);
@@ -794,7 +795,6 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x, viewport->WorkSize.y));
 
-    bool openPopup = false;
 
     // Wait to draw until tabData is made
     if (tabData != nullptr && ImGui::Begin("Tabulate", nullptr, tabulate_flags))
@@ -976,9 +976,9 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                         std::string name = "COM";
                         name.append(std::to_string(comPort));
 
-                        if (ImGui::MenuItem(name.c_str(), nullptr, (LR10KAppGlobals::MachineStatus().ComPort() == comPort)))
+                        if (ImGui::MenuItem(name.c_str(), nullptr, (LR10KAppGlobals::MachineStatus().ComPort() == (int)comPort)))
                         {
-                            DockingApps::console.AddLog("Trying to set or switch to COM%d port...", comPort);
+                            DockingApps::console.AddLog("Trying to set or switch to COM%lu port...", comPort);
                             LR10KCOMSystem::TryConnectingToCOMPort(comPort);
                         }
                     }
@@ -1083,6 +1083,9 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                     ImGui::SetItemTooltip("Writes every byte sent to and received from the LR 10K, with timestamps,\nto a new file in Documents\\LR10K serial logs. Start it before \"Connect PC\"\nto record the whole connection. Click again to stop.");
                     if (ImGui::MenuItem("Open serial log folder"))
                         LR10KCOMSystem::OpenTrafficLogFolder();
+                    if (ImGui::MenuItem("Open crash report folder"))
+                        CrashHandler::OpenFolder();
+                    ImGui::SetItemTooltip("If the app crashes, a report (.txt) and a memory dump (.dmp) are saved\nin Documents\\LR10K crash reports. Send both to the developer.");
                 }
                 ImGui::PopItemFlag();
 
@@ -2184,8 +2187,6 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         float s_avg = (g_Extensiometer.settings.s_min + g_Extensiometer.settings.s_max) / 2.0f;
                         float v_avg = (g_Extensiometer.settings.v_min + g_Extensiometer.settings.v_max) / 2.0f;
 
-                        // Extensiometer target color change
-                        static bool extensiometerTargetColorChange = false;
 
                         // 3. Convert HSV -> RGB for the Picker
                         float r, g, b;
@@ -2647,7 +2648,6 @@ void AppMainWidgets::SidePanelContainer(TabControl::TabTestDataClass* tabData)
     {
         // Main widgets
         bool disableWidgets1 = tabData->test_unfinished_test_started || DockingApps::mainTabSystem.ThisTabIsNotRunningATest();
-        bool disableWidgets2 = tabData->test_unfinished_test_started;
 
         // 2. Start the Tab Bar
         if (ImGui::BeginTabBar("SidePanelTabs", ImGuiTabBarFlags_None))
@@ -2735,7 +2735,7 @@ void AppMainWidgets::SidePanelContainer(TabControl::TabTestDataClass* tabData)
 }
 
 // The custom crosshair that helps add points to the plot (made by Gemini)
-void customPlotCrosshair(TabControl::TabTestDataClass* tabData, StressStrainContext ctx)
+void customPlotCrosshair(TabControl::TabTestDataClass* /*tabData*/, StressStrainContext /*ctx*/)
 {
     // 1. Setup State
     ImGuiStyle& style = ImGui::GetStyle();
@@ -2964,7 +2964,7 @@ void cuttedOutAreaMarkedDeltaL(TabControl::TabTestDataClass* tabData)
             visual_offset_x / 2.0,
             center_y,
             ImVec2(0, 0),
-            ImPlotTextFlags_Vertical | ImPlotItemFlags_NoFit);
+            ImPlotTextFlags_Vertical | (int)ImPlotItemFlags_NoFit);
 
         ImPlot::PopStyleColor();
     }
@@ -3410,7 +3410,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
             bool e_bounds_crossed = (has_lower && has_upper && e_lower_x >= e_upper_x);
 
             // 3. MAIN DRAW LOOP
-            for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
+            for (int i = 0; i < (int)tabData->plot_dataPoints.size(); i++)
             {
                 ImPlotPoint& raw_pt = std::get<0>(tabData->plot_dataPoints[i]);
                 int pointID = std::get<1>(tabData->plot_dataPoints[i]);
@@ -3594,8 +3594,6 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
     ImGui::Separator();
     ImGui::Spacing();
 
-    float canvasWidthLeft = (ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) / 2 - 75;
-    float canvasWidthRight = (ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) / 2 + 75;
 
     // Warn user
     ImVec4 textColor = mainGUIGlobals::useDemoMode ? (ImVec4)ImColor::HSV(0.149f, 0.860f, 1.0f) : ImVec4({ 1.0f, 1.0f, 1.0f, 1.00f });
@@ -3689,7 +3687,7 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
     {
         std::vector<std::tuple<ImPlotPoint, int>>* pointData = &tabData->plot_dataPoints;
 
-        for (int i = 0; i < pointData->size(); i++)
+        for (int i = 0; i < (int)pointData->size(); i++)
         {
             // Push an ID for the whole block so we don't need manual string IDs everywhere
             ImGui::PushID(i);

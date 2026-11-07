@@ -33,6 +33,10 @@ New-Item -ItemType Directory -Force -Path $dist | Out-Null
 
 # 1. The program and the DLLs next to it (OpenCV, libxlsxwriter, zlib, minizip, ...)
 Copy-Item $exe $dist
+# The .pdb (debug symbols) gives crash reports function names and line numbers. It is not needed to run
+# the app; keep a copy of it with each build you hand out, to open that build's .dmp files in Visual Studio.
+$pdb = [System.IO.Path]::ChangeExtension($exe, '.pdb')
+if (Test-Path $pdb) { Copy-Item $pdb $dist } else { Write-Warning "No .pdb next to the .exe: crash reports will not show function names." }
 Get-ChildItem $buildDir -Filter '*.dll' | Copy-Item -Destination $dist
 
 # 2. Files the program loads from its own folder

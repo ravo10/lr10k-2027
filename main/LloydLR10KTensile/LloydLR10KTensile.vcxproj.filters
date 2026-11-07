@@ -52,6 +52,9 @@
     <ClCompile Include="Calculator.cpp">
       <Filter>sources</Filter>
     </ClCompile>
+    <ClCompile Include="CrashHandler.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
     <ClCompile Include="ExcelExport.cpp">
       <Filter>sources</Filter>
     </ClCompile>
@@ -183,6 +186,8 @@
     <ClInclude Include="LoadSafety.h" />
     <ClInclude Include="ExtensometerFilter.h" />
     <ClInclude Include="ExtensometerTracking.h" />
+    <ClInclude Include="CrashReport.h" />
+    <ClInclude Include="CrashHandler.h" />
     <ClInclude Include="..\..\stb_image.h" />
     <ClInclude Include="LR10KController.h" />
     <ClInclude Include="..\..\backends\imgui_ImageLoader_dx12.h">

@@ -95,4 +95,5 @@ If PowerShell scripts are blocked on your PC, do it by hand: copy from `main\Llo
 | `VCRUNTIME140.dll` / `MSVCP140.dll` / `VCRUNTIME140D.dll` was not found (lab PC) | Ship the Release build made with `package-release.ps1`, not the Debug folder. |
 | `UpgradeLog.htm` says the `.vdproj` project type "was not found" | Install the *Microsoft Visual Studio Installer Projects* extension, or ignore it: only the installer project is affected. |
 | Connection problems you want to look into (or send to someone) | In the app: menu *Log serial traffic to file*, then *Connect PC*. Every byte sent and received is written with timestamps to `Documents\LR10K serial logs`. Windows lets only one program open a COM port, so a separate terminal/sniffer program cannot listen while the app is connected. |
+| The app crashed on the lab PC | Look in *Documents\\LR10K crash reports* on that PC. The `.txt` shows where it crashed; open the `.dmp` in Visual Studio with the `.pdb` from the same build (`package-release.ps1` copies it next to the `.exe`). |
 | Help buttons open a web page instead of a video | The videos are not downloaded; run `scripts\fetch-videos.ps1`. |

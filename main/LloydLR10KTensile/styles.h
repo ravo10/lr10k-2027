@@ -1740,20 +1740,20 @@ inline void ImGuiCustomThemeSetup_VisualStudio()
             Everything else is automated.
 **/
 namespace mainGUIThemes {
-    inline extern std::string Default = "Default";        //!< Default theme.
-    inline extern std::string USNDark = "USNDark";        //!< USN Dark theme.
-    inline extern std::string USNLight = "USNLight";       //!< USN Light theme.
-    inline extern std::string Comfy = "Comfy";          //!< Comfy theme.
-    inline extern std::string DiscordDark = "DiscordDark";    //!< Discord Dark theme.
-    inline extern std::string FutureDark = "FutureDark";     //!< Future Dark theme.
-    inline extern std::string Cherry = "Cherry";         //!< Cherry theme.
-    inline extern std::string ClassicSteam = "ClassicSteam";   //!< Classic Steam theme.
-    inline extern std::string Enemymouse = "Enemymouse";     //!< Enemy Mouse theme.
-    inline extern std::string Gold = "Gold";           //!< Gold theme.
-    inline extern std::string GreenFont = "GreenFont";      //!< Green font theme.
-    inline extern std::string Light = "Light";          //!< Light theme.
-    inline extern std::string MaterialFlat = "MaterialFlat";   //!< Material Flat theme.
-    inline extern std::string Photoshop = "Photoshop";      //!< Photoshop theme.
-    inline extern std::string SoftCherry = "SoftCherry";     //!< Soft Cherry theme.
-    inline extern std::string VisualStudio = "VisualStudio";   //!< Visual Studio theme.
+    inline std::string Default = "Default";        //!< Default theme.
+    inline std::string USNDark = "USNDark";        //!< USN Dark theme.
+    inline std::string USNLight = "USNLight";       //!< USN Light theme.
+    inline std::string Comfy = "Comfy";          //!< Comfy theme.
+    inline std::string DiscordDark = "DiscordDark";    //!< Discord Dark theme.
+    inline std::string FutureDark = "FutureDark";     //!< Future Dark theme.
+    inline std::string Cherry = "Cherry";         //!< Cherry theme.
+    inline std::string ClassicSteam = "ClassicSteam";   //!< Classic Steam theme.
+    inline std::string Enemymouse = "Enemymouse";     //!< Enemy Mouse theme.
+    inline std::string Gold = "Gold";           //!< Gold theme.
+    inline std::string GreenFont = "GreenFont";      //!< Green font theme.
+    inline std::string Light = "Light";          //!< Light theme.
+    inline std::string MaterialFlat = "MaterialFlat";   //!< Material Flat theme.
+    inline std::string Photoshop = "Photoshop";      //!< Photoshop theme.
+    inline std::string SoftCherry = "SoftCherry";     //!< Soft Cherry theme.
+    inline std::string VisualStudio = "VisualStudio";   //!< Visual Studio theme.
 }

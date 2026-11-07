@@ -93,7 +93,7 @@ ImVector<ImVec2> SmoothTensileData(const ImVector<ImVec2>& raw_data, int window_
 	int half_window = window_size / 2;
 
 	// Slide the window across the data array
-	for (size_t i = half_window; i < raw_data.size() - half_window; ++i)
+	for (int i = half_window; i < raw_data.size() - half_window; ++i)
 	{
 		double sum_y = 0.0;
 
@@ -201,7 +201,7 @@ void AppCalculator::AdaptTabDataForLoadError(TabControl::TabTestDataClass* tabDa
     }
 
     // Plot points
-    for (int i = 0; i < tabData->plot_dataPoints.size(); i++)
+    for (int i = 0; i < (int)tabData->plot_dataPoints.size(); i++)
     {
         ImPlotPoint points = std::get<ImPlotPoint>(tabData->plot_dataPoints[i]);
         points.y *= loadScalar;
@@ -347,7 +347,7 @@ void AppCalculator::SetLocalMaterialProperties(TabControl::TabTestDataClass* tab
 }
 
 // Sets the different global material properties
-void AppCalculator::SetGlobalMaterialProperties(TabControl::TabTestDataClass* tabData, int areaOption, double thickness, double width, double length, double diameter)
+void AppCalculator::SetGlobalMaterialProperties(TabControl::TabTestDataClass* /*tabData*/, int areaOption, double thickness, double width, double length, double diameter)
 {
     // Save values globally
     LR10KAppGlobals::areaOptionPicked = areaOption;
@@ -1101,7 +1101,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             }
             ImGui::SameLine(); ImGui::Text("%%");
             float percentageOfLengthOutput = LR10KAppGlobals::calc_length * (percentageOfLength / 100);
-            ImGui::InputFloat("##Percentage of length2", &percentageOfLengthOutput, NULL, NULL, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(percentageOfLengthOutput), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
+            ImGui::InputFloat("##Percentage of length2", &percentageOfLengthOutput, 0.0f, 0.0f, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(percentageOfLengthOutput), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
             ImGui::SetItemTooltip("(Read only)");
 
             ImGui::Spacing();

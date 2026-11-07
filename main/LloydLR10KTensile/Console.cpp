@@ -44,6 +44,7 @@ void AppConsole::AddLog(const char* fmt, ...) IM_FMTARGS(2)
     {
         const char* end = strchr(line, '\n');
         Pending.emplace_back(line, end ? (size_t)(end - line) : strlen(line));
+        Recent.Add(Pending.back());
         if (end == nullptr)
             break;
         line = end + 1;

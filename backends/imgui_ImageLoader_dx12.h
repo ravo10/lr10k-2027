@@ -4,7 +4,7 @@
 #include "imgui.h"
 
 // Struct to hold reusable DX12 resources for video updates
-extern struct TextureUploadContext
+struct TextureUploadContext
 {
     ID3D12CommandAllocator* cmdAlloc = nullptr;
     ID3D12GraphicsCommandList* cmdList = nullptr;
