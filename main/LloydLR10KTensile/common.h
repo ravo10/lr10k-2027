@@ -513,8 +513,8 @@ namespace LR10KAppGlobals {
     //! \details Index 8 is e.g. inches and index 9 is e.g. the lbf convertion scalar. and index 10 is e.g. the lbf/in^2 scalar
     static const std::vector<std::vector<std::variant<const char*, double>>> unitsConvertion
     {
-        { "mm", "N", "mm/min", "N/mm^2", "millimeter", "newton", "MPa [N/mm^2]", "MPa", 1.0f, 1.0f, 1.2f, "GPa"},
-        { "in", "lbf", "in/min", "lbf/in^2", "inches", "foot-pound", "psi [lbf/in^2]", "psi", 0.0393700787, 0.2248089431, (0.2248089431 / sqrt(0.0393700787)) * 100, "psi"}
+        { "mm", "N", "mm/min", "N/mm^2", "millimeter", "newton", "MPa [N/mm^2]", "MPa", 1.0f, 1.0f, 1.0f, "GPa"},
+        { "in", "lbf", "in/min", "lbf/in^2", "inches", "pound-force", "psi [lbf/in^2]", "psi", 0.0393700787, 0.2248089431, 0.2248089431 / (0.0393700787 * 0.0393700787), "psi"}
     };
     //! \details The index of the unit vector.
     inline extern int unitsConvertionIndex = 0;

@@ -143,6 +143,7 @@
     </ClInclude>
     <ClInclude Include="LR10KDecryption.h" />
     <ClInclude Include="RingBuffer.h" />
+    <ClInclude Include="MaterialCalc.h" />
     <ClInclude Include="..\..\stb_image.h" />
     <ClInclude Include="LR10KController.h" />
     <ClInclude Include="..\..\backends\imgui_ImageLoader_dx12.h">

@@ -12,6 +12,7 @@
 #include "appstructs.h"
 
 #include "LR10KController.h"
+#include "MaterialCalc.h"
 inline LR10KController _LR10KController; //!< A global scope to gain access to the LR 10K Controller logic.
 AppWindowStates g_WindowStates; //!< Create the variable in memory.
 AppExtensiometer g_Extensiometer; //!< Create the variable in memory.
@@ -481,6 +482,14 @@ TabControl::TabTestDataClass* AppMainFileSystem::CreateTabTestDataFromJSON(json 
 
     if (tabDataJson.contains(std::string{ compressionOptionPicked }))
         tabData->compressionOptionPicked = tabDataJson["compressionOptionPicked"];
+
+    // Recalculate the area from the dimensions: files saved before this fix contain a wrong area for
+    // circular specimens (pi * d / 4 instead of pi * d^2 / 4).
+    {
+        const double area = MaterialCalc::CrossSectionArea(tabData->areaOptionPicked, tabData->thickness, tabData->width, tabData->diameter);
+        if (area > 0.0)
+            tabData->area = area;
+    }
 
     tabData->date = tabDataJson["date"];
     tabData->tension = tabDataJson["tension"];

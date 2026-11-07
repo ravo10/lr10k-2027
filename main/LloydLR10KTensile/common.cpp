@@ -13,6 +13,7 @@
 **/
 
 #include "common.h"
+#include "MaterialCalc.h"
 
 #include "LR10KController.h"
 
@@ -30,7 +31,7 @@ inline LR10KController _LR10KController; //!< A global scope to gain access to t
 **/
 double LR10KAppGlobals::CalcSigma_e(double f, double a_0)
 {
-    return f / a_0;
+    return MaterialCalc::EngineeringStress(f, a_0);
 }
 /**
     @brief  Epsilon_e or Epsilon_n | Delta_L / L_0.
@@ -40,7 +41,7 @@ double LR10KAppGlobals::CalcSigma_e(double f, double a_0)
 **/
 double LR10KAppGlobals::CalcEpsilon_e(double delta_L, double l_0)
 {
-    return delta_L / l_0;
+    return MaterialCalc::EngineeringStrain(delta_L, l_0);
 }
 /**
     @brief  Sigma_t | Sigma_e * ( 1 + Epsilon_e ).
@@ -50,7 +51,7 @@ double LR10KAppGlobals::CalcEpsilon_e(double delta_L, double l_0)
 **/
 double LR10KAppGlobals::CalcSigma_t(double epsilon_e, double sigma_e)
 {
-    return sigma_e * (1 + epsilon_e);
+    return MaterialCalc::TrueStress(sigma_e, epsilon_e);
 }
 /**
     @brief  Epsilon_t | ln * ( 1 + Epsilon_e ).
@@ -59,7 +60,7 @@ double LR10KAppGlobals::CalcSigma_t(double epsilon_e, double sigma_e)
 **/
 double LR10KAppGlobals::CalcEpsilon_t(double epsilon_e)
 {
-    return std::log(1 + epsilon_e);
+    return MaterialCalc::TrueStrain(epsilon_e);
 }
 /**
     @brief  Youngs Modulus. Change the signature to accept limits.
@@ -71,37 +72,22 @@ double LR10KAppGlobals::CalcEpsilon_t(double epsilon_e)
 **/
 double CalculateYoungsModulus(const std::vector<double>& strainData, const std::vector<double>& stressData, double lower_limit, double upper_limit)
 {
-    // Ensure the limits are in the correct order in case the user crossed them!
-    double actual_lower = std::min(lower_limit, upper_limit);
-    double actual_upper = std::max(lower_limit, upper_limit);
-
-    double sum_x = 0.0, sum_y = 0.0, sum_xy = 0.0, sum_x2 = 0.0;
-    int n = 0;
-
-    for (size_t i = 0; i < strainData.size(); i++)
+    // Least-squares slope of the points inside the window (limits may be given in either order).
+    // Tested in tests/material_calc_test.cpp.
+    const MaterialCalc::LinearFit fit = MaterialCalc::FitLine(strainData, stressData, lower_limit, upper_limit);
+    if (!fit.valid)
     {
-        double x = strainData[i]; // Strain
-        double y = stressData[i]; // Stress
-
-        // Use dynamic limits
-        if (x >= actual_lower && x <= actual_upper)
-        {
-            sum_x += x;
-            sum_y += y;
-            sum_xy += x * y;
-            sum_x2 += x * x;
-            n++;
-        }
+        DockingApps::console.AddLog("[warning] E-Modulus: only %d data point(s) between the limits; move the limits further apart.", fit.points);
+        return 0.0;
     }
 
-    double e_module = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x);
+    double e_module = fit.slope; // N/mm^2 (MPa) per strain, or psi with imperial units
 
     // SI Units
     if (LR10KAppGlobals::unitsConvertionIndex == 0)
-        // Convert to GPa
+        // Convert MPa to GPa
         e_module /= 1000;
 
-    if (n < 2) return 0.0;
     return e_module;
 }
 
@@ -281,11 +267,9 @@ void AppCalculator::CalculateStressPoints(TabControl::TabTestDataClass* tabData,
     const double L_0 = LR10KAppGlobals::calc_length > 0 ? LR10KAppGlobals::calc_length : 1.0;
     const double D_0 = LR10KAppGlobals::calc_diameter;
 
-    double A_0 = 1.0; // Default safe denominator
-    if (LR10KAppGlobals::areaOptionPicked == 0) // Example: 0 = Rectangle
-        A_0 = (T_0 * W_0) > 0 ? (T_0 * W_0) : 1.0;
-    else if (LR10KAppGlobals::areaOptionPicked == 1) // Example: 1 = Circle (pi * r^2)
-        A_0 = (D_0 > 0) ? (IM_PI * (D_0 / 2.0) * (D_0 / 2.0)) : 1.0;
+    double A_0 = MaterialCalc::CrossSectionArea(LR10KAppGlobals::areaOptionPicked, T_0, W_0, D_0);
+    if (A_0 <= 0.0)
+        A_0 = 1.0; // Default safe denominator (dimensions not entered yet)
 
     // -------------------------------------------------------------------------
     // 2. Map the UI arrays to a manageable list so we can loop through them
@@ -384,19 +368,20 @@ void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestData
     // STANDARD 3-POINT BENDING FORMULAS
     // -------------------------------------------------------------------------
     // Max bending moment: M = (F * L) / 4 (Uses Span Length, NOT Travel!)
-    tabData->calcData_Compression[2] = (tabData->calcData_Compression[0] * L_0) / 4.0;
+    tabData->calcData_Compression[2] = MaterialCalc::BendingMoment3Point(tabData->calcData_Compression[0], L_0);
 
     // Flexural Strength (UTS): Sigma = (3 * F * L) / (2 * w * t^2)
-    tabData->calcData_Compression[3] = (3.0 * tabData->calcData_Compression[0] * L_0) / (2.0 * W_0 * (T_0 * T_0));
+    tabData->calcData_Compression[3] = MaterialCalc::FlexuralStress3Point(tabData->calcData_Compression[0], L_0, W_0, T_0);
 
     // -------------------------------------------------------------------------
     // 3-Point Bending Flexural Modulus (E-Modulus) using Linear Regression
     // -------------------------------------------------------------------------
     if (tabData->LR10KTensileData.Data.Size > 10)
     {
-        // 1. Default limits for the linear region (in raw Extension/Travel)
-        double ext_lower = 0.5;
-        double ext_upper = 2.0;
+        // 1. Default limits for the linear region (0.5 mm .. 2.0 mm of travel, in the current length unit)
+        const double unitConv_dist = LR10KAppGlobals::GetUnitOption<double>(8);
+        double ext_lower = 0.5 * unitConv_dist;
+        double ext_upper = 2.0 * unitConv_dist;
 
         // 2. See if the user has added custom draggable bounds (ID 5 and 6)
         for (const auto& point_tuple : tabData->plot_dataPoints) {
@@ -416,14 +401,20 @@ void AppCalculator::CalculateCompressionBendMomentAndUTS(TabControl::TabTestData
             loadData.push_back(tabData->LR10KTensileData.Data[i].y);      // Load
         }
 
-        // 4. Reuse your existing regression function to get the exact slope (m = F / dL)
-        double slope = CalculateYoungsModulus(extensionData, loadData, ext_lower, ext_upper);
+        // 4. Slope of the load-deflection line (m = F / dL) in the chosen window
+        const MaterialCalc::LinearFit fit = MaterialCalc::FitLine(extensionData, loadData, ext_lower, ext_upper);
 
-        // 5. Safely apply the 3-point bending formula: E = (slope * L^3) / (4 * w * t^3)
+        // 5. 3-point bending formula: E = (slope * L^3) / (4 * w * t^3), in N/mm^2 (MPa) or psi
         // (Re-using the safe L_0, W_0, and T_0 variables from the top of the function)
-        double denominator = 4.0 * W_0 * pow(T_0, 3);
+        double flexuralModulus = fit.valid ? MaterialCalc::FlexuralModulus3Point(fit.slope, L_0, W_0, T_0) : 0.0;
+        if (!fit.valid)
+            DockingApps::console.AddLog("[warning] Flexural modulus: only %d data point(s) between the limits; move the limits further apart.", fit.points);
 
-        tabData->calcYoungsModulus = (slope * pow(L_0, 3)) / denominator;
+        // Shown as GPa with SI units (same as for tension), psi with imperial units
+        if (LR10KAppGlobals::unitsConvertionIndex == 0)
+            flexuralModulus /= 1000.0;
+
+        tabData->calcYoungsModulus = flexuralModulus;
     }
 
     // -------------------------------------------------------------------------
@@ -443,11 +434,8 @@ void AppCalculator::SetLocalMaterialProperties(TabControl::TabTestDataClass* tab
     tabData->length             = length;
     tabData->diameter           = diameter;
 
-    // Calculate area
-    if (areaOption == 0)
-        tabData->area = thickness * width;
-    else if (areaOption == 1)
-        tabData->area = (M_PI * diameter) / 4;
+    // Calculate area (circular used to be pi * d / 4, missing the square: wrong stresses in Excel)
+    tabData->area = MaterialCalc::CrossSectionArea(areaOption, thickness, width, diameter);
 }
 
 // Sets the different global material properties
@@ -1346,12 +1334,17 @@ void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, lx
     int rowStartPoint = 0;
     int colStartPoint = 0;
 
-    // Safe denominators for math
-    double A_0 = tabData.area > 0 ? tabData.area : 1.0;
+    // Safe denominators for math. Recompute the area from the dimensions instead of trusting the stored
+    // value: files saved before this fix contain a wrong area for circular specimens (pi * d / 4).
+    double A_0 = MaterialCalc::CrossSectionArea(tabData.areaOptionPicked, tabData.thickness, tabData.width, tabData.diameter);
+    if (A_0 <= 0.0) A_0 = tabData.area > 0 ? tabData.area : 1.0;
     double L_0 = tabData.length > 0 ? tabData.length : 1.0;
 
+    const double zeroPointOffset = defaultValuesGUI::offsetZeroPointExtensionAxis;
+
     for (size_t row = 0; row < tensileData.Data.size(); row++) {
-        tensileData.Data[row].x -= (float)defaultValuesGUI::offsetZeroPointExtensionAxis;
+        const float originalX = tensileData.Data[row].x; // Before the zero point offset: crucial points are stored like this
+        tensileData.Data[row].x -= (float)zeroPointOffset;
 
         ImVec2 dataPlotPointRaw = tensileData.Data[row];
         ImVec2 dataPlotPointStress = tensileData.Data[row];
@@ -1365,9 +1358,11 @@ void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, lx
         }
         if (dataVariation == VAR_TRUE_STRESS)
         {
-            // True stress
-            dataPlotPointStress.x = LR10KAppGlobals::CalcEpsilon_t(dataPlotPointStress.x);
-            dataPlotPointStress.y = LR10KAppGlobals::CalcSigma_t(dataPlotPointStress.x, dataPlotPointStress.y);
+            // True stress. Uses the ENGINEERING strain, so compute it before x is overwritten
+            // (this used the already converted true strain before: true stress came out too low).
+            const double engineeringStrain = dataPlotPointStress.x;
+            dataPlotPointStress.y = LR10KAppGlobals::CalcSigma_t(engineeringStrain, dataPlotPointStress.y);
+            dataPlotPointStress.x = LR10KAppGlobals::CalcEpsilon_t(engineeringStrain);
         }
 
         // -----------------------------------------------
@@ -1399,6 +1394,15 @@ void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, lx
 
                 int id = std::get<1>(point_tuple);
 
+                // A matching point the crucial point is "snapped" to. Compare before the offset is applied:
+                // comparing the stored point with the offset row never matched when a zero point offset was
+                // set, so the crucial points were missing from the Excel file.
+                const bool matchesRow = (dataRaw.x == (double)originalX);
+
+                // Same zero point as the data rows (and as the calculations in the app)
+                dataRaw.x -= zeroPointOffset;
+                dataStress.x -= zeroPointOffset;
+
                 if (dataVariation == VAR_ENG_STRESS)
                 {
                     // Nominal stress
@@ -1406,8 +1410,7 @@ void AppMainExcel::write_worksheet_data(TabControl::TabTestDataClass tabData, lx
                     dataStress.y = LR10KAppGlobals::CalcSigma_e(dataStress.y, A_0);
                 }
 
-                // A matching point the crucial point is "snapped" to
-                if (dataRaw.x == dataPlotPointRaw.x)
+                if (matchesRow)
                 {
                     // Write into worksheet
                     worksheet_write_string(worksheet, rowStartPoint + 1, colStartPoint, TabControl::plot_items[id], NULL);
@@ -1713,9 +1716,12 @@ bool AppMainExcel::SavePlotDataAsAnXlsxFile(TabControl::TabTestDataClass tabData
         // Stress
         worksheet_write_string(ws_report, CELL("A10"), "Engineering stress (nominal stress)", fmt_bold_left);
 
-        worksheet_write_string(ws_report, CELL("A11"), "Young's Moduls, E-Modulus (GPa)", NULL);
+        // GPa with SI units, psi with imperial units (same as in the app)
+        const std::string unit_modulus = LR10KAppGlobals::unitsConvertionIndex == 0 ? "GPa" : LR10KAppGlobals::GetUnitOption<const char*>(7);
+        label = "Young's Modulus, E-Modulus (" + unit_modulus + ")";
+        worksheet_write_string(ws_report, CELL("A11"), label.c_str(), NULL);
         worksheet_write_number(ws_report, CELL("B11"), tabData.calcYoungsModulus, fmt_decimal3);
-        worksheet_write_string(ws_report, CELL("C11"), "GPa", fmt_bold_left);
+        worksheet_write_string(ws_report, CELL("C11"), unit_modulus.c_str(), fmt_bold_left);
 
         label = "Proportional Limit (" + unit_stress + ")";
         worksheet_write_string(ws_report, CELL("A12"), label.c_str(), NULL);
@@ -2703,9 +2709,16 @@ void TabControl::PreventExtremeLimitsLR10K(TabControl::TabTestDataClass* tabData
     float LR10KConvertedLoad        = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad();
     // float LR10KConvertedDistance    = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
 
+    // Compare in newtons. The load and the limit are in the display unit (N or lbf); with lbf the
+    // old check let the load go to 10000 lbf (~44 kN), far above the 10 kN machine capacity.
+    // The 10 kN capacity is always enforced, whatever the setting.
+    const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9);
+    const double loadNewton  = unitConv_force > 0.0 ? LR10KConvertedLoad / unitConv_force : LR10KConvertedLoad;
+    const double limitNewton = (std::min)(10000.0, unitConv_force > 0.0 ? LR10KAppGlobals::maximumLoadAllowedInsideLR10K / unitConv_force : 10000.0);
+
     if (
         // Load (N)
-        LR10KConvertedLoad >= LR10KAppGlobals::maximumLoadAllowedInsideLR10K) // 10000 N
+        loadNewton >= limitNewton) // 10000 N
     {
         if (tabData->test_unfinished_test_started)
             LR10KControlSystem::EndTest(tabData);
@@ -2738,9 +2751,16 @@ void TabControl::PreventUserLimitsLR10K(TabControl::TabTestDataClass* tabData)
     float LR10KConvertedLoad        = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad();
     // float LR10KConvertedDistance    = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
 
+    // Compare in newtons. The load and the limit are in the display unit (N or lbf); with lbf the
+    // old check let the load go to 10000 lbf (~44 kN), far above the 10 kN machine capacity.
+    // The 10 kN capacity is always enforced, whatever the setting.
+    const double unitConv_force = LR10KAppGlobals::GetUnitOption<double>(9);
+    const double loadNewton  = unitConv_force > 0.0 ? LR10KConvertedLoad / unitConv_force : LR10KConvertedLoad;
+    const double limitNewton = (std::min)(10000.0, unitConv_force > 0.0 ? LR10KAppGlobals::maximumLoadAllowedInsideLR10K / unitConv_force : 10000.0);
+
     if (
         // Load (N)
-        LR10KConvertedLoad >= LR10KAppGlobals::maximumLoadAllowedInsideLR10K) // 10000 N
+        loadNewton >= limitNewton) // 10000 N
     {
         if (tabData->test_unfinished_test_started)
             LR10KControlSystem::EndTest(tabData);
@@ -3961,7 +3981,8 @@ double RoundTo(double val, int prec) {
 **/
 float LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad()
 {
-    int value = ((int)TabControl::LR10KRawLoad - (int)TabControl::LR10KOffsetLoad) * LR10KAppGlobals::Convert_to_Newton;
+    // double, not int: the old int truncated every reading to whole newtons (the sensor resolution is ~0.76 N)
+    double value = ((double)TabControl::LR10KRawLoad - (double)TabControl::LR10KOffsetLoad) * LR10KAppGlobals::Convert_to_Newton;
     // Reverse positive direction when compression is enabled
     value = LR10KAppGlobals::tensionTesting ? value : value * -1;
 

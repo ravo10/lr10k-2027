@@ -25,3 +25,8 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -pthread \
             -I main/LloydLR10KTensile tests/ring_buffer_test.cpp -o ring_buffer_asan
           ./ring_buffer_asan
+      - name: Material property formulas
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/material_calc_test.cpp -o material_calc_test
+          ./material_calc_test
