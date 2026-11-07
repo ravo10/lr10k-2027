@@ -13,6 +13,7 @@
 
 #include "LR10KController.h"
 #include "MaterialCalc.h"
+#include "ExtensometerFilter.h"
 AppWindowStates g_WindowStates; //!< Create the variable in memory.
 AppExtensiometer g_Extensiometer; //!< Create the variable in memory.
 
@@ -1380,18 +1381,36 @@ void AppMain::SaveApplicationSettingsManualCheck(bool* original_pointer, bool* t
 static bool SortPointsVertically(const cv::Point2f& a, const cv::Point2f& b) {
     return a.y < b.y;
 }
-static std::string live_camera_feed_text = "Live Camera Feed";
+//! Text above the camera image (string literals only: written by the camera thread, read by the GUI)
+static std::atomic<const char*> live_camera_feed_text{ "Live Camera Feed" };
 
-void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
+namespace {
+    //! Opens a video file for a recording. Returns false (and logs once) if it cannot be opened.
+    bool OpenRecordingWriter(cv::VideoWriter& writer, const std::string& path, double fps, cv::Size size, const char* what)
+    {
+        if (path.empty())
+            return false;
+        writer.open(path, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), fps, size, true);
+        if (!writer.isOpened())
+        {
+            DockingApps::console.AddLog("[error] Could not open the %s video file %s (codec mp4v). The test is not recorded.", what, path.c_str());
+            return false;
+        }
+        DockingApps::console.AddLog("Recording the %s video to %s", what, path.c_str());
+        return true;
+    }
+}
+
+void ExtensiometerWorkerThread()
 {
     // =========================================================
     // 1. SETUP CAMERA & OPTIMIZATIONS
     // =========================================================
-    cv::VideoCapture cap(g_Extensiometer.camera_index, cv::CAP_DSHOW); // Try external first cv::CAP_DSHOW is the "leagacy" doesn't support AI
+    cv::VideoCapture cap(g_Extensiometer.camera_index.load(), cv::CAP_DSHOW); // Try external first cv::CAP_DSHOW is the "leagacy" doesn't support AI
     if (!cap.isOpened())
     {
         g_Extensiometer.camera_index = 0;
-        cap.open(g_Extensiometer.camera_index, cv::CAP_DSHOW); // Fallback to internal
+        cap.open(g_Extensiometer.camera_index.load(), cv::CAP_DSHOW); // Fallback to internal
     }
 
     if (cap.isOpened()) {
@@ -1400,18 +1419,26 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
         cap.set(cv::CAP_PROP_FRAME_HEIGHT, 600);
 
         cap.set(cv::CAP_PROP_AUTOFOCUS, 0);
-        //cap.set(cv::CAP_PROP_AUTO_EXPOSURE, 0.25); // 0.25 for not cv::CAP_DSHOW
         cap.set(cv::CAP_PROP_AUTO_EXPOSURE, (double)g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE); // Turn off Auto
-        //cap.set(cv::CAP_PROP_EXPOSURE, -2);    // Adjust this number until it looks right
-        //cap.set(cv::CAP_PROP_GAIN, 100);
     }
 
     // Local variables for processing
-    cv::Mat frame, frame_display;
-    const double EMA_ALPHA = 0.1;
+    cv::Mat frame, frame_display, frame_recorded;
+    ExtensometerFilter filter; // Distance smoothing in seconds, not per frame (ExtensometerFilter.h)
 
-    // Timer for throttling UI uploads
+    // Recording state (this thread only)
+    bool recordingOpenTried = false; // Open the files once per recording (a failed open used to be retried and logged every frame)
+    auto recordingStart = std::chrono::steady_clock::now();
+
+    // Timer for throttling UI uploads, and the time between frames for the filter
     auto lastUploadTime = std::chrono::steady_clock::now();
+    auto lastFrameTime = std::chrono::steady_clock::now();
+
+    // Markers lost: the test is paused only when they stay lost this long. (A single frame without exactly two
+    // markers, e.g. a reflection or a flicker, used to pause the test at once.)
+    constexpr double kLostMarkersPauseAfterS = 0.5;
+    bool markersMissing = false;
+    auto markersMissingSince = std::chrono::steady_clock::now();
 
     // =========================================================
     // 2. PROCESSING LOOP
@@ -1424,7 +1451,7 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
             cap.release();
             std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Brief pause for hardware
 
-            cap.open(g_Extensiometer.camera_index, cv::CAP_DSHOW);
+            cap.open(g_Extensiometer.camera_index.load(), cv::CAP_DSHOW);
             cap.set(cv::CAP_PROP_AUTO_EXPOSURE, (double)g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE);
 
             g_Extensiometer.request_cam_switch = false;
@@ -1437,57 +1464,62 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
             continue;
         }
 
+        // Blocks until the camera has the next frame (this paces the loop; no extra sleep, which only added lag)
         cap >> frame;
         if (frame.empty()) {
             g_Extensiometer.is_connected = false;
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
         }
 
         g_Extensiometer.is_connected = true;
+        const auto frameTime = std::chrono::steady_clock::now();
+        const double dtS = std::chrono::duration<double>(frameTime - lastFrameTime).count();
+        lastFrameTime = frameTime;
 
-        // --- 1. HANDLE RECORDING STATES, TELEMETRY & RAW WRITER ---
-        if (!g_Extensiometer.is_recording)
+        // --- 1. RECORDING: open/close the files, raw video ---
+        const bool recording = g_Extensiometer.is_recording;
+        if (!recording)
         {
             if (g_Extensiometer.video_writer_raw.isOpened()) g_Extensiometer.video_writer_raw.release();
             if (g_Extensiometer.video_writer_overlay.isOpened()) g_Extensiometer.video_writer_overlay.release();
+            recordingOpenTried = false;
         }
         else
         {
-            // Open RAW file with fast MJPG codec
-            if (!g_Extensiometer.video_writer_raw.isOpened() && !g_Extensiometer.video_save_path_raw.empty())
+            if (!recordingOpenTried)
             {
-                // Use H.264 Codec
-                int fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v'); // Much faster than XVID!
+                recordingOpenTried = true;
+                std::string rawPath, overlayPath;
+                {
+                    std::lock_guard<std::mutex> lock(g_Extensiometer.recording_mutex);
+                    rawPath = g_Extensiometer.video_save_path_raw;
+                    overlayPath = g_Extensiometer.video_save_path;
+                }
                 double fps = cap.get(cv::CAP_PROP_FPS);
                 if (fps < 1 || fps > 60) fps = 30.0;
-                //double fps = 30.0;
-
-                g_Extensiometer.video_writer_raw.open(g_Extensiometer.video_save_path_raw, fourcc, fps, frame.size(), true);
-
-                if (!g_Extensiometer.video_writer_raw.isOpened()) {
-                    // If you hit this, your Windows PC is missing the H.264 encoder backend.
-                    // Let's print an error to the console so we know!
-                    DockingApps::console.AddLog("[error] VideoWriter failed to open. Check codec and file extension!");
-                }
-
+                OpenRecordingWriter(g_Extensiometer.video_writer_raw, rawPath, fps, frame.size(), "raw");
+                OpenRecordingWriter(g_Extensiometer.video_writer_overlay, overlayPath, fps, frame.size(), "overlay");
                 g_Extensiometer.recording_frame_count = 0;
-                g_Extensiometer.recording_start_time = ImGui::GetTime();
+                recordingStart = frameTime;
             }
 
-            // Generate Telemetry String
-            double elapsed = ImGui::GetTime() - g_Extensiometer.recording_start_time;
-            char telemetry[128];
-            const char* rec_blink = (int(elapsed * 2) % 2 == 0) ? "REC" : "   ";
-            sprintf(telemetry, "[%s] T+%.2fs | Frame: %05d | Strain: %.2f%%",
-                rec_blink, elapsed, g_Extensiometer.recording_frame_count, g_Extensiometer.results.strain_percentage);
+            if (g_Extensiometer.video_writer_raw.isOpened())
+            {
+                // The time stamp goes on a copy. It used to be drawn into the frame before the markers were
+                // searched: the black box (bottom 25 px, x 5..360) hid a marker low in the image while recording.
+                const double elapsed = std::chrono::duration<double>(frameTime - recordingStart).count();
+                char telemetry[128];
+                const char* rec_blink = (int(elapsed * 2) % 2 == 0) ? "REC" : "   ";
+                snprintf(telemetry, sizeof(telemetry), "[%s] T+%.2fs | Frame: %05d | Strain: %.2f%%",
+                    rec_blink, elapsed, g_Extensiometer.recording_frame_count, g_Extensiometer.results.strain_percentage.load());
 
-            int y_pos = frame.rows - 10;
-            cv::rectangle(frame, cv::Point(5, y_pos - 15), cv::Point(360, y_pos + 5), cv::Scalar(0, 0, 0), -1);
-            cv::putText(frame, telemetry, cv::Point(10, y_pos),
-                cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
-
-            if (g_Extensiometer.video_writer_raw.isOpened()) {
-                g_Extensiometer.video_writer_raw.write(frame);
+                frame.copyTo(frame_recorded);
+                int y_pos = frame_recorded.rows - 10;
+                cv::rectangle(frame_recorded, cv::Point(5, y_pos - 15), cv::Point(360, y_pos + 5), cv::Scalar(0, 0, 0), -1);
+                cv::putText(frame_recorded, telemetry, cv::Point(10, y_pos),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+                g_Extensiometer.video_writer_raw.write(frame_recorded);
             }
             g_Extensiometer.recording_frame_count++;
         }
@@ -1570,122 +1602,76 @@ void ExtensiometerWorkerThread(TabControl::TabTestDataClass* tabData)
         // =========================================================
         if (centers.size() == 2) {
             live_camera_feed_text = "Live Camera Feed";
+            markersMissing = false;
 
             std::sort(centers.begin(), centers.end(), SortPointsVertically);
             cv::Point2f p1 = centers[0];
             cv::Point2f p2 = centers[1];
 
-            /*double currentRawDist = cv::norm(p1 - p2);
-
+            // Distance between the markers, smoothed (time constant in seconds; dead-band against pixel noise)
+            const double currentRawDist = cv::norm(p1 - p2);
+            filter.SetTimeConstant(g_Extensiometer.smoothing_time_s.load());
             if (!g_Extensiometer.initialized || g_Extensiometer.reset_requested) {
-                g_Extensiometer.initial_dist_px = currentRawDist;
-                g_Extensiometer.smooth_dist_px = currentRawDist;
+                filter.Reset(currentRawDist);
                 g_Extensiometer.initialized = true;
                 g_Extensiometer.reset_requested = false;
             }
             else {
-                g_Extensiometer.smooth_dist_px = (EMA_ALPHA * currentRawDist) + ((1.0 - EMA_ALPHA) * g_Extensiometer.smooth_dist_px);
-            }*/
-
-            // 1. Calculate Raw Distance
-            double currentRawDist = cv::norm(p1 - p2);
-
-            // 2. Initialize if first frame
-            if (!g_Extensiometer.initialized || g_Extensiometer.reset_requested) {
-                g_Extensiometer.initial_dist_px = currentRawDist;
-                g_Extensiometer.smooth_dist_px = currentRawDist;
-                g_Extensiometer.initialized = true;
-                g_Extensiometer.reset_requested = false;
+                filter.Update(currentRawDist, dtS);
             }
-            else {
-                // --- NEW JITTER PREVENTION LOGIC ---
+            g_Extensiometer.initial_dist_px = filter.InitialPx();
 
-                // A. The Deadband (Ignore micro-pixel noise when standing still)
-                double pixel_delta = std::abs(currentRawDist - g_Extensiometer.smooth_dist_px);
-
-                if (pixel_delta > 0.15) // If it moved less than 0.15 pixels, ignore it!
-                {
-                    // B. Heavier Smoothing (Decreased Alpha from 0.1 to 0.03)
-                    // This smooths the 30Hz camera steps into a nice continuous line for the 100Hz plot
-                    const double EMA_ALPHA = 0.03;
-                    g_Extensiometer.smooth_dist_px = (EMA_ALPHA * currentRawDist) + ((1.0 - EMA_ALPHA) * g_Extensiometer.smooth_dist_px);
-                }
-            }
-
-            // The running test's own gauge length (the global value before a test is started)
-            const double PHYSICAL_L0_MM = tabData->test_unfinished_test_started ? tabData->length : LR10KAppGlobals::calc_length;
-
-            if (g_Extensiometer.initial_dist_px > 0) {
-                double elongationPx = g_Extensiometer.smooth_dist_px - g_Extensiometer.initial_dist_px;
-                double strain = elongationPx / g_Extensiometer.initial_dist_px;
-
-                g_Extensiometer.results.travel_mm = (float)(strain * PHYSICAL_L0_MM);
-                g_Extensiometer.results.strain_percentage = (float)(strain * 100.0);
-            }
+            // The running test's own gauge length (the global value before a test is started), set by the GUI thread
+            const double PHYSICAL_L0_MM = g_Extensiometer.gauge_length_mm.load();
+            const double strain = filter.Strain();
+            g_Extensiometer.results.travel_mm = (float)(strain * PHYSICAL_L0_MM);
+            g_Extensiometer.results.strain_percentage = (float)(strain * 100.0);
 
             cv::line(frame_display, p1, p2, cv::Scalar(0, 255, 0), 2);
             cv::circle(frame_display, p1, 5, cv::Scalar(0, 0, 255), -1);
             cv::circle(frame_display, p2, 5, cv::Scalar(0, 0, 255), -1);
         }
         else {
-            live_camera_feed_text = "Live Camera Feed (Searching for markers...)";
-            if (LR10KAppGlobals::opticalSourceAsExtensiometer)
+            live_camera_feed_text = centers.empty() ? "Live Camera Feed (Searching for markers...)"
+                : (centers.size() == 1 ? "Live Camera Feed (Only 1 marker found)"
+                                       : "Live Camera Feed (More than 2 markers found: check the colour settings / restrict sides)");
+            if (!markersMissing)
             {
-                if (!g_Extensiometer.lostMarkerDetectedlost_tracking && tabData->test_unfinished_test_started && tabData->test_running_test)
-                    g_Extensiometer.lostMarkerDetectedlost_tracking = true;
+                markersMissing = true;
+                markersMissingSince = frameTime;
             }
+            const double missingS = std::chrono::duration<double>(frameTime - markersMissingSince).count();
+            if (LR10KAppGlobals::opticalSourceAsExtensiometer && g_Extensiometer.test_running && missingS >= kLostMarkersPauseAfterS)
+                g_Extensiometer.lostMarkerDetectedlost_tracking = true;
         }
 
-        // --- OVERLAY VIDEO RECORDER ---
-        if (g_Extensiometer.is_recording)
-        {
-            if (!g_Extensiometer.video_writer_overlay.isOpened() && !g_Extensiometer.video_save_path.empty())
-            {
-                // H.264 Codec
-                int fourcc = cv::VideoWriter::fourcc('m', 'p', '4', 'v');
-                double fps = cap.get(cv::CAP_PROP_FPS);
-                if (fps < 1 || fps > 60) fps = 30.0;
-                //double fps = 30.0;
-                g_Extensiometer.video_writer_overlay.open(g_Extensiometer.video_save_path, fourcc, fps, frame_display.size(), true);
-            }
-
-            if (g_Extensiometer.video_writer_overlay.isOpened()) {
-                g_Extensiometer.video_writer_overlay.write(frame_display);
-            }
-            else
-            {
-                // If you hit this, your Windows PC is missing the H.264 encoder backend.
-                // Let's print an error to the console so we know!
-                DockingApps::console.AddLog("[error] VideoWriter failed to open. Check codec and file extension!");
-            }
-        }
+        // --- OVERLAY VIDEO ---
+        if (recording && g_Extensiometer.video_writer_overlay.isOpened())
+            g_Extensiometer.video_writer_overlay.write(frame_display);
 
         // =========================================================
         // 5. UPLOAD TO GUI (THROTTLED & MUTEX-SAFE)
         // =========================================================
-
-        // Convert colors OUTSIDE the lock to save UI thread time
-        cv::Mat tempCameraRGBA, tempMaskRGBA;
-        cv::cvtColor(frame_display, tempCameraRGBA, cv::COLOR_BGR2RGBA);
-        cv::cvtColor(full_mask, tempMaskRGBA, cv::COLOR_GRAY2RGBA);
-
-        auto now = std::chrono::steady_clock::now();
-
-        // Throttle UI texture updates to ~20 FPS (50ms)
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastUploadTime).count() > 50)
+        // Only when the window shows the images, at most ~20 times/s (the conversions used to run for every frame)
+        if (g_Extensiometer.window_visible
+            && std::chrono::duration_cast<std::chrono::milliseconds>(frameTime - lastUploadTime).count() > 50)
         {
+            cv::Mat tempCameraRGBA, tempMaskRGBA;
+            cv::cvtColor(frame_display, tempCameraRGBA, cv::COLOR_BGR2RGBA);
+            cv::cvtColor(full_mask, tempMaskRGBA, cv::COLOR_GRAY2RGBA);
+
             // Only lock for the split-second memory copy
             std::lock_guard<std::mutex> lock(g_CV_frameMutex);
             tempCameraRGBA.copyTo(g_sharedCameraFrame);
             tempMaskRGBA.copyTo(g_sharedMaskFrame);
             g_hasNewFrame = true;
 
-            lastUploadTime = now;
+            lastUploadTime = frameTime;
         }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
+    if (g_Extensiometer.video_writer_raw.isOpened()) g_Extensiometer.video_writer_raw.release();
+    if (g_Extensiometer.video_writer_overlay.isOpened()) g_Extensiometer.video_writer_overlay.release();
     cap.release();
 }
 
@@ -1726,14 +1712,23 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
     // 1. THREAD MANAGEMENT (Background Logic)
     //    Controlled by 'is_active', NOT window visibility
     // =========================================================
-    cv::VideoCapture cap;
+    // What the camera thread needs from the test: the gauge length and whether a test runs (on any tab)
+    {
+        const int testIndex = TabControl::aTestIsStartedOnTabIndexId;
+        TabControl::TabTestDataClass* testTab = (testIndex >= 0 && testIndex < (int)TabControl::allTabTestData.size()) ? TabControl::allTabTestData[testIndex] : nullptr;
+        const bool testStarted = testTab != nullptr && testTab->test_unfinished_test_started && !testTab->test_finished;
+        g_Extensiometer.gauge_length_mm = (float)(testStarted ? testTab->length : LR10KAppGlobals::calc_length);
+        g_Extensiometer.test_running = testStarted && testTab->test_running_test;
+        g_Extensiometer.window_visible = *p_open;
+    }
+
     if (g_Extensiometer.is_active)
     {
         // Start Thread if not running
         if (g_pThreadCV == nullptr)
         {
             g_CV_stopFlag = false;
-            g_pThreadCV = std::make_unique<std::thread>(ExtensiometerWorkerThread, tabData);
+            g_pThreadCV = std::make_unique<std::thread>(ExtensiometerWorkerThread);
         }
     }
     else
@@ -1949,17 +1944,14 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu("Record")) {
-                    bool filepathsAreNotEmpty = !g_Extensiometer.video_save_path.empty() && !g_Extensiometer.video_save_path_raw.empty();
-                    if (ImGui::MenuItem("Activate Recording", NULL, &g_Extensiometer.record_test, filepathsAreNotEmpty))
-                    {
+                    // Videos go into "Recordings" inside the test's storage folder (no separate folder to pick)
+                    if (ImGui::MenuItem("Record tests", NULL, &g_Extensiometer.record_test))
                         PlaySoundEffect("buttonClick1");
-                    }
-                    if (ImGui::MenuItem("Set Storage Folder for Recording"))
-                    {
-                        fileBrowserSaveVideoRecordingExt.Open();
-                        g_Extensiometer.record_test = true; // Activate recording
-                        PlaySoundEffect("buttonClick0");
-                    }
+                    if (tabData->current_temp_preSaveLocation.empty())
+                        ImGui::SetItemTooltip("Records the camera (raw and with markers, .mp4) during each test,\ninto a \"Recordings\" folder inside the storage folder.\nSet the storage folder first: File > Specify Storage Folder.");
+                    else
+                        ImGui::SetItemTooltip("Records the camera (raw and with markers, .mp4) during each test, into:\n%s",
+                            (std::filesystem::path(tabData->current_temp_preSaveLocation) / "Recordings").string().c_str());
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu("View")) {
@@ -1990,10 +1982,10 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                                 ImGui::SeparatorText("Current values");
 
                                 //ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 10));
-                                ImGui::TextColored(ImVec4(0, 1, 0, 1), "Extension: %.3f mm", g_Extensiometer.results.travel_mm);
+                                ImGui::TextColored(ImVec4(0, 1, 0, 1), "Extension: %.3f mm", g_Extensiometer.results.travel_mm.load());
 
                                 //ImGui::SetCursorPos(ImVec2(cursorStart.x + 10, cursorStart.y + 30));
-                                ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage);
+                                ImGui::TextColored(ImVec4(0, 1, 0, 1), "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage.load());
 
                                 // Draw Overlay Text
                                 ImGui::Spacing();
@@ -2050,7 +2042,8 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                     if (ImGui::BeginChild("Ext.CenterPanel", ImVec2(centerWidth, 0), true, ImGuiWindowFlags_MenuBar))
                     {
-                        if (ImGui::BeginMenuBar()) { ImGui::Text(live_camera_feed_text.c_str()); ImGui::EndMenuBar(); }
+                        if (ImGui::BeginMenuBar()) { ImGui::TextUnformatted(live_camera_feed_text.load());
+                            if (g_Extensiometer.is_recording) { ImGui::SameLine(); ImGui::TextColored(ImVec4(1.0f, 0.25f, 0.25f, 1.0f), "  REC"); } ImGui::EndMenuBar(); }
 
                         ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
@@ -2104,13 +2097,26 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
                         ImGui::SeparatorText("Calibration");
-                        ImGui::Text("Detected L0: %.1f px", g_Extensiometer.initial_dist_px);
+                        ImGui::Text("Detected L0: %.1f px", g_Extensiometer.initial_dist_px.load());
 
                         ImGui::BeginDisabled(tabData->test_unfinished_test_started);
                         if (ImGui::Button("SET L0 / RESET", ImVec2(-1, 40))) {
                             g_Extensiometer.reset_requested = true;
                         }
                         ImGui::EndDisabled();
+
+                        // Smoothing of the marker distance (ExtensometerFilter.h). Not saved: starts at 0.25 s.
+                        {
+                            float smoothing = g_Extensiometer.smoothing_time_s.load();
+                            ImGui::PushItemWidth(150.0f);
+                            if (ImGui::SliderFloat("Smoothing", &smoothing, 0.0f, 2.0f, "%.2f s"))
+                                g_Extensiometer.smoothing_time_s = smoothing;
+                            ImGui::PopItemWidth();
+                            ImGui::SetItemTooltip("How much the extension is smoothed (time constant).\n"
+                                "More: a calmer curve, but the extension lags the load by about this time,\n"
+                                "which tilts the stress-strain curve and raises the E-modulus.\n"
+                                "0.25 s is the default; the old fixed setting was about 1.3 s.");
+                        }
 
                         ImGui::SeparatorText("Region of Interest");
 

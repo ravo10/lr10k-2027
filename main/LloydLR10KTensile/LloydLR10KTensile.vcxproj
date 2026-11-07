@@ -252,6 +252,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClInclude Include="LR10KMeasurement.h" />
     <ClInclude Include="LR10KStatus.h" />
     <ClInclude Include="LoadSafety.h" />
+    <ClInclude Include="ExtensometerFilter.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="styles.h" />
   </ItemGroup>

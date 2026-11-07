@@ -591,6 +591,7 @@ int main(int argc, char** argv)
         // The LR 10K stopped answering (switched off, "Remote control" off, cable loose on a real COM port, ...)
         LR10KControlSystem::WatchdogTick();
         LR10KControlSystem::LoadSafetyTick(); // 50 N blocker and load limit (these had stopped running in Feb. 2026)
+        DockingApps::console.FlushPending();  // Log lines from worker threads (also while the console is hidden)
         LR10KDataDeEncryptionSystem::trafficLog.FlushIdle(); // Write received bytes that are waiting for the end of a burst
         static bool notRespondingPopupOpen = false;
         if (LR10KDataDeEncryptionSystem::lr10kNotResponding.load() && !notRespondingPopupOpen)

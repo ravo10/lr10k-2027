@@ -23,6 +23,8 @@ void AppConsole::ClearLog()
     for (int i = 0; i < Items.Size; i++)
         free(Items[i]);
     Items.clear();
+    std::lock_guard<std::mutex> lock(PendingMutex);
+    Pending.clear();
 }
 
 void AppConsole::AddLog(const char* fmt, ...) IM_FMTARGS(2)
@@ -35,15 +37,46 @@ void AppConsole::AddLog(const char* fmt, ...) IM_FMTARGS(2)
     buf[IM_ARRAYSIZE(buf) - 1] = 0;
     va_end(args);
 
-    //Items.push_back("-----------");
+    // One entry per line, so every entry has the same height (the drawing skips the lines that are not visible)
+    std::lock_guard<std::mutex> lock(PendingMutex);
+    const char* line = buf;
+    while (true)
+    {
+        const char* end = strchr(line, '\n');
+        Pending.emplace_back(line, end ? (size_t)(end - line) : strlen(line));
+        if (end == nullptr)
+            break;
+        line = end + 1;
+    }
+}
 
-    Items.push_back(Strdup(buf));
-    //Items.push_back("\n");
+void AppConsole::FlushPending()
+{
+    std::vector<std::string> lines;
+    {
+        std::lock_guard<std::mutex> lock(PendingMutex);
+        lines.swap(Pending);
+    }
+    if (lines.empty())
+        return;
+
+    for (const std::string& line : lines)
+        Items.push_back(Strdup(line.c_str()));
+
+    // Drop the oldest lines beyond the limit
+    if (Items.Size > MaxItems)
+    {
+        const int drop = Items.Size - MaxItems;
+        for (int i = 0; i < drop; i++)
+            free(Items[i]);
+        Items.erase(Items.begin(), Items.begin() + drop);
+    }
 }
 
 void AppConsole::Draw(TabControl::TabTestDataClass* tabData, const char* title, bool* p_open, ImGuiWindowFlags extern_windowFlags)
 {
     if (tabData == nullptr) return;
+    FlushPending();
 
     ImGuiWindowFlags window_flags = 0;
     window_flags |= extern_windowFlags;
@@ -137,11 +170,9 @@ void AppConsole::Draw(TabControl::TabTestDataClass* tabData, const char* title, 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 1)); // Tighten spacing
         if (copy_to_clipboard)
             ImGui::LogToClipboard();
-        for (int i = 0; i < Items.Size; i++)
-        {
-            const char* item = Items[i];
-            if (!Filter.PassFilter(item))
-                continue;
+        // Only the visible lines are drawn (all lines are one text line high), unless a filter is active or the
+        // log is copied. (Every line was drawn every frame: a long log slowed the whole GUI.)
+        auto drawItem = [&](const char* item) {
 
             // Normally you would store more information in your item than just a string.
             // (e.g. make Items[] an array of structure, store color/type etc.)
@@ -158,6 +189,20 @@ void AppConsole::Draw(TabControl::TabTestDataClass* tabData, const char* title, 
             ImGui::TextUnformatted(item);
             if (has_color)
                 ImGui::PopStyleColor();
+        };
+        if (Filter.IsActive() || copy_to_clipboard)
+        {
+            for (int i = 0; i < Items.Size; i++)
+                if (Filter.PassFilter(Items[i]))
+                    drawItem(Items[i]);
+        }
+        else
+        {
+            ImGuiListClipper clipper;
+            clipper.Begin(Items.Size);
+            while (clipper.Step())
+                for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+                    drawItem(Items[i]);
         }
         if (copy_to_clipboard)
             ImGui::LogFinish();

@@ -16,6 +16,8 @@
 
 #include <cmath>
 #include <cstring>
+#include <filesystem>
+#include <system_error>
 
 #include "LR10KController.h"
 
@@ -483,6 +485,43 @@ TestCalc::Specimen LR10KControlSystem::SpecimenForNextTest(const TabControl::Tab
 }
 
 /**
+    @brief  Starts recording the extensometer camera for a test (if "Record tests" is on): the videos go into a
+            "Recordings" folder inside the test's storage folder, named like the test's .lr10k/.xlsx files.
+            (A separate recording folder had to be picked before every test, and the overlay path was cleared
+            after each test, so the next test had no overlay video.)
+**/
+static void StartExtensometerRecording(TabControl::TabTestDataClass* tabData)
+{
+    if (!g_Extensiometer.record_test)
+        return;
+    if (tabData->current_temp_preSaveLocation.empty())
+    {
+        DockingApps::console.AddLog("[warning] Not recording: set a storage folder first (File > Specify Storage Folder).");
+        return;
+    }
+    if (!g_Extensiometer.is_active)
+        DockingApps::console.AddLog("[warning] \"Record tests\" is on, but the extensometer camera is off: nothing will be recorded.");
+
+    const std::filesystem::path base = DockingApps::mainFileSystem.CreateFilepathForTabWNoFileExtension(tabData);
+    const std::filesystem::path folder = base.parent_path() / "Recordings";
+    std::error_code error;
+    std::filesystem::create_directories(folder, error);
+    if (error)
+    {
+        DockingApps::console.AddLog("[error] Not recording: could not create the folder %s (%s).", folder.string().c_str(), error.message().c_str());
+        return;
+    }
+
+    const std::string name = base.filename().string();
+    {
+        std::lock_guard<std::mutex> lock(g_Extensiometer.recording_mutex);
+        g_Extensiometer.video_save_path_raw = (folder / (name + "_RAW.mp4")).string();
+        g_Extensiometer.video_save_path = (folder / (name + "_OVERLAY.mp4")).string();
+    }
+    g_Extensiometer.is_recording = true; // The camera thread opens the files with the next frame
+}
+
+/**
     @brief  Start a tensile test.
     @retval  -
 **/
@@ -493,11 +532,8 @@ bool LR10KControlSystem::StartTest(TabControl::TabTestDataClass* tabData)
         {
             tabData->current_temp_preSaveLocation_StarTestNow = false;
 
-            if (g_Extensiometer.record_test)
-            {
-                // Start recording
-                g_Extensiometer.is_recording = true;
-            }
+            // Start recording (if "Record tests" is on)
+            StartExtensometerRecording(tabData);
 
             // A real test will never start when demo mode is activated
             if (mainGUIGlobals::useDemoMode && LR10KAppGlobals::setZeroPointOnStarTest)
@@ -614,9 +650,7 @@ bool LR10KControlSystem::EndTest(TabControl::TabTestDataClass* tabData)
         // Disable force on the the current tab
         TabControl::forcedTabIndexId = -1;
 
-        // Clear recording
-        g_Extensiometer.video_save_path = "";
-        g_Extensiometer.record_test = false;
+        // ("Record tests" stays on for the next test; it gets its own files)
 
         PlaySoundEffect("EndTest");
 

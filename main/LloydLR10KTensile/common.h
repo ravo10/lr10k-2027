@@ -361,30 +361,39 @@ namespace mainGUIGlobals {
 **/
 struct AppExtensiometer
 {
+    // Settings (GUI thread writes, camera thread reads; plain values)
     float restrictive_area = 0.0f;
     bool show_cvmask = true;
     bool show_cvsettings = true;
-    bool is_active = true; //!< Controls the camera ON/OFF state
+    bool is_active = true; //!< Controls the camera ON/OFF state (GUI thread only)
 
-    int camera_index = 1;      //!< Current selected camera (starts at 0; 1 is external)
-    bool request_cam_switch = false; //!< Flag to tell the thread to restart
-    bool is_connected = false; //!< If a camera is connected
+    std::atomic<int> camera_index{ 1 };            //!< Current selected camera (starts at 0; 1 is external)
+    std::atomic<bool> request_cam_switch{ false }; //!< Flag to tell the thread to restart
+    std::atomic<bool> is_connected{ false };       //!< If a camera is connected
 
-    bool record_test = false;
-    bool is_recording = false;
+    // Recording: the paths are set by the GUI thread at Start Test (under recording_mutex), then is_recording is set
+    bool record_test = false;                  //!< "Record tests" (GUI thread only); stays on until turned off
+    std::atomic<bool> is_recording{ false };   //!< A test is being recorded (set at Start Test, cleared at End Test)
+    std::mutex recording_mutex;                //!< Protects the two paths below
     std::string video_save_path_raw = "";
     std::string video_save_path = "";
-    cv::VideoWriter video_writer_raw;
-    cv::VideoWriter video_writer_overlay;
-    int recording_frame_count = 0;
-    double recording_start_time = 0.0; // Use ImGui::GetTime() or similar
+    cv::VideoWriter video_writer_raw;          //!< Camera thread only
+    cv::VideoWriter video_writer_overlay;      //!< Camera thread only
+    int recording_frame_count = 0;             //!< Camera thread only
+
+    // What the camera thread needs from the running test (set by the GUI thread every frame). The thread used to
+    // keep a pointer to the tab that was active when the camera started: a closed tab left it reading freed memory,
+    // and a test on another tab used the wrong gauge length and was not paused when the markers were lost.
+    std::atomic<float> gauge_length_mm{ 0.0f }; //!< L0 for converting strain to extension
+    std::atomic<bool> test_running{ false };    //!< A test is running (not paused)
+    std::atomic<bool> window_visible{ false };  //!< The extensometer window is open (only then the images are prepared for it)
+    std::atomic<float> smoothing_time_s{ 0.25f }; //!< Time constant of the distance smoothing (see ExtensometerFilter.h)
 
     //! \note Internal state for logic (Initial Length logic)
-    bool reset_requested = false;
-    double initial_dist_px = 0.0;
-    double smooth_dist_px = 0.0;
-    bool initialized = false;
-    bool lostMarkerDetectedlost_tracking = false;
+    std::atomic<bool> reset_requested{ false };
+    std::atomic<double> initial_dist_px{ 0.0 }; //!< L0 in pixels (shown in the GUI)
+    std::atomic<bool> initialized{ false };
+    std::atomic<bool> lostMarkerDetectedlost_tracking{ false };
 
     //! \note Instance of settings (initialized with your prototype defaults)
     struct MaskSettings {
@@ -394,10 +403,10 @@ struct AppExtensiometer
         float CAP_PROP_AUTO_EXPOSURE = 0.4f;
     } settings;
 
-    //! \note Instance of results
+    //! \note Instance of results (written by the camera thread, read by the GUI and the plot)
     struct Output {
-        float travel_mm = 0.0f;
-        float strain_percentage = 0.0f;
+        std::atomic<float> travel_mm{ 0.0f };
+        std::atomic<float> strain_percentage{ 0.0f };
     } results;
 };
 
@@ -1339,7 +1348,14 @@ struct AppMainTabSystem
 struct AppConsole
 {
     char                  InputBuf[256];    //!< ...
-    ImVector<char*>       Items;            //!< ...
+    ImVector<char*>       Items;            //!< The log lines (GUI thread only; other threads go through Pending)
+
+    //! AddLog() is called from worker threads (interpreter, connect, reconnect, camera) too. It used to push into
+    //! Items directly while the GUI drew them, which can crash when the vector grows. Now lines wait here and the
+    //! GUI thread moves them into Items (FlushPending(), once per frame).
+    std::mutex               PendingMutex;
+    std::vector<std::string> Pending;
+    static constexpr int     MaxItems = 5000; //!< Oldest lines are dropped beyond this (drawing every line slowed the GUI)
     ImVector<const char*> Commands;         //!< All of the commands possible to type in.
     ImVector<char*>       History;          //!< The history of past input sent.
     int                   HistoryPos;       //!< -1: new line, 0..History.Size-1 browsing history.
@@ -1421,7 +1437,8 @@ struct AppConsole
         @brief Clear the current log.
     **/
     void    ClearLog();
-    void    AddLog(const char* fmt, ...) IM_FMTARGS(2); //!<     Add a new item to log.
+    void    AddLog(const char* fmt, ...) IM_FMTARGS(2); //!<     Add a new item to log (any thread).
+    void    FlushPending(); //!< Move lines added by AddLog() into the log. GUI thread, once per frame.
     /**
         @brief Draw log window.
         @param tabData -

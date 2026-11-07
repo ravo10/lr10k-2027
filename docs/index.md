@@ -35,6 +35,10 @@ You can now edit and manipulate the crucial points with *Ctrl+Click*. Like yield
 
 Ctrl+S saves (.lr10k and .xlsx), Ctrl+Alt+S saves as, Ctrl+Alt+E saves an Excel book, Ctrl+O opens a test and Ctrl+Z removes the last crucial point. The buttons show their hotkey as a tooltip.
 
+## Recording the optical extensometer
+
+Turn on *Record > Record tests* in the extensometer window. Each test is then recorded into a `Recordings` folder inside the test's storage folder (*File > Specify Storage Folder*), as two `.mp4` files named like the test: `_RAW` (the camera image with a time stamp) and `_OVERLAY` (with the detected markers). The setting stays on for the next tests until you turn it off.
+
 ## Load safety
 
 - **Translation load blocker** (*Zero Point & Safety*, on every time the software starts): when you move the crosshead without a test and the load rises above 50 N, the crosshead stops. Moving the other way, so that the load drops, is still possible.
