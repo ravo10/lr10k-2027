@@ -31,6 +31,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `ExcelWriter.h/.cpp` | Writes a `Report` to .xlsx (layout, formats, charts); no GUI code | `ExcelReport.h`, libxlsxwriter (checked on GitHub with sample files) |
 | | `ExcelExport.cpp` | `MakeExcelReport()` fills a `Report` from a test tab, saves it with `ExcelWriter` and logs the result | GUI, `ExcelWriter.h` |
 | **Optical extensometer** | `ExtensometerFilter.h` | Smoothing of the marker distance (time constant in seconds, dead-band) and the strain from it | nothing (portable, tested) |
+| | `ExtensometerTracking.h` | Picks the two markers among the detected blobs (follows them past extra blobs) and ignores single-frame jumps of their distance | nothing (portable, tested) |
 | | `appstructs.cpp` (`ExtensiometerWorkerThread`) | Camera thread: OpenCV marker detection, recording, images for the window; shares only atomics/mutex-protected data with the GUI | OpenCV |
 | **GUI** | `main.cpp` | Window, DirectX 12, main loop, pop ups | everything |
 | | `appstructs.h/.cpp` | Docking windows, menus, settings, .lr10k JSON save/load | everything |
@@ -60,6 +61,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `status_test.cpp` | Connect/disconnect/port events, texts, the GUI always seeing a whole state while another thread changes it (with ThreadSanitizer) |
 | `load_safety_test.cpp` | The 50 N blocker: stops when the load rises above the limit, lets the user move away, ignores noise, compression loads; the load limit (capped at 10 kN) |
 | `extensometer_filter_test.cpp` | Smoothing: settling with the time constant, the same at any frame rate, lag on a ramp, dead-band |
+| `extensometer_tracking_test.cpp` | Marker choice with 0/1/2/more blobs, following the markers past a reflection, the jump gate (bad frame ignored, fracture believed after 4 frames) |
 | `serial_reader_test.cpp` | Reader thread against a fake port: byte order, connection loss after 3 failed reads, tolerated glitches, stopping (also with a full buffer), restarting |
 
 ## Still to do

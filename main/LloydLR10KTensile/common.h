@@ -398,7 +398,8 @@ struct AppExtensiometer
     std::atomic<double> initial_dist_px{ 0.0 }; //!< L0 in pixels (shown in the GUI)
     std::atomic<bool> initialized{ false };
     std::atomic<bool> lostMarkerDetectedlost_tracking{ false };
-    std::atomic<int> markers_found{ 0 };          //!< Markers in the last frame (2 = tracking)
+    std::atomic<int> markers_found{ 0 };          //!< 2 = both markers tracked, else the number of blobs found
+    std::atomic<int> blobs_found{ 0 };            //!< Blobs of the marker colour in the last frame
 
     //! \note Instance of settings (initialized with your prototype defaults)
     struct MaskSettings {

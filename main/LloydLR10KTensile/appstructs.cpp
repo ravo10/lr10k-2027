@@ -14,6 +14,7 @@
 #include "LR10KController.h"
 #include "MaterialCalc.h"
 #include "ExtensometerFilter.h"
+#include "ExtensometerTracking.h"
 AppWindowStates g_WindowStates; //!< Create the variable in memory.
 AppExtensiometer g_Extensiometer; //!< Create the variable in memory.
 
@@ -1377,10 +1378,6 @@ void AppMain::SaveApplicationSettingsManualCheck(bool* original_pointer, bool* t
 // ---------------------------------- Widgets ----------------------------------
 // -----------------------------------------------------------------------------
 
-// --- HELPER FUNCTION --- (to sort points vertically)
-static bool SortPointsVertically(const cv::Point2f& a, const cv::Point2f& b) {
-    return a.y < b.y;
-}
 //! Text above the camera image (string literals only: written by the camera thread, read by the GUI)
 static std::atomic<const char*> live_camera_feed_text{ "Live Camera Feed" };
 
@@ -1425,6 +1422,9 @@ void ExtensiometerWorkerThread()
     // Local variables for processing
     cv::Mat frame, frame_display, frame_recorded;
     ExtensometerFilter filter; // Distance smoothing in seconds, not per frame (ExtensometerFilter.h)
+    ExtensometerTracking::Markers lastMarkers;  // Markers in the last good frame (to follow them past extra blobs)
+    ExtensometerTracking::JumpGate jumpGate;    // Ignores single-frame jumps of the distance (bad lighting)
+    double lastAcceptedPx = 0.0;                // Distance in the last accepted frame
 
     // Recording state (this thread only)
     bool recordingOpenTried = false; // Open the files once per recording (a failed open used to be retried and logged every frame)
@@ -1600,25 +1600,39 @@ void ExtensiometerWorkerThread()
         // =========================================================
         // 4. PHYSICS & DRAW MARKERS
         // =========================================================
-        g_Extensiometer.markers_found = (int)centers.size();
-        if (centers.size() == 2) {
+        // The two markers: exactly two blobs, or the two closest to the last positions when there are extra
+        // blobs (a reflection used to make the frame count as lost) (ExtensometerTracking.h)
+        std::vector<ExtensometerTracking::Point> blobs;
+        blobs.reserve(centers.size());
+        for (const cv::Point2f& c : centers)
+            blobs.push_back({ c.x, c.y });
+        const ExtensometerTracking::Markers markers = ExtensometerTracking::PickMarkers(blobs, lastMarkers);
+        g_Extensiometer.blobs_found = (int)centers.size();
+        g_Extensiometer.markers_found = markers.found ? 2 : (int)centers.size();
+
+        if (markers.found) {
             live_camera_feed_text = "Live Camera Feed";
             markersMissing = false;
+            lastMarkers = markers;
 
-            std::sort(centers.begin(), centers.end(), SortPointsVertically);
-            cv::Point2f p1 = centers[0];
-            cv::Point2f p2 = centers[1];
+            const cv::Point2f p1((float)markers.upper.x, (float)markers.upper.y);
+            const cv::Point2f p2((float)markers.lower.x, (float)markers.lower.y);
 
-            // Distance between the markers, smoothed (time constant in seconds; dead-band against pixel noise)
+            // Distance between the markers, smoothed (time constant in seconds; dead-band against pixel noise).
+            // A distance that jumps by more than 2 % of L0 in one frame (e.g. a half-lit marker) is ignored unless
+            // it stays for 4 frames (fracture). After lost frames the smoothing catches up gradually.
             const double currentRawDist = cv::norm(p1 - p2);
             filter.SetTimeConstant(g_Extensiometer.smoothing_time_s.load());
             if (!g_Extensiometer.initialized || g_Extensiometer.reset_requested) {
                 filter.Reset(currentRawDist);
+                jumpGate.Reset();
+                lastAcceptedPx = currentRawDist;
                 g_Extensiometer.initialized = true;
                 g_Extensiometer.reset_requested = false;
             }
-            else {
+            else if (jumpGate.Accept(currentRawDist, lastAcceptedPx, filter.InitialPx())) {
                 filter.Update(currentRawDist, dtS);
+                lastAcceptedPx = currentRawDist;
             }
             g_Extensiometer.initial_dist_px = filter.InitialPx();
 
@@ -2004,7 +2018,10 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             // Tracking status: green with two markers, red otherwise (the values then stay at the last ones)
                             const int markers = g_Extensiometer.markers_found.load();
                             const bool tracking = markers == 2;
-                            if (tracking)
+                            const int blobs = g_Extensiometer.blobs_found.load();
+                            if (tracking && blobs > 2)
+                                ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Tracking: 2 markers (%d other blob%s ignored)", blobs - 2, blobs - 2 == 1 ? "" : "s");
+                            else if (tracking)
                                 ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Tracking: 2 markers");
                             else
                                 ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "Tracking lost (%d marker%s found)", markers, markers == 1 ? "" : "s");
@@ -2022,6 +2039,8 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                             ImGui::Spacing();
                             ImGui::TextWrapped("Set zero point (or Start Test) also sets L0, so the extension starts at 0. After fracture the values may jump.");
+                            if (!tracking || blobs > 2)
+                                ImGui::TextWrapped("Tip: even, bright light without reflections; matte markers; lower \"Auto Exposure\" if the image is washed out; use \"Ignore the image sides\" to hide other green objects.");
                         }
                         else {
                             ImGui::Text("Waiting for camera feed...");
@@ -2249,14 +2268,18 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         // The exact HSV ranges, for when the colour picker is not enough (folded: rarely needed)
                         if (ImGui::TreeNode("Advanced: HSV ranges"))
                         {
-                            ImGui::SliderInt("Hue Min", &g_Extensiometer.settings.h_min, 0, 179);
-                            ImGui::SliderInt("Hue Max", &g_Extensiometer.settings.h_max, 0, 179);
+                            // Saved when a slider is let go (also a wider/narrower range with the same centre colour)
+                            bool hsvEdited = false;
+                            ImGui::SliderInt("Hue Min", &g_Extensiometer.settings.h_min, 0, 179); hsvEdited |= ImGui::IsItemDeactivatedAfterEdit();
+                            ImGui::SliderInt("Hue Max", &g_Extensiometer.settings.h_max, 0, 179); hsvEdited |= ImGui::IsItemDeactivatedAfterEdit();
                             ImGui::Separator();
-                            ImGui::SliderInt("Sat Min", &g_Extensiometer.settings.s_min, 0, 255);
-                            ImGui::SliderInt("Sat Max", &g_Extensiometer.settings.s_max, 0, 255);
+                            ImGui::SliderInt("Sat Min", &g_Extensiometer.settings.s_min, 0, 255); hsvEdited |= ImGui::IsItemDeactivatedAfterEdit();
+                            ImGui::SliderInt("Sat Max", &g_Extensiometer.settings.s_max, 0, 255); hsvEdited |= ImGui::IsItemDeactivatedAfterEdit();
                             ImGui::Separator();
-                            ImGui::SliderInt("Val Min", &g_Extensiometer.settings.v_min, 0, 255);
-                            ImGui::SliderInt("Val Max", &g_Extensiometer.settings.v_max, 0, 255);
+                            ImGui::SliderInt("Val Min", &g_Extensiometer.settings.v_min, 0, 255); hsvEdited |= ImGui::IsItemDeactivatedAfterEdit();
+                            ImGui::SliderInt("Val Max", &g_Extensiometer.settings.v_max, 0, 255); hsvEdited |= ImGui::IsItemDeactivatedAfterEdit();
+                            if (hsvEdited)
+                                DockingApps::mainFileSystem.SaveApplicationSettings();
                             ImGui::TreePop();
                         }
                         ImGui::SetItemTooltip("Wider ranges find the markers more easily, but also other objects.\nCheck the result in the \"Side by side\" tab.");

@@ -182,6 +182,7 @@
     <ClInclude Include="LR10KStatus.h" />
     <ClInclude Include="LoadSafety.h" />
     <ClInclude Include="ExtensometerFilter.h" />
+    <ClInclude Include="ExtensometerTracking.h" />
     <ClInclude Include="..\..\stb_image.h" />
     <ClInclude Include="LR10KController.h" />
     <ClInclude Include="..\..\backends\imgui_ImageLoader_dx12.h">

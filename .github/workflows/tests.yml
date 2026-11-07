@@ -85,6 +85,11 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/extensometer_filter_test.cpp -o extensometer_filter_test
           ./extensometer_filter_test
+      - name: Optical extensometer marker tracking
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/extensometer_tracking_test.cpp -o extensometer_tracking_test
+          ./extensometer_tracking_test
 
   excel-files:
     # Writes sample .xlsx reports with the real libxlsxwriter and checks them with openpyxl

@@ -42,6 +42,7 @@ Ctrl+S saves (.lr10k and .xlsx), Ctrl+Alt+S saves as, Ctrl+Alt+E saves an Excel 
 - The *Tracking* panel shows whether two markers are tracked. A test is paused if the markers stay lost for half a second.
 - The camera view has tabs: *Camera*, *Mask (binary)* and *Side by side* (handy while setting the marker colour). The exact HSV ranges are under *Advanced: HSV ranges* in the settings panel.
 - *Smoothing* (settings panel, default 0.25 s): more is calmer but makes the extension lag the load.
+- Extra blobs of the marker colour (reflections) are ignored as long as the two markers can be followed from their last positions, and a single frame where the distance jumps (e.g. a half-lit marker) is skipped. Good, even lighting without reflections still matters most.
 
 ## Recording the optical extensometer
 

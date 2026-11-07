@@ -214,6 +214,11 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
 		settings["ext_regionOfInterest"]	    = g_Extensiometer.restrictive_area;
 		settings["ext_CAP_PROP_AUTO_EXPOSURE"]	= g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE;
 		settings["ext_targetColor"]			    = LR10KAppGlobals::opticalSourceExtensiometerTargetColor;
+		// The HSV ranges the camera uses (only the colour was saved: the ranges started as the green defaults,
+		// and the colour was then overwritten from them, so a chosen colour was lost after a restart)
+		settings["ext_hsv"] = { g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max,
+		                        g_Extensiometer.settings.s_min, g_Extensiometer.settings.s_max,
+		                        g_Extensiometer.settings.v_min, g_Extensiometer.settings.v_max };
 		settings["ext_cameraActive"]		    = g_Extensiometer.is_active;
 		settings["ext_useOpticalExt"]		    = LR10KAppGlobals::opticalSourceAsExtensiometer;
 
@@ -286,6 +291,7 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
 		settings["ext_regionOfInterest"]	= 0.2f;
 		settings["ext_CAP_PROP_AUTO_EXPOSURE"]	= 0.4f;
         settings["ext_targetColor"]			= { 0.286442f, 0.598039f, 0.228662f }; // Green color
+        settings["ext_hsv"]					= { 25, 85, 60, 255, 50, 255 };       // Green markers (AppExtensiometer defaults)
 		settings["ext_cameraActive"]		= false;
 		settings["ext_useOpticalExt"]		= false;
 
@@ -495,6 +501,28 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
 		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[0]	= settings["ext_targetColor"][0];
 		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[1]	= settings["ext_targetColor"][1];
 		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2]	= settings["ext_targetColor"][2];
+		// HSV ranges. Optional (not in the key check), so settings files without it stay valid: those get the
+		// default range widths centred on the saved colour.
+		if (settings.contains("ext_hsv") && settings["ext_hsv"].is_array() && settings["ext_hsv"].size() == 6)
+		{
+			const json& hsv = settings["ext_hsv"];
+			g_Extensiometer.settings.h_min = hsv[0]; g_Extensiometer.settings.h_max = hsv[1];
+			g_Extensiometer.settings.s_min = hsv[2]; g_Extensiometer.settings.s_max = hsv[3];
+			g_Extensiometer.settings.v_min = hsv[4]; g_Extensiometer.settings.v_max = hsv[5];
+		}
+		else
+		{
+			float h = 0.0f, sat = 0.0f, val = 0.0f;
+			const float* c = LR10KAppGlobals::opticalSourceExtensiometerTargetColor;
+			ImGui::ColorConvertRGBtoHSV(c[0], c[1], c[2], h, sat, val);
+			auto centred = [](float centre, int halfWidth, int maxValue, int& lo, int& hi) {
+				lo = (std::max)(0, (int)centre - halfWidth);
+				hi = (std::min)(maxValue, (int)centre + halfWidth);
+			};
+			centred(h * 179.0f, 30, 179, g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max);
+			centred(sat * 255.0f, 97, 255, g_Extensiometer.settings.s_min, g_Extensiometer.settings.s_max);
+			centred(val * 255.0f, 102, 255, g_Extensiometer.settings.v_min, g_Extensiometer.settings.v_max);
+		}
 		g_Extensiometer.is_active									= settings["ext_cameraActive"];
 		LR10KAppGlobals::opticalSourceAsExtensiometer				= settings["ext_useOpticalExt"];
 
