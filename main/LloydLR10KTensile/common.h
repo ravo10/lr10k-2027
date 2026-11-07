@@ -657,6 +657,18 @@ namespace LR10KAppGlobals {
     inline extern bool showHotkeyTips = false; //!< Used to show/hide the hot key tips for controlling the LR 10K Tensile Machine.
 }
 
+namespace LR10KDataDeEncryptionSystem {
+    /**
+        @brief  Load and extension from the machine's readings, with the zero point (see LR10KMeasurement.h).
+        @details Uses the LR 10K calibration (Convert_to_Newton, Convert_to_mm). Safe from any thread.
+    **/
+    inline LR10KMeasurement& Measurement()
+    {
+        static LR10KMeasurement measurement(LR10KMeasurement::Calibration{ LR10KAppGlobals::Convert_to_Newton, LR10KAppGlobals::Convert_to_mm });
+        return measurement;
+    }
+}
+
 // -----------------------------------------------------------------------------
 // ------------------------------- Mutex control -------------------------------
 // -----------------------------------------------------------------------------
@@ -710,17 +722,11 @@ namespace TabControl {
     static const char* plot_items_short[7]{ "Prop. Limit", "Yield Str.", "UTS", "Fracture", "Other", "E-Lower", "E-Upper" }; //!< All of the available crucial/important points options (short-handed).
     static const char* compression_options[2]{ "Normal", "3-point" }; //!< 3-point test will have it's own "logic" for calculating stresses
 
-    inline extern float LR10KRawLoad = 0.0f;                        //!< This holds the last known load. This is the actual load. (N). THIS NEEDS TO BE CONVERTED TO BE READABLE.
-    inline extern float LR10KRawExtension = 0.0f;                   //!< This holds the last known distance. This is the actual distance from "floor". (mm). THIS NEEDS TO BE CONVERTED TO BE READABLE.
-    inline extern float LR10KRawExtensometerRange = 0.0f;           //!< This holds the last known extension. (used for extensometer) (mm). THIS NEEDS TO BE CONVERTED TO BE READABLE.
-
-    inline extern float LR10KOffsetLoad = 0.0f;                 //!< This holds the offset load. This is used to set the zero point. (N)
-    inline extern float LR10KOffsetExtension = 0.0f;            //!< This holds the offset distance. This is used to set the zero point. (mm)
-    inline extern float LR10KOffsetExtensometerRange = 0.0f;    //!< This holds the offset extension. (mm) (this is also used for demo mode with mouse pointer)
-
-    inline extern std::string LR10KLoadNice = "0.0";                //!< Rounded string; This holds the last known load. (N)
-    inline extern std::string LR10KExtensionNice = "0.0";           //!< Rounded string; This holds the last known distance. (mm)
-    inline extern std::string LR10KExtensometerRangeNice = "0.0";   //!< Rounded string; This holds the last known extension. (used for extensometer) (mm)
+    // Load and extension come from the machine (LR10KDataDeEncryptionSystem::machine.Readings()) through
+    // LR10KDataDeEncryptionSystem::Measurement() (zero point), read with InterpetWrittenRingBufferData_getLoad()/
+    // _getExtension(). (The raw/offset/text copies that were here were written by the interpreter thread while the
+    // GUI read them, and demo mode wrote newtons into the raw-count variable.)
+    inline extern float LR10KOffsetExtension = 0.0f;            //!< Demo mode only: the simulated extension (mm), increased while a demo test runs.
 
     inline extern float LR10KTravelDistanceControl = 0.0f;          //!< This controls how long the LR 10K Tensile Machine can travel.
     inline extern int LR10KTravelDistanceActionAfter = 0;           //!< 0 = End Test, 1 = Pause Test.

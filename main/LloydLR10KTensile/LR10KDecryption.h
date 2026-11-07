@@ -49,6 +49,7 @@ inline uint64_t getCurrentTime()
 
 #include "RingBuffer.h" //!< CRingBuffer (portable, unit tested in tests/ring_buffer_test.cpp)
 #include "LR10KMachine.h" //!< Ring buffer + reader and interpreter threads (portable, tested in tests/machine_test.cpp)
+#include "LR10KMeasurement.h" //!< Load/extension with the zero point (portable, tested in tests/measurement_test.cpp)
 #include "Win32SerialPort.h" //!< The COM port
 #include "SerialTrafficLog.h" //!< Optional log of all bytes sent/received (tested in tests/serial_traffic_log_test.cpp)
 
@@ -147,9 +148,6 @@ namespace LR10KDataDeEncryptionSystem {
     // The load multiplier and the decoding are in LR10KMachine (LR10KReadings) and LR10KProtocol.h.
 
 
-    void    InterpetWrittenRingBufferData_handling_load(LPARAM lParam);
-    void    InterpetWrittenRingBufferData_handling_extension(LPARAM lParam);
-    void    InterpetWrittenRingBufferData_handling_extensometerRange(LPARAM lParam);
     void    InterpetWrittenRingBufferData_handling_overflow(LPARAM lParam);
     void    InterpetWrittenRingBufferData_handling_status(LPARAM lParam);
     void    InterpetWrittenRingBufferData_handling_warnErrorStatus(LPARAM lParam);

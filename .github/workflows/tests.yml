@@ -55,3 +55,8 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread \
             -I main/LloydLR10KTensile tests/connect_replay_test.cpp -o connect_replay_test
           ./connect_replay_test
+      - name: Measurement (load/extension with zero point)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -pthread \
+            -I main/LloydLR10KTensile tests/measurement_test.cpp -o measurement_test
+          ./measurement_test

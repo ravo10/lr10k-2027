@@ -115,18 +115,10 @@ bool LR10KControlSystem::TryDisconnectFromLR10K()
     DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
     LR10KAppGlobals::currentWarnErrorStatusMessage  = "N/A";
 
-    TabControl::LR10KRawLoad                = 0.0f;
-    TabControl::LR10KRawExtension           = 0.0f;
+    // Zero point: forgotten; after reconnecting the first data package is the load zero, the distance starts at 0
     LR10KDataDeEncryptionSystem::machine.ResetDistance();
-    TabControl::LR10KRawExtensometerRange   = 0.0f;
-
-    TabControl::LR10KOffsetLoad                 = 0.0f;
+    LR10KDataDeEncryptionSystem::Measurement().RequestLoadZero(LR10KDataDeEncryptionSystem::machine.Readings());
     TabControl::LR10KOffsetExtension            = 0.0f;
-    TabControl::LR10KOffsetExtensometerRange    = 0.0f;
-
-    TabControl::LR10KLoadNice       = "0.0";
-    TabControl::LR10KExtensionNice   = "0.0";
-    TabControl::LR10KExtensometerRangeNice  = "0.0";
 
     TabControl::LR10KTravelDistanceControl      = 0.0f;
     TabControl::LR10KTravelDistanceActionAfter  = 0;
@@ -393,43 +385,15 @@ bool LR10KControlSystem::SetZeroPoint(TabControl::TabTestDataClass* tabData)
 
         DockingApps::console.AddLog("... From GUI.");
 
-        if (!mainGUIGlobals::useDemoModeLiveLoad)
-            TabControl::LR10KRawLoad = 0.0f;
+        // Load: the next data package from the machine becomes the zero (0 until then)
+        LR10KDataDeEncryptionSystem::Measurement().RequestLoadZero(LR10KDataDeEncryptionSystem::machine.Readings());
 
+        // Extension: count the machine's distance from 0 again (demo: restart the simulated extension)
         if (!mainGUIGlobals::useDemoModeLiveExtension)
         {
-            TabControl::LR10KRawExtension = 0.0f;
-            TabControl::LR10KRawExtensometerRange = 0.0f;
-            LR10KDataDeEncryptionSystem::machine.ResetDistance(); // Keep the machine's distance in step
-        }
-
-        if (!mainGUIGlobals::useDemoModeLiveLoad)
-            TabControl::LR10KOffsetLoad = 0.0f;
-
-        if (!mainGUIGlobals::useDemoModeLiveExtension)
-        {
+            LR10KDataDeEncryptionSystem::machine.ResetDistance();
             TabControl::LR10KOffsetExtension = 0.0f;
-            TabControl::LR10KOffsetExtensometerRange = 0.0f;
         }
-
-        if (!mainGUIGlobals::useDemoModeLiveLoad)
-            TabControl::LR10KLoadNice = "0.0";
-
-        if (!mainGUIGlobals::useDemoModeLiveExtension)
-        {
-            TabControl::LR10KExtensionNice = "0.0";
-            TabControl::LR10KExtensometerRangeNice = "0.0";
-        }
-
-        // ---------------------------------------------------------------------
-
-        TabControl::LR10KOffsetLoad = TabControl::LR10KRawLoad;
-        TabControl::LR10KOffsetExtensometerRange = TabControl::LR10KRawExtensometerRange;
-
-        TabControl::LR10KLoadNice = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getNice_load();
-        TabControl::LR10KExtensionNice = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getNice_extension();
-
-        // ---------------------------------------------------------------------
 
         LR10KAppGlobals::zeroPointIsSet = true;
 

@@ -3073,19 +3073,19 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
             LR10KExtension = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
         }
 
+        // Demo values go straight into this frame's load (they used to be written into the machine's raw-count
+        // variable, which mixed newtons and counts when "live load" was used in demo mode)
         if (!mainGUIGlobals::useDemoModeLiveLoad)
         {
             // Mouse pointer data
             ImVec2 mouse = ImGui::GetMousePos();
-            TabControl::LR10KRawLoad = mouse.y * 3;
+            LR10KLoad = mouse.y * 3;
         }
         else
         {
             // Real load from LR 10K Tensile Machine
-            TabControl::LR10KRawLoad = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad();
+            LR10KLoad = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad();
         }
-
-        LR10KLoad = TabControl::LR10KRawLoad;
     }
     else
     {
@@ -3589,10 +3589,11 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
         static double last_valid_load = 0.0;
         static double last_valid_ext = 0.0;
 
-        // Safely parse the incoming strings. 
-        // If they fail, they just return the 'last_valid' value instead of crashing.
-        double currentLoad = SafeParseDouble(TabControl::LR10KLoadNice, last_valid_load);
-        double currentExt = SafeParseDouble(TabControl::LR10KExtensionNice, last_valid_ext);
+        // The current load and extension (numbers, not texts parsed back: the texts were also written by another thread)
+        double currentLoad = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad();
+        double currentExt = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension();
+        if (std::isnan(currentLoad)) currentLoad = last_valid_load;
+        if (std::isnan(currentExt)) currentExt = last_valid_ext;
 
         // Update our memory for the next loop
         last_valid_load = currentLoad;
@@ -3622,12 +3623,12 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
         // Draw standard Load
         std::string strY = "Load:      %s ";
         strY.append(LR10KAppGlobals::GetUnitOption<const char*>(1));
-        ImGui::TextColored(textColor, strY.c_str(), TabControl::LR10KLoadNice.c_str());
+        ImGui::TextColored(textColor, strY.c_str(), LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getNice_load().c_str());
 
         // Draw standard Extension
         std::string strX = "Extension: %s ";
         strX.append(LR10KAppGlobals::GetUnitOption<const char*>(0));
-        ImGui::TextColored(textColor, strX.c_str(), TabControl::LR10KExtensionNice.c_str());
+        ImGui::TextColored(textColor, strX.c_str(), LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getNice_extension().c_str());
         ImGui::PopFont();
     }
 }

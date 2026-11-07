@@ -82,17 +82,9 @@ bool LR10KController::SendHEXWriteReadSequenceToLR10K(std::vector<std::pair<byte
                 DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
                 LR10KAppGlobals::currentWarnErrorStatusMessage = "N/A";
 
-                TabControl::LR10KRawLoad = 0.0f;
-                TabControl::LR10KRawExtension = 0.0f;
-                TabControl::LR10KRawExtensometerRange = 0.0f;
-
-                TabControl::LR10KOffsetLoad = 0.0f;
+                LR10KDataDeEncryptionSystem::machine.ResetDistance();
+                LR10KDataDeEncryptionSystem::Measurement().RequestLoadZero(LR10KDataDeEncryptionSystem::machine.Readings());
                 TabControl::LR10KOffsetExtension = 0.0f;
-                TabControl::LR10KOffsetExtensometerRange = 0.0f;
-
-                TabControl::LR10KLoadNice = "0.0";
-                TabControl::LR10KExtensionNice = "0.0";
-                TabControl::LR10KExtensometerRangeNice = "0.0";
 
                 TabControl::LR10KTravelDistanceControl = 0.0f;
                 TabControl::LR10KTravelDistanceActionAfter = 0;

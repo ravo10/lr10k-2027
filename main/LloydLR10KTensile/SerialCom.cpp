@@ -379,8 +379,9 @@ double RoundTo(double val, int prec) {
 **/
 float LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getLoad()
 {
+    // From the machine's readings, relative to the zero point (LR10KMeasurement, tested in tests/measurement_test.cpp).
     // double, not int: the old int truncated every reading to whole newtons (the sensor resolution is ~0.76 N)
-    double value = ((double)TabControl::LR10KRawLoad - (double)TabControl::LR10KOffsetLoad) * LR10KAppGlobals::Convert_to_Newton;
+    double value = LR10KDataDeEncryptionSystem::Measurement().FromReadings(LR10KDataDeEncryptionSystem::machine.Readings()).loadNewton;
     // Reverse positive direction when compression is enabled
     value = LR10KAppGlobals::tensionTesting ? value : value * -1;
 
@@ -398,8 +399,8 @@ float LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getExtension()
         // Real extension from the optical camera source (comes from the Computer Vision thread)
         value = g_Extensiometer.results.travel_mm;
     else
-        // From machine
-        value = TabControl::LR10KRawExtension * LR10KAppGlobals::Convert_to_mm;
+        // From machine: the distance travelled since the zero point
+        value = (float)LR10KDataDeEncryptionSystem::Measurement().FromReadings(LR10KDataDeEncryptionSystem::machine.Readings()).extensionMm;
 
     // Reverse positive direction when compression is enabled
     value = LR10KAppGlobals::tensionTesting ? value : value * -1;
@@ -437,44 +438,6 @@ std::string LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getNice_e
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 
-/**
-    @brief Current load that is being applied. (Newton)
-    @param lParam - 
-**/
-void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_load(LPARAM lParam)
-{
-    TabControl::LR10KRawLoad = (short)lParam;
-    if (TabControl::LR10KOffsetLoad == 0)
-        TabControl::LR10KOffsetLoad = TabControl::LR10KRawLoad;
-
-    TabControl::LR10KLoadNice = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getNice_load();
-}
-/**
-    @brief Total distance travelled from zero point. (mm)
-    @param lParam - 
-**/
-void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_extension(LPARAM lParam)
-{
-    // Reverse positive direction when compression is enabled
-    TabControl::LR10KRawExtension += (__int16)lParam;
-
-    TabControl::LR10KExtensionNice = LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_getNice_extension();
-}
-/**
-    @brief Total distance travelled. (mm) ?????? ***Not finished
-    @param lParam - 
-**/
-void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_extensometerRange(LPARAM lParam)
-{
-    TabControl::LR10KRawExtensometerRange = (short)lParam;
-
-    char roundedValueChar[20];
-    sprintf_s(roundedValueChar, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char((float)TabControl::LR10KRawExtensometerRange), (float)TabControl::LR10KRawExtensometerRange);
-    //	m_sTmp.Format(_T("LR10K: Extensometer = %02x in %d"), m_sCurrentExtension, m_sCurrentExtension - m_sOffsetExtension);
-    //	m_CtrlLoglist.InsertString(0, m_sTmp.GetString());
-
-    TabControl::LR10KExtensometerRangeNice = roundedValueChar;
-}
 /**
     @brief Current byte multiplier in use.
     @details Used for load - see LR10KReadings::loadMultiplier.

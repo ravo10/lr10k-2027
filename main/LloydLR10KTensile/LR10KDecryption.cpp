@@ -41,9 +41,9 @@ void LR10KDataDeEncryptionSystem::InterpretMessage(const LR10KProtocol::Message&
     {
         // Load, distance and extensometer. These need to be multiplied by a constant in namespace
         // "LR10KAppGlobals" for readability.
-        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)readings.load, 1);
-        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)readings.distanceDelta, 2);
-        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)readings.extensometer, 3);
+        // Nothing to copy: load and extension are read from the machine's readings when needed
+        // (InterpetWrittenRingBufferData_getLoad / _getExtension through Measurement()).
+        (void)readings;
         break;
     }
     case Type::Overflow:
@@ -76,18 +76,6 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_WriteGlobals(LPA
 {
     switch (action)
     {
-    case 1:
-        // Load
-        InterpetWrittenRingBufferData_handling_load(lParam);
-        break;
-    case 2:
-        // Distance
-        InterpetWrittenRingBufferData_handling_extension(lParam);
-        break;
-    case 3:
-        // Extensiometer
-        InterpetWrittenRingBufferData_handling_extensometerRange(lParam);
-        break;
     case 4:
         // Multiplier
         InterpetWrittenRingBufferData_handling_overflow(lParam);
