@@ -68,6 +68,17 @@ static void test_engineering_and_true_values()
     NEAR(TrueStress(250.0, 0.0), 250.0);
 }
 
+static void test_non_negative()
+{
+    NEAR(NonNegative(-0.0004), 0.0);   // slack before the specimen is loaded
+    NEAR(NonNegative(-12.5), 0.0);
+    NEAR(NonNegative(0.0), 0.0);
+    NEAR(NonNegative(0.0123), 0.0123);
+    NEAR(NonNegative(350.0), 350.0);
+    CHECK(std::isnan(NonNegative(NAN))); // missing data stays visible as NaN
+    NEAR(TrueStrain(NonNegative(-0.01)), 0.0);
+}
+
 static void test_youngs_modulus_fit()
 {
     // Synthetic steel: E = 200 000 MPa (200 GPa) up to 0.4 % strain, then a much flatter
@@ -155,6 +166,7 @@ int main()
 {
     test_cross_section_area();
     test_engineering_and_true_values();
+    test_non_negative();
     test_youngs_modulus_fit();
     test_fit_degenerate_cases();
     test_three_point_bending();

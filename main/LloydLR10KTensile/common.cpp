@@ -31,7 +31,8 @@ inline LR10KController _LR10KController; //!< A global scope to gain access to t
 **/
 double LR10KAppGlobals::CalcSigma_e(double f, double a_0)
 {
-    return MaterialCalc::EngineeringStress(f, a_0);
+    // Never below zero: the tension/compression setting already gives the test direction a positive sign
+    return MaterialCalc::NonNegative(MaterialCalc::EngineeringStress(f, a_0));
 }
 /**
     @brief  Epsilon_e or Epsilon_n | Delta_L / L_0.
@@ -41,7 +42,8 @@ double LR10KAppGlobals::CalcSigma_e(double f, double a_0)
 **/
 double LR10KAppGlobals::CalcEpsilon_e(double delta_L, double l_0)
 {
-    return MaterialCalc::EngineeringStrain(delta_L, l_0);
+    // Never below zero (see CalcSigma_e). True strain/stress follow: ln(1 + 0) = 0.
+    return MaterialCalc::NonNegative(MaterialCalc::EngineeringStrain(delta_L, l_0));
 }
 /**
     @brief  Sigma_t | Sigma_e * ( 1 + Epsilon_e ).

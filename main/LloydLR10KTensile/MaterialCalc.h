@@ -42,6 +42,14 @@ namespace MaterialCalc
     inline double EngineeringStrain(double deltaLength, double length0) { return deltaLength / length0; }
 
     /**
+        @brief  Clamp a stress or strain to zero or above.
+        @details Tension and compression are chosen in the GUI, which already flips the sign so the
+                 test direction is positive. Negative values are only noise/slack around the zero
+                 point (e.g. before the specimen is loaded) and are shown as 0. NaN stays NaN.
+    **/
+    inline double NonNegative(double value) { return value < 0.0 ? 0.0 : value; }
+
+    /**
         @brief  True stress: sigma_t = sigma_e * (1 + epsilon_e).
         @note   Assumes constant volume and uniform deformation: only valid up to the UTS
                 (before necking). Values after the UTS (e.g. at fracture) are not physical.
