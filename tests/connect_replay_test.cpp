@@ -23,6 +23,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <thread>
+#include <utility>
 #include <string>
 #include <vector>
 
@@ -33,6 +35,28 @@ static int g_failures = 0;
 #define CHECK(cond) do { if (!(cond)) { std::printf("FAIL line %d: %s\n", __LINE__, #cond); ++g_failures; } } while (0)
 
 static std::filesystem::path g_log = "tests/data/connect_session_2026-11-07.log";
+static long long g_expectedDistance = 0; // computed by test_recorded_stream_frames_cleanly()
+
+// Plays a fixed byte stream (no answers to writes)
+class FakeStream : public SerialPort
+{
+public:
+    explicit FakeStream(std::vector<std::uint8_t> bytes) : m_bytes(std::move(bytes)) {}
+    bool IsOpen() const override { return true; }
+    ReadStatus ReadByte(std::uint8_t& out, std::uint32_t& e) override
+    {
+        e = 0;
+        if (m_pos < m_bytes.size()) { out = m_bytes[m_pos++]; return ReadStatus::Byte; }
+        std::this_thread::sleep_for(1ms);
+        return ReadStatus::Timeout;
+    }
+    std::size_t Write(const std::uint8_t*, std::size_t size, std::uint32_t& e) override { e = 0; return size; }
+    void DiscardBuffers() override {}
+    bool Close() override { return true; }
+private:
+    std::vector<std::uint8_t> m_bytes;
+    std::size_t m_pos = 0;
+};
 
 static std::string hex(const std::vector<std::uint8_t>& b)
 {
@@ -165,6 +189,7 @@ static void test_recorded_stream_frames_cleanly()
             dataPackages++;
             for (int i = 1; i < 6; i++) if (m.data[i] >= 0x80) packagesWithHighBytes++; // would mean lost sync
             packageCounts[std::vector<std::uint8_t>(m.data.begin(), m.data.end())]++;
+            g_expectedDistance += LR10KProtocol::DecodeDistanceDelta(m.data[2], m.data[3]);
         }
         else if (m.type == Message::Type::Overflow)
             multiplier = LR10KProtocol::LoadMultiplierFromOverflow(m.Value());
@@ -187,6 +212,32 @@ static void test_recorded_stream_frames_cleanly()
     bool sawReady = false, sawUp = false;
     for (auto s : statuses) { sawReady |= s == 0x00; sawUp |= s == 0x41; }
     CHECK(sawReady && sawUp);
+}
+
+static void test_recorded_stream_through_machine()
+{
+    // The whole recorded byte stream through the machine's reader and interpreter: the readings at the end
+    RecordedDevice device(g_log);
+    if (!device.Loaded()) return;
+    FakeStream port(device.RecordedReplies());
+
+    LR10KMachine machine;
+    machine.StartReading(port, [] { return true; });
+    machine.StartInterpreter({}, [] { return true; });
+    const auto end = std::chrono::steady_clock::now() + 10s;
+    while (machine.Readings().dataPackages < 1591 && std::chrono::steady_clock::now() < end)
+        std::this_thread::sleep_for(1ms);
+    std::this_thread::sleep_for(50ms);
+    machine.StopInterpreter();
+    machine.StopReading();
+
+    const LR10KReadings r = machine.Readings();
+    CHECK(r.dataPackages == 1591);
+    CHECK(r.statusMessages == 17);
+    CHECK(r.loadMultiplier == 1);
+    CHECK(r.load == -49);            // the last package: EF 4F ...
+    CHECK(r.hasStatus);
+    CHECK(r.distance == g_expectedDistance);
 }
 
 static void test_recorded_setup_two_settings()
@@ -225,6 +276,7 @@ int main(int argc, char** argv)
     test_waiting_twice_for_ready_answer_gets_stuck();
     test_no_answer_at_all();
     test_recorded_stream_frames_cleanly();
+    test_recorded_stream_through_machine();
     test_recorded_setup_two_settings();
 
     if (g_failures == 0)

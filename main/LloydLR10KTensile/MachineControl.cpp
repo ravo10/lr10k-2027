@@ -117,6 +117,7 @@ bool LR10KControlSystem::TryDisconnectFromLR10K()
 
     TabControl::LR10KRawLoad                = 0.0f;
     TabControl::LR10KRawExtension           = 0.0f;
+    LR10KDataDeEncryptionSystem::machine.ResetDistance();
     TabControl::LR10KRawExtensometerRange   = 0.0f;
 
     TabControl::LR10KOffsetLoad                 = 0.0f;
@@ -399,6 +400,7 @@ bool LR10KControlSystem::SetZeroPoint(TabControl::TabTestDataClass* tabData)
         {
             TabControl::LR10KRawExtension = 0.0f;
             TabControl::LR10KRawExtensometerRange = 0.0f;
+            LR10KDataDeEncryptionSystem::machine.ResetDistance(); // Keep the machine's distance in step
         }
 
         if (!mainGUIGlobals::useDemoModeLiveLoad)

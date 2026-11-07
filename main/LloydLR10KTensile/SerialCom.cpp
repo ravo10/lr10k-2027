@@ -477,7 +477,7 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_extenso
 }
 /**
     @brief Current byte multiplier in use.
-    @details Used for load - look at docs for "bMultiplier_load".
+    @details Used for load - see LR10KReadings::loadMultiplier.
     @param lParam - 
 **/
 void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_overflow(LPARAM lParam)
@@ -494,15 +494,7 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_status(
     // without logging every few seconds and without the "ready after return to zero" side effect below.
     if (LR10KDataDeEncryptionSystem::watchdogProbeReplyPending.exchange(false))
     {
-        const char* quietStatus = nullptr;
-        switch ((byte)lParam)
-        {
-        case 0x00: quietStatus = "Ready"; break;
-        case 0x40: quietStatus = "Stopped fast movement"; break;
-        case 0x41: quietStatus = "Going up"; break;
-        case 0x61: quietStatus = "Going down"; break;
-        default: break; // Unknown: keep the current text
-        }
+        const char* quietStatus = LR10KProtocol::StatusText((byte)lParam); // nullptr if unknown: keep the current text
         if (quietStatus != nullptr)
         {
             LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>(quietStatus));
@@ -520,30 +512,17 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_status(
             LR10KAppGlobals::zeroPointIsSet = true;
     }
 
-    switch ((byte)lParam)
+    // Texts are in LR10KProtocol::StatusText (tested in tests/protocol_test.cpp)
+    if (const char* text = LR10KProtocol::StatusText((byte)lParam))
     {
-    case 0x00:
-        DockingApps::console.AddLog("Input, LR 10K: Status - Ready");
-        LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>("Ready"));
-        break;
-    case 0x40:
-        DockingApps::console.AddLog("Input, LR 10K: Status - Stopped fast movement");
-        LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>("Stopped fast movement"));
-        break;
-    case 0x41:
-        DockingApps::console.AddLog("Input, LR 10K: Status - Going up");
-        LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>("Going up"));
-        break;
-    case 0x61:
-        DockingApps::console.AddLog("Input, LR 10K: Status - Going down");
-        LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>("Going down"));
-        break;
-
-    default:
+        DockingApps::console.AddLog("Input, LR 10K: Status - %s", text);
+        LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>(text));
+    }
+    else
+    {
         printf("Input, LR 10K: Status - Unknown = %02x\n", (byte)lParam);
         DockingApps::console.AddLog("Input, LR 10K: Status - Unknown = %02x", (byte)lParam);
         LR10KAppGlobals::currentStatusMessage.store(const_cast <char*>("Unknown - Look in console"));
-        break;
     }
 
     DockingApps::mutexControl.currentStatusMessageStatusChanged.notify_all();
@@ -554,39 +533,18 @@ void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_status(
 **/
 void LR10KDataDeEncryptionSystem::InterpetWrittenRingBufferData_handling_warnErrorStatus(LPARAM lParam)
 {
-    switch ((byte)lParam)
+    // Texts are in LR10KProtocol::WarnErrorText (tested in tests/protocol_test.cpp).
+    // Warnings stay until the user ends a test or sends a new setup sequence.
+    if (const char* text = LR10KProtocol::WarnErrorText((byte)lParam))
     {
-    case 0x00:
-        DockingApps::console.AddLog("Input, LR 10K: Warn/Error Status - OK");
-        LR10KAppGlobals::currentWarnErrorStatusMessage = "OK";
-        break;
-    case 0x0C:
-        DockingApps::console.AddLog("Input, LR 10K: Warn/Error Status -  Extension range exceeded (error 12)");
-        LR10KAppGlobals::currentWarnErrorStatusMessage = "Extension range exceeded (error 12)";
-        // This warning and others will be reset when the user ends a test or sends a new setup sequence
-        break;
-    case 0x02:
-        DockingApps::console.AddLog("Input, LR 10K: Warn/Error Status - Tension overload stop. Go DOWN only");
-        LR10KAppGlobals::currentWarnErrorStatusMessage = "Tension overload stop. Go DOWN only";
-        break;
-    case 0x05:
-        DockingApps::console.AddLog("Input, LR 10K: Warn/Error Status - Lower crosshead limit stop. Go UP only");
-        LR10KAppGlobals::currentWarnErrorStatusMessage = "Lower crosshead limit stop. Go UP only";
-        break;
-    case 0x06:
-        DockingApps::console.AddLog("Input, LR 10K: Warn/Error Status - Compression overload stop. Go UP only");
-        LR10KAppGlobals::currentWarnErrorStatusMessage = "Compression overload stop. Go UP only";
-        break;
-    case 0x12:
-        DockingApps::console.AddLog("Input, LR 10K: Warn/Error Status - Keyboard buffer overflow");
-        LR10KAppGlobals::currentWarnErrorStatusMessage = "Keyboard buffer overflow";
-        break;
-
-    default:
+        DockingApps::console.AddLog("Input, LR 10K: Warn/Error Status - %s", text);
+        LR10KAppGlobals::currentWarnErrorStatusMessage = text;
+    }
+    else
+    {
         printf("Input, LR 10K: Warn/Error Status - Unknown = %02x\n", (byte)lParam);
-        DockingApps::console.AddLog("Input, LR 10K: Status - Unknown = %02x", (byte)lParam);
+        DockingApps::console.AddLog("Input, LR 10K: Warn/Error Status - Unknown = %02x", (byte)lParam);
         LR10KAppGlobals::currentWarnErrorStatusMessage = "Unknown - Look in console";
-        break;
     }
 }
 /**

@@ -26,14 +26,43 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <thread>
 #include <utility>
 #include <vector>
 
+/**
+    @brief  What the LR 10K last reported, decoded from its messages (see LR10KMachine::Readings()).
+    @details Raw machine units: multiply the load by LR10KAppGlobals::Convert_to_Newton and the distance
+             by LR10KAppGlobals::Convert_to_mm.
+**/
+struct LR10KReadings
+{
+    std::int16_t load = 0;              //!< Load of the last data package (counts, with the multiplier applied).
+    std::int16_t distanceDelta = 0;     //!< Distance change in the last data package (counts).
+    std::int64_t distance = 0;          //!< Sum of all distance changes since ResetDistance() (counts).
+    std::int16_t extensometer = 0;      //!< Raw extensometer value of the last data package.
+    std::uint8_t loadMultiplier = 1;    //!< From overflow messages (used above ~1600 N).
+
+    bool hasStatus = false;             //!< A status message has been received.
+    std::uint8_t status = 0;            //!< Last status code (see LR10KProtocol::StatusText).
+    bool hasWarnError = false;          //!< A warning/error message has been received.
+    std::uint8_t warnError = 0;         //!< Last warning/error code (see LR10KProtocol::WarnErrorText).
+
+    std::uint64_t dataPackages = 0;
+    std::uint64_t statusMessages = 0;
+    std::uint64_t warnErrorMessages = 0;
+    std::uint64_t overflowMessages = 0;
+    std::uint64_t unknownBytes = 0;
+
+    std::chrono::steady_clock::time_point lastMessage{}; //!< When the last complete message arrived.
+};
+
 class LR10KMachine
 {
 public:
-    using MessageHandler = std::function<void(const LR10KProtocol::Message&)>;
+    //! Called on the interpreter thread for every message, with the readings after applying it.
+    using MessageHandler = std::function<void(const LR10KProtocol::Message&, const LR10KReadings&)>;
 
     static constexpr std::chrono::milliseconds interpreterWaitSlice{ 20 }; //!< How often the interpreter re-checks "keep running" while idle.
 
@@ -115,6 +144,65 @@ public:
     }
 
     bool IsInterpreting() const { return m_interpreterRunning.load(); }
+
+    // -------------------------------------------------------------------------
+    // Readings (what the LR 10K last reported)
+    // -------------------------------------------------------------------------
+
+    //! A consistent copy of the current readings. Safe from any thread.
+    LR10KReadings Readings() const
+    {
+        std::lock_guard<std::mutex> lock(m_readingsMutex);
+        return m_readings;
+    }
+
+    //! Start counting the distance from zero again (e.g. at a new zero point).
+    void ResetDistance()
+    {
+        std::lock_guard<std::mutex> lock(m_readingsMutex);
+        m_readings.distance = 0;
+    }
+
+    /**
+        @brief  Update the readings with one message (done by the interpreter thread; public for tests).
+        @retval The readings after the update.
+    **/
+    LR10KReadings Apply(const LR10KProtocol::Message& message)
+    {
+        using Type = LR10KProtocol::Message::Type;
+        std::lock_guard<std::mutex> lock(m_readingsMutex);
+        LR10KReadings& r = m_readings;
+
+        switch (message.type)
+        {
+        case Type::DataPackage:
+            r.load = LR10KProtocol::DecodeLoad(message.data[0], message.data[1], r.loadMultiplier);
+            r.distanceDelta = LR10KProtocol::DecodeDistanceDelta(message.data[2], message.data[3]);
+            r.distance += r.distanceDelta;
+            r.extensometer = LR10KProtocol::DecodeExtensometer(message.data[4], message.data[5]);
+            r.dataPackages++;
+            break;
+        case Type::Overflow:
+            r.loadMultiplier = LR10KProtocol::LoadMultiplierFromOverflow(message.Value());
+            r.overflowMessages++;
+            break;
+        case Type::Status:
+            r.status = message.Value();
+            r.hasStatus = true;
+            r.statusMessages++;
+            break;
+        case Type::WarnError:
+            r.warnError = message.Value();
+            r.hasWarnError = true;
+            r.warnErrorMessages++;
+            break;
+        default:
+            r.unknownBytes++;
+            break;
+        }
+        r.lastMessage = std::chrono::steady_clock::now();
+        return r;
+    }
 
     // -------------------------------------------------------------------------
     // Protocol steps (send something, wait for the LR 10K's answer in the buffer)
@@ -309,8 +397,12 @@ private:
             if (!m_buffer.TryRead(byte, interpreterWaitSlice))
                 continue; // Nothing yet: check the stop conditions again
 
-            if (parser.Feed(byte, message) && onMessage)
-                onMessage(message);
+            if (!parser.Feed(byte, message))
+                continue;
+
+            const LR10KReadings readings = Apply(message);
+            if (onMessage)
+                onMessage(message, readings);
         }
 
         if (onExit)
@@ -321,6 +413,9 @@ private:
     CRingBuffer m_buffer;
     SerialReader m_reader;
     SerialPort* m_port = nullptr;
+
+    mutable std::mutex m_readingsMutex;
+    LR10KReadings m_readings;
 
     std::thread m_interpreter;
     std::atomic<bool> m_interpreterStop{ true };

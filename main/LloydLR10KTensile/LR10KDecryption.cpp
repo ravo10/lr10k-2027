@@ -23,44 +23,15 @@
 // ----------------------------------- Decode ----------------------------------
 // -----------------------------------------------------------------------------
 
-/**
-    @brief  Decoder for the load.
-    @details A multiplier is used to calculate when cirka above 1600 N.
-    @param  uData1 -
-    @param  uData2 -
-    @retval        -
-**/
-__int16 LR10KDataDeEncryptionSystem::DecodingBits_Load(byte uData1, byte uData2)
-{
-    return LR10KProtocol::DecodeLoad(uData1, uData2, LR10KDataDeEncryptionSystem::bMultiplier_load);
-}
-/**
-    @brief  Decoder for the distance.
-    @param  uData1 -
-    @param  uData2 -
-    @retval        -
-**/
-__int16 LR10KDataDeEncryptionSystem::DecodingBits_Distance(byte uData1, byte uData2)
-{
-    return LR10KProtocol::DecodeDistanceDelta(uData1, uData2);
-}
-/**
-    @brief Decoder for the extensometer.
-    @param uData1 -
-    @param uData2 -
-    @param lParam -
-**/
-void LR10KDataDeEncryptionSystem::DecodingBits_Extensometer(byte uData1, byte uData2, __int16* lParam)
-{
-    *lParam = LR10KProtocol::DecodeExtensometer(uData1, uData2);
-}
+// The decoding itself is in LR10KProtocol.h; LR10KMachine applies it to every message (LR10KReadings).
 
 /**
     @brief (Step 2) Handle one complete message from the LR 10K (runs on the interpreter thread, see LR10KMachine).
-            Same steps as the old per-message functions: decode, then write the values to the globals.
-    @param message - Framed by LR10KProtocol::MessageParser.
+            The machine has already decoded it into @p readings; this writes the values to the globals the GUI uses.
+    @param message  - Framed by LR10KProtocol::MessageParser.
+    @param readings - The machine's readings after this message.
 **/
-void LR10KDataDeEncryptionSystem::InterpretMessage(const LR10KProtocol::Message& message)
+void LR10KDataDeEncryptionSystem::InterpretMessage(const LR10KProtocol::Message& message, const LR10KReadings& readings)
 {
     using Type = LR10KProtocol::Message::Type;
 
@@ -70,20 +41,15 @@ void LR10KDataDeEncryptionSystem::InterpretMessage(const LR10KProtocol::Message&
     {
         // Load, distance and extensometer. These need to be multiplied by a constant in namespace
         // "LR10KAppGlobals" for readability.
-        __int16 lParam = LR10KDataDeEncryptionSystem::DecodingBits_Load(message.data[0], message.data[1]);
-        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 1);
-
-        lParam = LR10KDataDeEncryptionSystem::DecodingBits_Distance(message.data[2], message.data[3]);
-        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 2);
-
-        LR10KDataDeEncryptionSystem::DecodingBits_Extensometer(message.data[4], message.data[5], &lParam);
-        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)lParam, 3);
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)readings.load, 1);
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)readings.distanceDelta, 2);
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)readings.extensometer, 3);
         break;
     }
     case Type::Overflow:
         // The multiplier for the load bytes
-        LR10KDataDeEncryptionSystem::bMultiplier_load = LR10KProtocol::LoadMultiplierFromOverflow(message.Value());
-        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)LR10KDataDeEncryptionSystem::bMultiplier_load, 4);
+        // The machine uses it for the following data packages (LR10KReadings::loadMultiplier)
+        InterpetWrittenRingBufferData_WriteGlobals((LPARAM)readings.loadMultiplier, 4);
         break;
     case Type::Status:
         // The actual status (ready, up, down, fast up etc.)

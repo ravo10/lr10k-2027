@@ -107,6 +107,43 @@ namespace LR10KProtocol
     }
 
     // -------------------------------------------------------------------------
+    // Status and warning/error codes
+    // -------------------------------------------------------------------------
+
+    /**
+        @brief  Text for the value of a status message (0xB6 + value), or nullptr if the code is not known.
+    **/
+    inline const char* StatusText(std::uint8_t code)
+    {
+        switch (code)
+        {
+        case 0x00: return "Ready";
+        case 0x40: return "Stopped fast movement";
+        case 0x41: return "Going up";
+        case 0x61: return "Going down";
+        default:   return nullptr;
+        }
+    }
+
+    /**
+        @brief  Text for the value of a warning/error message (0xBF + value), or nullptr if the code is not known.
+        @details Warnings stay until the user ends a test or sends a new setup.
+    **/
+    inline const char* WarnErrorText(std::uint8_t code)
+    {
+        switch (code)
+        {
+        case 0x00: return "OK";
+        case 0x02: return "Tension overload stop. Go DOWN only";
+        case 0x05: return "Lower crosshead limit stop. Go UP only";
+        case 0x06: return "Compression overload stop. Go UP only";
+        case 0x0C: return "Extension range exceeded (error 12)";
+        case 0x12: return "Keyboard buffer overflow";
+        default:   return nullptr;
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Message framing
     // -------------------------------------------------------------------------
 

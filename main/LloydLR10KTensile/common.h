@@ -551,11 +551,13 @@ namespace LR10KAppGlobals {
     inline extern bool  shutLR10KDownIfLoadToHigh = true;
 
     //! \note Feedback from LR 10K
-    inline extern std::string currentLiveStatusMessage = "N/A";     //!< \details Current live status, if LR 10K Tensile Machine is sending out live data.
+    inline extern std::atomic<const char*> currentLiveStatusMessage("N/A");      //!< Always a string literal: written by worker threads, read by the GUI (a std::string here was a data race).
+    //!< \details Current live status, if LR 10K Tensile Machine is sending out live data.
     //! \note Feedback from LR 10K
     inline extern std::atomic<char*> currentStatusMessage(const_cast<char*>("N/A"));     //!< \details Current status message coming from LR 10K Tensile Machine.
     //! \note Feedback from LR 10K
-    inline extern std::string currentWarnErrorStatusMessage = "N/A";     //!< \details Current warning/error message coming from LR 10K Tensile Machine.
+    inline extern std::atomic<const char*> currentWarnErrorStatusMessage("N/A"); //!< Always a string literal: written by the interpreter thread, read by the GUI (a std::string here was a data race).
+    //!< \details Current warning/error message coming from LR 10K Tensile Machine.
     //! \note Feedback from LR 10K
     inline extern bool sendingLiveDataFromLR10K = false;    //!< \details Will be true when live data is being sent from LR 10K Tensile Machine.
 

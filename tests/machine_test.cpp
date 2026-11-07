@@ -59,7 +59,7 @@ static void test_port_to_messages()
     std::atomic<bool> interpreterExited{ false };
 
     machine.StartReading(port, [] { return true; });
-    machine.StartInterpreter([&](const Message& m) { collected(m); }, [] { return true; }, [&] { interpreterExited = true; });
+    machine.StartInterpreter([&](const Message& m, const LR10KReadings&) { collected(m); }, [] { return true; }, [&] { interpreterExited = true; });
 
     CHECK(waitFor([&] { return collected.Count() == 5; }));
     const auto msgs = collected.Get();
@@ -111,11 +111,11 @@ static void test_restart_interpreter_never_splits_bytes()
     Collector first, second;
 
     machine.StartReading(port, [] { return true; });
-    machine.StartInterpreter([&](const Message& m) { first(m); }, [] { return true; });
+    machine.StartInterpreter([&](const Message& m, const LR10KReadings&) { first(m); }, [] { return true; });
     port.AddBytes({ 0xB6, 0x41 });
     CHECK(waitFor([&] { return first.Count() == 1; }));
 
-    machine.StartInterpreter([&](const Message& m) { second(m); }, [] { return true; });
+    machine.StartInterpreter([&](const Message& m, const LR10KReadings&) { second(m); }, [] { return true; });
     for (int i = 0; i < 50; i++)
         port.AddBytes({ 0xB6, (std::uint8_t)i });
     CHECK(waitFor([&] { return second.Count() == 50; }));
@@ -135,7 +135,7 @@ static void test_program_flags_stop_threads()
     std::atomic<bool> comActive{ true }, interpreterActive{ true };
 
     machine.StartReading(port, [&] { return comActive.load(); });
-    machine.StartInterpreter([](const Message&) {}, [&] { return interpreterActive.load() && comActive.load(); });
+    machine.StartInterpreter([](const Message&, const LR10KReadings&) {}, [&] { return interpreterActive.load() && comActive.load(); });
     CHECK(waitFor([&] { return port.reads > 3; }));
 
     interpreterActive = false;
@@ -159,7 +159,7 @@ static void test_connection_loss_stops_interpreter()
     callbacks.onConnectionLost = [&](std::uint32_t, int) { lost++; };
     callbacks.onExit = [&] { machine.RequestStopInterpreter(); };
 
-    machine.StartInterpreter([](const Message&) {}, [] { return true; });
+    machine.StartInterpreter([](const Message&, const LR10KReadings&) {}, [] { return true; });
     machine.StartReading(port, [] { return true; }, callbacks);
     port.AddBytes({ 0xB6, 0x00 });
     port.AddError(22); port.AddError(22); port.AddError(22);
@@ -171,13 +171,64 @@ static void test_connection_loss_stops_interpreter()
     machine.StopReading();
 }
 
+static void test_readings()
+{
+    // The machine decodes every message into its readings (the same decoding as LR10KProtocol)
+    FakeSerialPort port;
+    port.AddBytes({ 0xF0, 0x10, 0x00, 0x01, 0x00, 0x02 });  // load +16, distance +4, extensometer 2
+    port.AddBytes({ 0xF0, 0x20, 0x7F, 0x7F, 0x00, 0x00 });  // load +32, distance -4
+    port.AddBytes({ 0xF0, 0x05, 0x00, 0x02, 0x00, 0x00 });  // load +5, distance +8
+    port.AddBytes({ 0xB6, 0x41 });                          // status: going up
+    port.AddBytes({ 0xBF, 0x02 });                          // warning: tension overload stop
+    port.AddBytes({ 0xB1, 0x02, 0x42 });                    // multiplier 2, one unknown byte
+
+    LR10KMachine machine;
+    std::mutex m;
+    std::vector<LR10KReadings> seen;
+    machine.StartReading(port, [] { return true; });
+    machine.StartInterpreter([&](const Message&, const LR10KReadings& r) { std::lock_guard<std::mutex> l(m); seen.push_back(r); }, [] { return true; });
+    CHECK(waitFor([&] { return machine.Readings().unknownBytes == 1; }));
+    machine.StopInterpreter();
+    machine.StopReading();
+
+    const LR10KReadings r = machine.Readings();
+    CHECK(r.dataPackages == 3);
+    CHECK(r.load == 5);
+    CHECK(r.distanceDelta == 8);
+    CHECK(r.distance == 4 - 4 + 8);
+    CHECK(r.extensometer == 0);
+    CHECK(r.hasStatus && r.status == 0x41 && r.statusMessages == 1);
+    CHECK(r.hasWarnError && r.warnError == 0x02 && r.warnErrorMessages == 1);
+    CHECK(r.loadMultiplier == 2 && r.overflowMessages == 1);
+    CHECK(r.unknownBytes == 1);
+
+    // The handler got the readings right after each message
+    CHECK(seen.size() == 7);
+    if (seen.size() == 7)
+    {
+        CHECK(seen[0].load == 16 && seen[0].distance == 4 && seen[0].extensometer == 2);
+        CHECK(seen[1].load == 32 && seen[1].distance == 0);
+    }
+
+    // Zero point: the distance starts from 0 again
+    machine.ResetDistance();
+    CHECK(machine.Readings().distance == 0);
+    CHECK(machine.Readings().load == 5); // the rest is kept
+
+    // The load multiplier is used for the next data package (multiplier 2: 0xC00 -> +2048)
+    LR10KProtocol::Message pkg;
+    pkg.type = Message::Type::DataPackage;
+    pkg.data = { 0x18, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    CHECK(machine.Apply(pkg).load == 2048);
+}
+
 static void test_destructor_stops_everything()
 {
     FakeSerialPort port;
     {
         LR10KMachine machine;
         machine.StartReading(port, [] { return true; });
-        machine.StartInterpreter([](const Message&) {}, [] { return true; });
+        machine.StartInterpreter([](const Message&, const LR10KReadings&) {}, [] { return true; });
         port.AddBytes({ 0xB6, 0x00, 0xB6, 0x41 });
     } // must not hang or crash
     CHECK(true);
@@ -190,6 +241,7 @@ int main()
     test_restart_interpreter_never_splits_bytes();
     test_program_flags_stop_threads();
     test_connection_loss_stops_interpreter();
+    test_readings();
     test_destructor_stops_everything();
 
     if (g_failures == 0)

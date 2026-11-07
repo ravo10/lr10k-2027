@@ -147,7 +147,7 @@ static void test_threads_and_replay()
     callbacks.onByte = [&](std::uint8_t b) { log.LogReceived(b); };
     std::atomic<int> messages{ 0 };
     machine.StartReading(port, [] { return true; }, callbacks);
-    machine.StartInterpreter([&](const LR10KProtocol::Message&) { messages++; }, [] { return true; });
+    machine.StartInterpreter([&](const LR10KProtocol::Message&, const LR10KReadings&) { messages++; }, [] { return true; });
 
     std::thread sender([&] {
         for (int i = 0; i < 50; i++)
@@ -186,7 +186,7 @@ static void test_threads_and_replay()
     LR10KMachine machine2;
     std::atomic<int> replayed{ 0 };
     machine2.StartReading(replay, [] { return true; });
-    machine2.StartInterpreter([&](const LR10KProtocol::Message& m) { if (m.type == LR10KProtocol::Message::Type::Status) replayed++; }, [] { return true; });
+    machine2.StartInterpreter([&](const LR10KProtocol::Message& m, const LR10KReadings&) { if (m.type == LR10KProtocol::Message::Type::Status) replayed++; }, [] { return true; });
     const auto end2 = std::chrono::steady_clock::now() + 3s;
     while (replayed < 200 && std::chrono::steady_clock::now() < end2) std::this_thread::sleep_for(1ms);
     machine2.StopInterpreter();

@@ -132,7 +132,7 @@ namespace LR10KDataDeEncryptionSystem {
 
     bool            ThreadCanRun_ReadFromLR10KAndWriteToRingBuffer(int trackID, std::chrono::steady_clock::time_point start, bool configDone = true);
     bool            ThreadCanRun_InterpetWrittenRingBufferData();
-    void            InterpretMessage(const LR10KProtocol::Message& message);
+    void            InterpretMessage(const LR10KProtocol::Message& message, const LR10KReadings& readings);
 
     void            TerminateUniqeThread(std::unique_ptr<std::thread>& m_pThread, std::atomic<bool>* stopFlag = nullptr);
 
@@ -144,13 +144,7 @@ namespace LR10KDataDeEncryptionSystem {
 
     void    InterpetWrittenRingBufferData_WriteGlobals(LPARAM lParam, int action = 0);
 
-    //! \brief Multiplier used for handling load data to show correct value. Compensates for overflow.
-    //! \details It may be related to sensor data calibration, unit conversion, or some other custom data processing requirement.
-    inline extern byte bMultiplier_load = { 1 };
-
-    __int16 DecodingBits_Load(byte uData1, byte uData2);
-    __int16 DecodingBits_Distance(byte uData1, byte uData2);
-    void    DecodingBits_Extensometer(byte uData1, byte uData2, __int16* lParam);
+    // The load multiplier and the decoding are in LR10KMachine (LR10KReadings) and LR10KProtocol.h.
 
 
     void    InterpetWrittenRingBufferData_handling_load(LPARAM lParam);

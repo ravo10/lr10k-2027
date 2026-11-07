@@ -1280,14 +1280,14 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
             // Calc text size
             std::string strL2 = strL;
-            strL2.append(LR10KAppGlobals::currentLiveStatusMessage.c_str());
+            strL2.append(LR10KAppGlobals::currentLiveStatusMessage.load());
             ImVec2 stLSize = ImGui::CalcTextSize(strL2.c_str());
 
             // Float right
             ImGui::SameLine(ImGui::GetWindowWidth() - 20 - stLSize.x);
             ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), strL.c_str());
             ImGui::SameLine(0, 0);
-            ImGui::Text(LR10KAppGlobals::currentLiveStatusMessage.c_str());
+            ImGui::Text(LR10KAppGlobals::currentLiveStatusMessage.load());
 
             // ------------------------
             // View the LR 10K status
@@ -1326,14 +1326,14 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
             // Calc text size
             std::string strWE2 = strWE;
-            strWE2.append(LR10KAppGlobals::currentWarnErrorStatusMessage.c_str());
+            strWE2.append(LR10KAppGlobals::currentWarnErrorStatusMessage.load());
             ImVec2 strWESize = ImGui::CalcTextSize(strWE2.c_str());
 
             // Float right
             ImGui::SameLine(ImGui::GetWindowWidth() - 20 - stLSize.x - strSSize.x - 25 - strWESize.x - 25);
             ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), strWE.c_str());
             ImGui::SameLine(0, 0);
-            ImGui::Text(LR10KAppGlobals::currentWarnErrorStatusMessage.c_str());
+            ImGui::Text(LR10KAppGlobals::currentWarnErrorStatusMessage.load());
 
             // ------------------------
             // View the COM status

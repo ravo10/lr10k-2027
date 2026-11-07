@@ -367,6 +367,20 @@ static void test_message_parser_identical_to_legacy()
     if (mismatches) std::printf("  %ld framing mismatches against the original interpreter\n", mismatches);
 }
 
+static void test_status_texts()
+{
+    CHECK(std::strcmp(StatusText(0x00), "Ready") == 0);
+    CHECK(std::strcmp(StatusText(0x41), "Going up") == 0);
+    CHECK(std::strcmp(StatusText(0x61), "Going down") == 0);
+    CHECK(std::strcmp(StatusText(0x40), "Stopped fast movement") == 0);
+    CHECK(StatusText(0x99) == nullptr);
+    CHECK(std::strcmp(WarnErrorText(0x00), "OK") == 0);
+    CHECK(std::strcmp(WarnErrorText(0x02), "Tension overload stop. Go DOWN only") == 0);
+    CHECK(std::strcmp(WarnErrorText(0x06), "Compression overload stop. Go UP only") == 0);
+    CHECK(std::strcmp(WarnErrorText(0x0C), "Extension range exceeded (error 12)") == 0);
+    CHECK(WarnErrorText(0x77) == nullptr);
+}
+
 static void test_app_buffer_message_class()
 {
     // The class the app uses to build setup messages must produce the same bytes as before
@@ -400,6 +414,7 @@ int main()
     test_identical_to_legacy_for_all_inputs();
     test_float_encoding_identical_to_legacy();
     test_app_buffer_message_class();
+    test_status_texts();
     test_message_parser_known_stream();
     test_message_parser_identical_to_legacy();
 
