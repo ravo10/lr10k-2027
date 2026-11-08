@@ -199,7 +199,7 @@ So others can add features that everyone gains from. We maintain it as much as w
 
 ## Credits
 
-The software was made as a summer project by mechanical engineering student **Rasmus Ullestad Relling** (main developer), inspired by **Richard Thue** (mechanical engineering teacher and lab engineer), and supported by **Joakim Bjørk** and **Olaf Hallan Graven** (computer engineering teachers), who helped decode and understand the communication between the LR 10K and the computer. It has since been fine-tuned with feedback from students using it in the lab.
+The software was made as a summer project by mechanical engineering student **Rasmus Ullestad Relling** (main developer), inspired by **Richard Thue** (mechanical engineering teacher and lab engineer), and supported by **Joakim Bjørk** and **Olaf Hallan Graven** (computer engineering teachers), who helped decode and understand the communication between the LR 10K and the computer. It has since been fine-tuned with feedback from students using it in the lab while Rasmus has been taking his industry master's at USN as a Systems Engineer. Claude Opus has been used as of late 2026 to improve the software like removing critical bugs, improving stabillity and performance, and also the visual representation and documentation of the software.
 
 ## Sponsors
 
