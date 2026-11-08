@@ -33,7 +33,7 @@ for _ in range(170):
     if sx < 1900 and 330 < sy:   # Keep the text area calm
         continue
     r = rnd.choice((1.6, 2.0, 2.4, 3.0))
-    a = rnd.randint(30, 90)
+    a = rnd.randint(20, 60)
     d.ellipse((sx - r, sy - r, sx + r, sy + r), fill=(220, 230, 255, a))
 
 # The nine named stars: (name, RA in hours, Dec in degrees, magnitude). North up, east left, as seen in the sky.
@@ -58,7 +58,7 @@ haze = Image.new('L', (W, H), 0)
 hd = ImageDraw.Draw(haze)
 for x, y, mag in pos:
     rr = 150 - mag * 14
-    hd.ellipse((x - rr, y - rr, x + rr, y + rr), fill=60)
+    hd.ellipse((x - rr, y - rr, x + rr, y + rr), fill=40)
 haze = haze.filter(ImageFilter.GaussianBlur(70))
 haze_rgba = Image.new('RGBA', (W, H), (110, 150, 255, 0))
 haze_rgba.putalpha(haze)
@@ -69,7 +69,7 @@ glow_l = Image.new('RGBA', (W, H), (0, 0, 0, 0))
 gl = ImageDraw.Draw(glow_l)
 for x, y, mag in pos:
     g = 52 - mag * 6
-    gl.ellipse((x - g, y - g, x + g, y + g), fill=(170, 200, 255, 150))
+    gl.ellipse((x - g, y - g, x + g, y + g), fill=(170, 200, 255, 85))
 glow_l = glow_l.filter(ImageFilter.GaussianBlur(14))
 layer = Image.alpha_composite(layer, glow_l)
 # Spikes on their own layer (drawing them straight onto the stars would cut dark lines through the cores)
@@ -78,12 +78,12 @@ sp = ImageDraw.Draw(spikes)
 for x, y, mag in pos:
     if mag >= 4.4:
         continue
-    length = 150 - mag * 24
+    length = 120 - mag * 20
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         steps = 40
         for i in range(steps):
             t0, t1 = i / steps, (i + 1) / steps
-            a = int(235 * (1 - t0) ** 1.8)
+            a = int(130 * (1 - t0) ** 1.8)
             w = 4 if t0 < 0.25 else (3 if t0 < 0.55 else 2)
             sp.line((x + dx * length * t0, y + dy * length * t0, x + dx * length * t1, y + dy * length * t1),
                     fill=(230, 238, 255, a), width=w)
@@ -92,8 +92,8 @@ layer = Image.alpha_composite(layer, spikes)
 cores = Image.new('RGBA', (W, H), (0, 0, 0, 0))
 cd = ImageDraw.Draw(cores)
 for x, y, mag in pos:
-    core = 13 - mag * 1.5
-    cd.ellipse((x - core, y - core, x + core, y + core), fill=(255, 255, 255, 255))
+    core = 11 - mag * 1.35
+    cd.ellipse((x - core, y - core, x + core, y + core), fill=(235, 242, 255, int(250 - mag * 22)))
 layer = Image.alpha_composite(layer, cores)
 d = ImageDraw.Draw(layer)
 
