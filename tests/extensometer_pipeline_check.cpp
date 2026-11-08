@@ -26,7 +26,7 @@
 
 constexpr int kHMin = 25, kHMax = 85, kSMin = 110, kVMin = 50;
 
-struct Result { bool ok; double dist; };
+struct Result { bool ok; double dist; int fallbacks = 0; }; // fallbacks: blobs whose sub-pixel centre failed
 
 static double Distance(const std::vector<cv::Point2f>& c) { return c.size() == 2 ? cv::norm(c[0] - c[1]) : 0.0; }
 
@@ -45,7 +45,7 @@ static Result DetectOld(const cv::Mat& frameIn)
     std::vector<cv::Point2f> centers;
     for (const auto& c : contours)
         if (cv::contourArea(c) > 50) { const cv::Moments m = cv::moments(c); centers.push_back(cv::Point2f((float)(m.m10 / m.m00), (float)(m.m01 / m.m00))); }
-    return { centers.size() == 2, Distance(centers) };
+    return { centers.size() == 2, Distance(centers), 0 };
 }
 
 // Now: as in the camera thread
@@ -72,6 +72,7 @@ static Result DetectNew(const cv::Mat& frame)
     options.hMin = kHMin;
     options.hMax = kHMax;
     std::vector<cv::Point2f> centers;
+    int fallbacks = 0;
     for (const auto& c : contours)
     {
         if (cv::contourArea(c) <= 50) continue;
@@ -94,10 +95,11 @@ static Result DetectNew(const cv::Mat& frame)
                 blobMask.data, (int)blobMask.step, ExtensometerCentroid::Rect{ 0, 0, patchHsv.cols, patchHsv.rows }, options);
             if (centre.ok) { centers.push_back(cv::Point2f((float)(centre.x + search.x), (float)(centre.y + search.y))); continue; }
         }
+        ++fallbacks;
         const cv::Moments m = cv::moments(c);
         centers.push_back(cv::Point2f((float)CameraResolution::WorkToFull(m.m10 / m.m00 + margin, scale), (float)CameraResolution::WorkToFull(m.m01 / m.m00, scale)));
     }
-    return { centers.size() == 2, Distance(centers) };
+    return { centers.size() == 2, Distance(centers), fallbacks };
 }
 
 // Grey frame with two green dots, anti-aliased (each dot drawn 8x larger in its own patch, then averaged down)
@@ -132,7 +134,7 @@ static cv::Mat Frame(int width, int height, const cv::Point2d dots[2], double ra
     return frame;
 }
 
-struct Score { double rmsStrainPercent = 0, msPerFrame = 0; int lost = 0; };
+struct Score { double rmsStrainPercent = 0, msPerFrame = 0, worstPercent = 0; int lost = 0, fallbacks = 0; };
 
 template <class Detect>
 static Score Run(Detect detect, int width, int height, double noise, double shade, int frames)
@@ -150,11 +152,13 @@ static Score Run(Detect detect, int width, int height, double noise, double shad
         const auto t0 = std::chrono::steady_clock::now();
         const Result r = detect(frame);
         time += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        score.fallbacks += r.fallbacks;
         if (!r.ok) { ++score.lost; continue; }
         const double truth = std::hypot(dots[1].x - dots[0].x, dots[1].y - dots[0].y);
         if (n == 0) first = r.dist - truth;            // The fixed offset is L0's (set at the start), not an error
         const double error = (r.dist - truth - first) / l0 * 100.0;
         sum += error * error;
+        score.worstPercent = std::max(score.worstPercent, std::fabs(error));
         ++n;
     }
     score.rmsStrainPercent = n > 0 ? std::sqrt(sum / n) : 1e9;
@@ -167,6 +171,7 @@ int main()
     int failures = 0;
     cv::theRNG().state = 12345;
     cv::setNumThreads(1); // Comparable times
+    std::printf("OpenCV %s\n", CV_VERSION);
 
     struct Size { int w, h; int frames; };
     const Size sizes[] = { { 800, 600, 81 }, { 1920, 1080, 41 }, { 3840, 2160, 21 } };
@@ -179,6 +184,7 @@ int main()
                 const Score n = Run(DetectNew, size.w, size.h, noise, shade, size.frames);
                 std::printf("%4d x %4d  noise %.0f  shade %2.0f %%:  strain error old %.4f %%, new %.4f %%   time old %6.2f ms, new %6.2f ms per frame\n",
                     size.w, size.h, noise, shade * 100, o.rmsStrainPercent, n.rmsStrainPercent, o.msPerFrame, n.msPerFrame);
+                std::printf("             new: worst frame %.4f %%, whole-pixel fallbacks %d of %d centres\n", n.worstPercent, n.fallbacks, 2 * size.frames);
                 if (o.lost || n.lost) { std::printf("FAIL: markers lost (old %d, new %d frames)\n", o.lost, n.lost); ++failures; }
                 // Better than before everywhere; without noise far better
                 const bool better = noise == 0.0 ? n.rmsStrainPercent < 0.25 * o.rmsStrainPercent + 1e-4 : n.rmsStrainPercent < 0.7 * o.rmsStrainPercent;
