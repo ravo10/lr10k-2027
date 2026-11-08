@@ -443,7 +443,8 @@ ExcelWriter::Result ExcelWriter::Save(const ExcelReport::Report& report, const c
     worksheet_set_tab_color(ws_report, kHeaderFill);
     PageSetup(ws_report, false);
     worksheet_set_column(ws_report, 0, 0, 30, NULL);
-    worksheet_set_column(ws_report, 1, 6, 13, NULL);
+    worksheet_set_column(ws_report, 1, 1, 20, NULL); // Values: wide enough for the date (2026-11-08 15:02:26)
+    worksheet_set_column(ws_report, 2, 6, 13, NULL);
     SheetTitle(ws_report, f, 6, "Material test report", subtitle, report.appVersion);
 
     // Key results: up to 4 cards (A, B:C, D:E, F:G), a small label over a large value with its unit
