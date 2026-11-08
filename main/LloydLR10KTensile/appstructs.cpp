@@ -4404,7 +4404,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
 void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
 {
     ImGui::SetNextWindowPos(ImVec2(200, 50), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(1000, 650));
+    ImGui::SetNextWindowSize(ImVec2(1000, 700), ImGuiCond_FirstUseEver); // Was set every frame: the window could not be resized
 
     if (!ImGui::Begin("Documentation", p_open, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse))
     {
@@ -4412,261 +4412,247 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         return;
     }
 
-    ImGui::Text("Video training tutorials:\n(\"Setup\" and \"Completing a test\" are mandatory to complete for safety reasons!)");
+    // A bullet with text that wraps at the window edge (BulletText does not wrap)
+    auto Item = [](const char* text) { ImGui::Bullet(); ImGui::TextWrapped("%s", text); };
+    // A numbered step: bold-ish number, wrapped text
+    auto Step = [](int n, const char* title, const char* text) {
+        ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().accent), "%d.", n);
+        ImGui::SameLine();
+        ImGui::TextWrapped("%s %s", title, text);
+    };
+
+    ImGui::TextWrapped("Video training tutorials (\"Setup\" and \"Completing a test\" are mandatory to complete for safety reasons!):");
     // The video buttons use the theme's button colours (each had its own bright colour: unreadable on light themes)
     if (ImGui::Button("GUI", { 200, 35 }))
         Extra::tools.PlayVideo("videos\\lr10k_gui.mp4");
-    ImGui::SetItemTooltip("This will make the user aware of what functions exists in the application.\nIt will also give an overview over every settings available for software and for LR 10K.");
+    ImGui::SetItemTooltip("An overview of the windows and functions in the software,\nand of the settings for the software and for the LR 10K.");
     ImGui::SameLine();
 
     if (ImGui::Button("Setup", { 200, 35 }))
         Extra::tools.PlayVideo("videos\\lr10k_setup.mp4");
-    ImGui::SetItemTooltip("This will walk the user through how to setup LR 10K with the software.\nIt will also give an overview over what settings are suggested and roughly\nwhat is best for what material.");
+    ImGui::SetItemTooltip("How to set up the LR 10K with the software,\nand which settings suit which materials.");
     ImGui::SameLine();
 
     if (ImGui::Button("Completing a test", { 200, 35 }))
         Extra::tools.PlayVideo("videos\\lr10k_completeatest.mp4");
-    ImGui::SetItemTooltip("This will tell what the user needs to think about before clicking \"Start Test\".\nIt will also show how to handle test data when a test is finished to get a complete test.");
+    ImGui::SetItemTooltip("What to check before \"Start Test\",\nand how to handle the data when the test is finished.");
     ImGui::SameLine();
 
     if (ImGui::Button("Using an extensometer", { 200, 35 }))
         Extra::tools.PlayVideo("videos\\lr10k_usinganextensiometer.mp4");
-    ImGui::SetItemTooltip("This will walk a user through how to complete a test with the optical extensometer.");
+    ImGui::SetItemTooltip("How to run a test with the optical (camera) extensometer.");
 
     ImGui::Spacing();
 
-    // Get started
-    if (ImGui::CollapsingHeader("Get Started"))
+    // ---------------------------------------------------------------------------------------------------------
+    if (ImGui::CollapsingHeader("Get started: one test, step by step"))
     {
         ImGui::Spacing();
-        if (ImGui::TreeNode("Step 1 - Setup"))
-        {
-            ImGui::BulletText("To get started, connect to a COM port and connect to the LR 10K Tensile Machine");
-            ImGui::BulletText("Adjust the crosshead into the right position under the \"Navigation\" tab in the lower window at the bottom (be careful)");
-            ImGui::BulletText("(You can now also return to a zero point)");
-            ImGui::BulletText("Go to the \"Live\" window in the lower right corner to set the zero point before starting a new test");
-            ImGui::BulletText("Go to the \"Settings\" window to the left for adjusting the speeds, load type etc.\nHere you can also enable the possibility to not set zero point on \"Start Test\".");
-
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNode("Step 2 - Start & End testing"))
-        {
-            ImGui::BulletText("Before starting a test, you need to set a storage folder under \"Specify Storage Folder\" in the Menu.");
-            ImGui::BulletText("Click on the \"Testing\" tab in the lower window at the bottom");
-            ImGui::BulletText("To start a new test, click on the button \"Start Test\"");
-            ImGui::BulletText("To pause a test, click on the button \"Pause Test\"");
-            ImGui::BulletText("To continue a test, click on the button \"Continue Test\"");
-            ImGui::BulletText("To end a test, click on the button \"End Test\"");
-            ImGui::BulletText("Now return to zero point by clicking the button \"Return to zero point\",\nso there is no tension/compression in the part");
-
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNode("Step 3 - After testing"))
-        {
-            ImGui::BulletText("If you had any slack in your test, you could adjust the offset extension to match that.\nThis will be reflected in the Excel Book.");
-            ImGui::BulletText("You can now add/undo crucial points to the plot/graph if you want; like yielding point and fracture point");
-            ImGui::BulletText("If the point is outside any valid one, the software will warn about it");
-            ImGui::BulletText("You can move a valid point by dragging them with your mouse cursor.");
-            ImGui::BulletText("You can now calculate material properties if you want; like nominal or true stress");
-            ImGui::BulletText("Adjust the plot/graph view to your liking by using the controls in the \"Graph Adjustment\" window in the lower right corner");
-            ImGui::BulletText("It is recommended to add a short description to the test, so it is easy to keep track if many similar.");
-            ImGui::BulletText("Tip 1: Place the proportional limit point as close to the first non-linear graph area\nthat should be close to one yielding point.");
-            ImGui::BulletText("Tip 2: If a material (like PLA) does not have a clear yielding area, then the material is so brittle\nthat the ultimate tensile strength could be set as the yielding point.");
-
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNode("Step 4 - Saving tests"))
-        {
-            ImGui::BulletText("To save your changes, use the hotkey or click \"Save (.lr10k and .xlsx)\" in the Menu.");
-            ImGui::BulletText("If you wish to save the test (.lr10k) separately, you can click on \"Save File As...\" in the Menu");
-            ImGui::BulletText("You can also save the test as an Excel file (.xlsx) separately by clicking the button\n\"Save Excel Book As\" in the Menu");
-
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNode("Step 5 - Loading previous tests"))
-        {
-            ImGui::BulletText("If you wish to start a new test, you can click on the tab button \"+ New Test\"");
-            ImGui::BulletText("You can also load previous tests (.lr10k) by clicking on the \"Open\" button in the Menu");
-
-            ImGui::TreePop();
-        }
+        ImGui::TextDisabled("To practise without the machine: GUI Settings > LR 10K Simulation > Activate.");
+        ImGui::Spacing();
+        Step(1, "Connect.", "PC Config. > pick the COM port of the LR 10K, then \"Connect PC\". The console says when it is connected; "
+            "the machine's state is shown on the right of the menu bar.");
+        Step(2, "Set up the test.", "In Settings: tension or compression, crosshead and jog speed, the specimen's dimensions "
+            "(thickness and width, or diameter, and the gauge length L0), units and the load limit. Then press \"Apply to LR 10K\".");
+        Step(3, "Clamp the specimen.", "Move the crosshead with Up/Down (F2/F3, hold F4 for fast) until the specimen sits in the grips "
+            "without load. Press \"Set zero point\" (F6). Choose where results are saved: File > Specify Storage Folder.");
+        Step(4, "Optical extensometer (optional).", "View > Extensometer, switch the camera on, pick the marker colour, choose the resolution, "
+            "type the measured distance between the markers as L0, and check that Tracking shows 2 markers. "
+            "\"Set zero point\" also zeroes the optical extension. Record > Record tests saves a video of each test.");
+        Step(5, "Run the test.", "\"Start Test\" (F7). Pause (F9) and continue (F7) if needed; \"End Test\" (F8) after fracture. "
+            "The test also ends at the load limit. If \"Start Test\" is greyed out, its tooltip says what is missing.");
+        Step(6, "Check the results.", "The UTS, the E-modulus limits and the yield points (Rp0.2, Rp0.01) are placed automatically. "
+            "Look at them; drag or add points if needed. Calculate in the Calculator to see the stress-strain graphs.");
+        Step(7, "Save.", "Ctrl+S saves the test (.lr10k, can be opened again) and the Excel book (.xlsx). "
+            "Add a short description first, so similar tests can be told apart.");
+        Step(8, "Finish.", "\"Return to zero point\" (F5) and take the specimen out. \"+ New Test\" opens a tab for the next test.");
         ImGui::Spacing();
     }
 
-    // Tips
+    // ---------------------------------------------------------------------------------------------------------
+    if (ImGui::CollapsingHeader("Hotkeys and mouse"))
+    {
+        ImGui::Spacing();
+        if (ImGui::BeginTable("##Hotkeys", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
+        {
+            ImGui::TableSetupColumn("Key");
+            ImGui::TableSetupColumn("No test running");
+            ImGui::TableSetupColumn("Test running");
+            ImGui::TableSetupColumn("Test paused");
+            ImGui::TableHeadersRow();
+            const char* rows[][4] = {
+                { "F1", "Stop the crosshead", "", "" },
+                { "F2 / F3", "Move up / down", "", "" },
+                { "F4 (hold)", "Fast, in the direction of F2/F3", "", "" },
+                { "F5", "Return to zero point", "", "" },
+                { "F6", "Set zero point", "", "" },
+                { "F7", "Start test", "", "Continue test" },
+                { "F8", "", "End test", "End test" },
+                { "F9", "", "Pause test", "" },
+            };
+            for (const auto& row : rows)
+            {
+                ImGui::TableNextRow();
+                for (int c = 0; c < 4; ++c) { ImGui::TableSetColumnIndex(c); ImGui::TextUnformatted(row[c]); }
+            }
+            ImGui::EndTable();
+        }
+        ImGui::Spacing();
+        Item("Ctrl+S: save (.lr10k and .xlsx). Ctrl+Alt+S: save as. Ctrl+Alt+E: save an Excel book. Ctrl+O: open a test. Ctrl+Z: remove the last crucial point.");
+        Item("Graph: scroll wheel zooms, left-drag pans, double-click fits the graph to the data (or \"Reset Graph View\").");
+        Item("Crucial points: Ctrl+Left click places a point exactly on the curve; drag a point to slide it along the curve.");
+        Item("Ctrl+Click on a slider to type a value. Fields accept scientific notation: 1e3 = 1000.");
+        Item("Ctrl+Scroll wheel over a window makes its text larger or smaller (GUI Settings > Text size for all text).");
+        ImGui::Spacing();
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
+    if (ImGui::CollapsingHeader("Safety"))
+    {
+        ImGui::Spacing();
+        Item("Keep hands out of the grips while the crosshead can move, and know where the machine's own stop button is. "
+             "F1 (Stop) in the software depends on the PC, the cable and the software working.");
+        Item("Translation load blocker (Settings > Zero Point & Safety, on at every start): when you move the crosshead without a test "
+             "and the load rises above 50 N, it stops. Moving the other way, to relieve the load, still works.");
+        Item("Load limit (Settings > Limits inside LR 10K): a running test is ended when the load reaches it, and movement stops there. "
+             "It is never above the 10 kN capacity of the machine.");
+        Item("Wear safety glasses for brittle specimens and composites: they can break with flying fragments.");
+        Item("This is unofficial software (not made or supported by Lloyd Instruments). Use at your own risk, and check the results.");
+        ImGui::Spacing();
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
     if (ImGui::CollapsingHeader("Tips"))
     {
         ImGui::Spacing();
-        ImGui::BulletText("Move windows by dragging the tab. Dock them again while holding \"Shift\"");
-        ImGui::BulletText("Add crucial points during or after a test is finished");
-        ImGui::BulletText("Undo crucial point by clicking Ctrl+Z");
-        ImGui::BulletText("Click above the graph line in the plot area, to more easily snap a point onto the graph");
-        ImGui::BulletText("All crucial points are shown in the Excel graphs; the report lists the proportional limit, yield, UTS and fracture");
-        ImGui::BulletText("Save files after a test is finished as either .lr10k or .xlsx");
-        ImGui::BulletText("Open .lr10k files to a new tab in the Menu");
-        ImGui::BulletText("A sound effect will play when a file is saved/opened successfully");
-        ImGui::BulletText("Disable sound effect in GUI from Menu under \"Options\"");
-        ImGui::BulletText("All important changes in GUI will be saved and loaded on boot");
-        ImGui::BulletText("Return to default settings from Menu under \"Options\"");
-        ImGui::BulletText("Is the plot/graph not looking like you want in Excel? Adjust it in the software before saving");
-        ImGui::BulletText("Use Ctrl+ScrollWheel to scale up/down the font size");
-        ImGui::BulletText("You can use scientific symbols in input fields. I.e.: 1e3 or 1E3 = 1000");
-        ImGui::BulletText("Crucial points you have not placed show \"-\" in the Excel report");
-        ImGui::BulletText("You can reset the GUI interface and settings in the Menu");
-        ImGui::BulletText("If you want to manually manipulate the settings files, they are located in the hidden local AppData folder");
-        ImGui::BulletText("If the load rises above 50 N while you move the crosshead without a test, it stops (safety).\nMoving the other way to relieve the load is still possible");
+        ImGui::SeparatorText("Windows and look");
+        Item("Move a window by dragging its tab; hold Shift while dragging to dock it. GUI Settings > Defaults & Resets > Reset window layout puts every window back.");
+        Item("GUI Settings > Theme: USN, NITO, Light or Dark. Text size: 90 % to 150 %. Rounded corners on or off.");
+        Item("View shows or hides the Calculator, Extensometer and Console windows.");
+        ImGui::SeparatorText("Tests and results");
+        Item("Each test has its own tab and its own dimensions. Open .lr10k files from File > Open; they open in a new tab.");
+        Item("\"Auto-place E-Modulus and Yield\" (Crucial Points) places the E-modulus limits and the yield points again.");
+        Item("Slack at the start of a test: the Calculator can remove it from the extension/strain axis; the Excel book follows.");
+        Item("A material without a clear yield region (e.g. PLA, brittle materials): Rp0.2 may not exist; the UTS is then the strength to report.");
+        Item("The crosshead extension includes the stretch of the machine and grips, so its E-modulus is lower than the material's. "
+             "Use the optical extensometer when the E-modulus matters.");
+        Item("Load error (Settings > Speed & Load Cell) corrects a load cell that reads a known percentage wrong; "
+             "\"Update finished test\" applies a new value to a finished test.");
+        Item("What the graph shows (zoom, smoothing, graph type) is what goes into the Excel book: adjust it before saving.");
+        ImGui::SeparatorText("Optical extensometer");
+        Item("Even light without reflections matters most. The Mask (binary) and Side by side tabs show what is found as a marker.");
+        Item("Higher resolution gives finer strain; if the frames per second drop a lot, choose a lower one.");
+        Item("Smoothing (default 0.25 s): more is calmer but lags the load. Dead-band (default 0.05 px): keep it about 1-2 times the measured noise shown under it.");
+        Item("If the markers are lost for half a second during a test, the test is paused.");
         ImGui::Spacing();
     }
 
-    // Calculations
+    // ---------------------------------------------------------------------------------------------------------
     if (ImGui::CollapsingHeader("Calculations"))
     {
         ImGui::Spacing();
-        ImGui::BulletText("Nominal/Engineering Stress, σ_nom/σ_e :: F / A_0");
-        ImGui::BulletText("Nominal/Engineering Strain, ε_nom/ε_e :: ΔL / L_0");
-
-        ImGui::BulletText("True Stress, σ_t :: σ_e * ( 1 + ε_n )");
-        ImGui::BulletText("True Strain, ε_t :: ln( 1 + ε_n )");
-        ImGui::BulletText("E-Modulus :: slope of the least-squares line through the stress-strain data between the E-bounds");
-
-        ImGui::Spacing();
-        ImGui::Text("3-point bending (span L, width w, thickness t, slope m of the load-deflection line):");
-        ImGui::BulletText("Max. bending moment, M :: F * L / 4");
-        ImGui::BulletText("Flexural strength, σ_f :: 3 * F * L / ( 2 * w * t² )");
-        ImGui::BulletText("Flexural modulus, E_f :: m * L³ / ( 4 * w * t³ )");
-
-        ImGui::NewLine();
-        ImGui::Text("Conversion from base SI units to other units:");
-        ImGui::Spacing();
-        ImGui::Text("Only what the software shows is converted (data, points, dimensions and results).");
-        ImGui::Text("The .lr10k file and the settings sent to the LR 10K are always in base SI units (N, mm).");
-    }
-
-    // Documentation of the meaning for different HEX values
-    if (ImGui::CollapsingHeader("Interpreting HEX values"))
-    {
-        ImGui::Spacing();
-        ImGui::Text("More detailed documentation is on GitHub.");
-        ImGui::NewLine();
-
-        ImGui::BulletText("\"... -> ...\" = a HEX value followed by another one.");
-        ImGui::NewLine();
-
-        ImGui::Text("(Write) Connect to LR 10K: (known HEX values)");
-        ImGui::BulletText("0x00 = X - Seems to be at the start/end of something new happening sometimes (?)");
-        ImGui::BulletText("0xB6 = Give status");
-        ImGui::BulletText("0xC0 = Send data");
-        ImGui::BulletText("0xC1 = Stop data");
-        ImGui::BulletText("0x81 = Stop");
-        ImGui::BulletText("0x9F = Start/Continue test (will also apply the settings sent to LR 10K)");
-        ImGui::BulletText("0x80 = Disconnect from LR 10K");
-
-        ImGui::NewLine();
-        ImGui::Text("(Write) Send setup to LR 10K (for future test):");
-        ImGui::Spacing();
-        ImGui::Text("Speed:");
-        ImGui::BulletText("0xD3 -> 0x07 -> 0x00 -> 0xD1 -> 0x02 -> 8 bytes (double type) speed (converted to float) = Test Speed 1");
-        ImGui::BulletText("0xD3 -> 0x02 -> 0x02 -> 0xD1 -> 0x06 -> 8 bytes (double type) speed (converted to float) = Jog Speed");
-
-        ImGui::Spacing();
-        ImGui::Text("Other setup:");
-        ImGui::BulletText("0xD3 -> 0x06 -> 0x02 -> 0xD5 -> 0x01 -> 1 bytes (int8 type) test type = Tension (0x00) or Compression (0x01)");
-
-        ImGui::Spacing();
-        ImGui::Text("Extensometer:");
-        ImGui::BulletText("0xD5 -> 0x09 -> 0x00 -> 0xD1 -> 0x03 -> 8 bytes (double type) distance (converted to float) = Range");
-
-        ImGui::NewLine();
-        ImGui::Text("(Write) Translation of the LR 10K head:");
-        ImGui::BulletText("0x81 = Stop");
-        ImGui::BulletText("0x82 = Set zero point");
-        ImGui::BulletText("0x83 = Return to zero point");
-        ImGui::BulletText("0x84 = Up");
-        ImGui::BulletText("0x85 = Down");
-        ImGui::BulletText("0x86 = Fast up");
-        ImGui::BulletText("0x87 = Fast down");
-
-        ImGui::NewLine();
-        ImGui::Text("(Read) Interpretation of LR 10K status (0xB6):");
-        ImGui::BulletText("0x00 = Ready (stop)");
-        ImGui::BulletText("0x41 = Going up");
-        ImGui::BulletText("0x61 = Going down");
-        ImGui::BulletText("0x40 = Stop fast movement");
-
-        ImGui::NewLine();
-        ImGui::Text("(Read) Interpretation of LR 10K warning status (0xBF):");
-        ImGui::BulletText("0x00 = OK");
-        ImGui::BulletText("0x02 = Tension overload stop. Go DOWN only");
-        ImGui::BulletText("0x06 = Compression overload stop. Go UP only");
-        ImGui::BulletText("0x0C = Extension range exceeded (error 12)");
-
-        ImGui::NewLine();
-        ImGui::Text("(Read) Interpretation of LR 10K overflow message (0xB1):");
-        ImGui::BulletText("Multiplier status ...");
-    }
-
-    ImGui::NewLine();
-
-    // Packages Used in this Software
-    if (ImGui::CollapsingHeader("Packages used in this software"))
-    {
-        ImGui::Spacing();
-        ImGui::BulletText("USN teachers' code for managing the LR 10K Tensile Machine | Controlling the machine");
-        ImGui::BulletText("ImGUI v1.92.5 (Docking repo.) with DirectX 12 | GUI");
-        ImGui::BulletText("ImPlot v0.17 | Advanced plot/graph");
-        ImGui::BulletText("JSON for Modern C++ v3.11.2 | Easy management of config. and save files");
-        ImGui::BulletText("Libxlsxwriter v1.2.4 | Writing Excel files");
-        ImGui::BulletText("imgui-filebrowser (june 26, 2023) | File browser for saving and loading files");
-        ImGui::BulletText("ImThemes v0.2.6 | Ready made theme styling + Custom for the GUI");
-        ImGui::BulletText("Unifont by St. GIGAFONT Typefaces | Custom free font");
-        ImGui::BulletText("OpenCV 4.12.0 | Used with the extensometer (2026) (developed together with Gemini AI)");
+        ImGui::SeparatorText("Tension and compression");
+        Item("Engineering stress σ_e = F / A_0, engineering strain ε_e = ΔL / L_0 (A_0: width × thickness, or π d² / 4).");
+        Item("True stress σ_t = σ_e × (1 + ε_e), true strain ε_t = ln(1 + ε_e) (valid up to the UTS, before necking).");
+        Item("E-modulus: slope of the least-squares line through the stress-strain points between the two E-modulus limits.");
+        ImGui::SeparatorText("Automatic points (placed when a test ends)");
+        Item("UTS: the maximum load.");
+        Item("E-modulus limits: the ends of the steepest straight part of the curve between 10 % and 50 % of the maximum load "
+             "(so the slack at the start is not used).");
+        Item("Yield strength Rp0.2: the elastic line moved 0.2 % strain to the right, from where it reaches zero load; "
+             "where the curve falls below it (offset method of the tensile test standards). Rp0.01 (proportional limit): the same with 0.01 %.");
+        Item("The yield points need the gauge length L0, and are not placed for 3-point bending. Always check them.");
+        ImGui::SeparatorText("3-point bending (span L, width w, thickness t, slope m of the load-deflection line)");
+        Item("Maximum bending moment M = F × L / 4.");
+        Item("Flexural strength σ_f = 3 F L / (2 w t²).");
+        Item("Flexural modulus E_f = m L³ / (4 w t³).");
+        ImGui::SeparatorText("Units");
+        Item("SI or English Engineering (GUI Settings > Unit type). Only what is shown is converted; the .lr10k file and the setup sent to the LR 10K are always in N and mm.");
         ImGui::Spacing();
     }
 
-    // Packages Used in this Software
-    if (ImGui::CollapsingHeader("Thanks to/Contributors"))
+    // ---------------------------------------------------------------------------------------------------------
+    if (ImGui::CollapsingHeader("Files and folders"))
     {
         ImGui::Spacing();
-        if (ImGui::TreeNode("USN Teachers"))
-        {
-            ImGui::BulletText("Richard Thue (teacher) | Supporting the project and giving the idea");
-            ImGui::BulletText("Joakim Bjørk (teacher) | Logic for managing the LR 10K Tensile Machine");
-            ImGui::BulletText("Olaf Hallan Graven (teacher) | Logic for managing the LR 10K Tensile Machine");
+        Item("Tests (.lr10k) and Excel books (.xlsx): the storage folder you choose (File > Specify Storage Folder). Extensometer videos: its Recordings folder.");
+        Item("Autosave: while a test runs (every 5 s) and until it is saved, a copy is kept in %LOCALAPPDATA%\\LR10K\\Autosave. "
+             "After a crash or power cut, the next start offers to open the unsaved tests again.");
+        Item("Settings and window layout: %LOCALAPPDATA%\\LR10K (lr10k_settings.ini, imgui.ini). Deleting a file resets it at the next start.");
+        Item("Crash reports: Documents\\LR10K crash reports (PC Config. > Troubleshooting > Open crash report folder). Send both files to the developers.");
+        Item("Serial logs for connection problems: PC Config. > Troubleshooting > Log serial traffic to file, then Connect PC. Saved in Documents\\LR10K serial logs.");
+        ImGui::Spacing();
+    }
 
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNode("USN Students"))
-        {
-            ImGui::BulletText("Rasmus Ullestad Relling (mechanical engineering student) | Creator of the software & Documentation");
+    // ---------------------------------------------------------------------------------------------------------
+    if (ImGui::CollapsingHeader("LR 10K commands (for developers)"))
+    {
+        ImGui::Spacing();
+        ImGui::TextWrapped("The bytes the software exchanges with the LR 10K, found by recording the original DOS software. "
+            "The full recorded sequences are in the user guide on GitHub (docs/index.md); the code is in LR10KProtocol.h.");
+        ImGui::TextDisabled("\"A -> B\" = byte A followed by byte B.");
+        ImGui::SeparatorText("Commands (PC to LR 10K)");
+        Item("0xB6 give status, 0xC0 send data, 0xC1 stop data, 0x9F start/continue test (applies the setup), 0x80 disconnect.");
+        Item("Crosshead: 0x81 stop, 0x82 set zero point, 0x83 return to zero point, 0x84 up, 0x85 down, 0x86 fast up, 0x87 fast down.");
+        ImGui::SeparatorText("Setup (PC to LR 10K)");
+        Item("Test speed: 0xD3 -> 0x07 -> 0x00 -> 0xD1 -> 0x02 -> 8 bytes (double).");
+        Item("Jog speed: 0xD3 -> 0x02 -> 0x02 -> 0xD1 -> 0x06 -> 8 bytes (double).");
+        Item("Test type: 0xD3 -> 0x06 -> 0x02 -> 0xD5 -> 0x01 -> 1 byte: 0x00 tension, 0x01 compression.");
+        Item("Extensometer range: 0xD5 -> 0x09 -> 0x00 -> 0xD1 -> 0x03 -> 8 bytes (double).");
+        ImGui::SeparatorText("Replies (LR 10K to PC)");
+        Item("Status (0xB6 + 1 byte): 0x00 ready, 0x40 stopped fast movement, 0x41 going up, 0x61 going down.");
+        Item("Warning (0xBF + 1 byte): 0x00 OK, 0x02 tension overload (down only), 0x06 compression overload (up only), 0x0C extension range exceeded (error 12).");
+        Item("0xB1: the range multiplier of the load/extension readings.");
+        ImGui::Spacing();
+    }
 
-            ImGui::TreePop();
-        }
-        if (ImGui::TreeNode("Others"))
-        {
-            ImGui::BulletText("USN for supporting the creation of this project");
-            ImGui::BulletText("All of the other creators of the open sourced packages this software uses");
+    // ---------------------------------------------------------------------------------------------------------
+    if (ImGui::CollapsingHeader("Software used, and licenses"))
+    {
+        ImGui::Spacing();
+        Item("Dear ImGui 1.92.5 (docking) with DirectX 12: the GUI (MIT).");
+        Item("ImPlot 1.1: the graphs (MIT).");
+        Item("JSON for Modern C++ 3.11.2: settings and .lr10k files (MIT).");
+        Item("imgui-filebrowser: the open/save dialogs (MIT).");
+        Item("libxlsxwriter, with zlib and minizip: the Excel books (BSD 2-clause, zlib).");
+        Item("OpenCV 4.12, with FFmpeg: the optical extensometer and its videos (Apache 2.0, LGPL).");
+        Item("Inter and JetBrains Mono: the fonts (SIL Open Font License).");
+        Item("This software: MIT License. The licenses are in LICENSE.txt next to the program.");
+        ImGui::Spacing();
+    }
 
-            ImGui::TreePop();
-        }
+    // ---------------------------------------------------------------------------------------------------------
+    if (ImGui::CollapsingHeader("Credits"))
+    {
+        ImGui::Spacing();
+        Item("Rasmus Ullestad Relling (mechanical engineering student, USN): creator and main developer of the software and its documentation.");
+        Item("Richard Thue (mechanical engineering teacher and lab engineer, USN): the idea, and support for the project.");
+        Item("Joakim Bjørk and Olaf Hallan Graven (computer engineering teachers, USN): decoding the communication with the LR 10K.");
+        Item("The students who used the software in the lab and gave feedback, and USN for access to the machine.");
+        Item("The authors of the open source software above. Parts of the code were developed with AI assistants (Gemini, Claude).");
         ImGui::Spacing();
     }
 
     ImGui::NewLine();
-
     ImGui::Separator();
     ImGui::Spacing();
     ImGui::Text("University of South-Eastern Norway, Kongsberg.");
-    ImGui::Text("Unofficial LR 10K Tensile Machine (1990's) Control Software (Open Source), v%s (%s).", LR10KAppVersion, LR10KAppRepository);
-    ImGui::Text("Use at your own risk.");
-
-    ImGui::NewLine();
-
-    ImGui::PushItemWidth(280.0f);
-    std::string link = std::string("https://github.com/ravo10/") + LR10KAppRepository;
-    ImGui::Text("GitHub repo.:"); ImGui::SameLine(); ImGui::InputText("##GitHubRepo", (char*)link.c_str(), link.size() + 1, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly);
-    ImGui::PopItemWidth();
+    ImGui::TextWrapped("Unofficial LR 10K Tensile Machine (1990's) Control Software (Open Source), v%s. Use at your own risk.", LR10KAppVersion);
     ImGui::Spacing();
-    ImGui::Text("Full documentation on GitHub + documentation with Doxygen.");
+
+    // Read-only fields, so the links can be selected and copied
+    auto Link = [](const char* label, const char* id, const std::string& url) {
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("%s", label);
+        ImGui::SameLine(160.0f);
+        ImGui::PushItemWidth(-1.0f);
+        ImGui::InputText(id, (char*)url.c_str(), url.size() + 1, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly);
+        ImGui::PopItemWidth();
+    };
+    const std::string repo = std::string("https://github.com/ravo10/") + LR10KAppRepository;
+    Link("GitHub:", "##GitHubRepo", repo);
+    Link("User guide:", "##UserGuide", repo + "/blob/main/docs/index.md");
+    Link("Report a problem:", "##Issues", repo + "/issues");
 
     ImGui::End();
 }
