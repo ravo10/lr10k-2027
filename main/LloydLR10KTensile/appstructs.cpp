@@ -4456,7 +4456,8 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
             "(thickness and width, or diameter, and the gauge length L0), units and the load limit. Then press \"Apply to LR 10K\".");
         Step(3, "Clamp the specimen.", "Move the crosshead with Up/Down (F2/F3, hold F4 for fast) until the specimen sits in the grips "
             "without load. Press \"Set zero point\" (F6). Choose where results are saved: File > Specify Storage Folder.");
-        Step(4, "Optical extensometer (optional).", "View > Extensometer, switch the camera on, pick the marker colour, choose the resolution, "
+        Step(4, "Optical extensometer (optional).", "Put two round Ø5 mm green (#00FF00) markers 60 mm apart on the specimen (see Extensometer markers in Tips). "
+            "View > Extensometer, switch the camera on, pick the marker colour, choose the resolution, "
             "type the measured distance between the markers as L0, and check that Tracking shows 2 markers. "
             "\"Set zero point\" also zeroes the optical extension. Record > Record tests saves a video of each test.");
         Step(5, "Run the test.", "\"Start Test\" (F7). Pause (F9) and continue (F7) if needed; \"End Test\" (F8) after fracture. "
@@ -4540,6 +4541,9 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
              "\"Update finished test\" applies a new value to a finished test.");
         Item("What the graph shows (zoom, smoothing, graph type) is what goes into the Excel book: adjust it before saving.");
         ImGui::SeparatorText("Optical extensometer");
+        Item("Markers: two round dots, Ø5 mm, bright green (#00FF00) matt paper, glued flat, 60 mm apart (L0 = 60 mm). "
+             "The laser-cut sheet (FlexiDESIGNER .fs / .dxf, Ø6 mm circles on printed A4), the laser settings, a 3D-printed placement guide "
+             "and 3D-printable specimens are in the \"extensometer-tracking-marker\" release on GitHub; see docs/extensometer-markers.md.");
         Item("Even light without reflections matters most. The Mask (binary) and Side by side tabs show what is found as a marker.");
         Item("Higher resolution gives finer strain; if the frames per second drop a lot, choose a lower one.");
         Item("Smoothing (default 0.25 s): more is calmer but lags the load. Dead-band (default 0.05 px): keep it about 1-2 times the measured noise shown under it.");

@@ -52,6 +52,7 @@ Ctrl+S saves (.lr10k and .xlsx), Ctrl+Alt+S saves as, Ctrl+Alt+E saves an Excel 
 
 ## Optical extensometer
 
+- **Markers:** two round Ø5 mm dots of bright green (#00FF00) matt paper, 60 mm apart (L0 = 60 mm). How to make them on a laser cutter, a 3D-printed placement guide and 3D-printable specimens: [Extensometer markers](extensometer-markers.md).
 - *Set zero point* (also done by *Start Test* by default) sets the optical L0 too, so the optical extension starts at 0 together with the machine's. *SET L0 / RESET* still does it by hand.
 - L0 in mm is the real distance between the two markers; measure it as accurately as possible. The strain comes from the markers alone, and extension = strain × L0.
 - The *Tracking* panel shows whether two markers are tracked. A test is paused if the markers stay lost for half a second.
