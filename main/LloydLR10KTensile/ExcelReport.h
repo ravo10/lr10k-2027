@@ -10,6 +10,9 @@
 
 #include "TestCalc.h"
 
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 #include <utility>
 #include <string>
 #include <vector>
@@ -194,6 +197,100 @@ namespace ExcelReport
         return rows;
     }
 
+    /**
+        @brief  The test date for the report: "Sun Nov  8 15:02:26 2026" (as saved by the app, std::ctime) becomes
+                "2026-11-08 15:02:26". Any other text is kept, without a trailing newline or doubled spaces.
+    **/
+    inline std::string TidyDate(const std::string& date)
+    {
+        std::string text;
+        for (char c : date)
+        {
+            if (c == '\n' || c == '\r') c = ' ';
+            if (c == ' ' && (text.empty() || text.back() == ' ')) continue;
+            text += c;
+        }
+        while (!text.empty() && text.back() == ' ') text.pop_back();
+
+        static const char* const months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+        char weekday[4] = "", month[4] = "";
+        int day = 0, hour = 0, minute = 0, second = 0, year = 0, used = 0;
+        if (std::sscanf(text.c_str(), "%3s %3s %d %d:%d:%d %d%n", weekday, month, &day, &hour, &minute, &second, &year, &used) == 7
+            && used == (int)text.size() && day >= 1 && day <= 31 && hour >= 0 && hour < 24 && minute >= 0 && minute < 60 && second >= 0 && second < 61 && year > 1900 && year < 10000)
+        {
+            for (int m = 0; m < 12; ++m)
+            {
+                if (std::strcmp(month, months[m]) != 0) continue;
+                char out[64];
+                std::snprintf(out, sizeof(out), "%04d-%02d-%02d %02d:%02d:%02d", year, m + 1, day, hour, minute, second);
+                return out;
+            }
+        }
+        return text;
+    }
+
+    //! The sample with the largest load (by size, so compression works too). Extension minus the zero offset.
+    inline bool MaximumLoad(const Report& r, double& load, double& extension)
+    {
+        if (r.data.empty()) return false;
+        const TestCalc::Sample* best = &r.data[0];
+        for (const TestCalc::Sample& s : r.data)
+            if (std::fabs(s.load) > std::fabs(best->load)) best = &s;
+        load = best->load;
+        extension = best->extension - r.zeroOffset;
+        return true;
+    }
+
+    //! One of the key results shown at the top of the report.
+    struct KeyResult
+    {
+        std::string label;
+        bool known = false;   //!< False: shown as "-" (point not placed, nothing calculated)
+        double value = 0.0;
+        std::string unit;
+        int decimals = 2;
+    };
+
+    /**
+        @brief  The key results at the top of the report (up to 4).
+        @details Tension/compression with dimensions: E-modulus, strength (UTS), elongation at fracture, maximum load.
+                 3-point bending: maximum load, flexural strength, flexural modulus, travel at maximum load.
+                 Without dimensions: maximum load and the extension there.
+    **/
+    inline std::vector<KeyResult> KeyResults(const Report& r)
+    {
+        const Units& u = r.units;
+        std::vector<KeyResult> out;
+        double maxLoad = 0.0, maxExtension = 0.0;
+        const bool hasData = MaximumLoad(r, maxLoad, maxExtension);
+        auto add = [&](std::string label, bool known, double value, std::string unit, int decimals) {
+            out.push_back({ std::move(label), known, known ? value : 0.0, std::move(unit), decimals });
+        };
+
+        if (r.kind == TestKind::Bending3Point)
+        {
+            const bool calculated = r.bending.maxLoad != 0.0 || r.bending.flexuralStress != 0.0;
+            add("Maximum load", calculated, r.bending.maxLoad, u.force, 1);
+            add("Flexural strength", calculated, r.bending.flexuralStress, u.stress, 2);
+            add("Flexural modulus", r.youngsModulus != 0.0, r.youngsModulus, u.modulus, 2);
+            add("Travel at maximum load", calculated, r.bending.maxTravel, u.length, 3);
+            return out;
+        }
+        if (HasDimensions(r))
+        {
+            add("Young's modulus", r.youngsModulus != 0.0, r.youngsModulus, u.modulus, 2);
+            add(r.kind == TestKind::Compression ? "Compressive strength" : "Tensile strength",
+                HasPoint(r, TestCalc::UltimateTensileStrength), r.nominal[TestCalc::UltimateTensileStrength].stress, u.stress, 2);
+            add(r.kind == TestKind::Compression ? "Strain at fracture" : "Elongation at fracture",
+                HasPoint(r, TestCalc::Fracture), r.nominal[TestCalc::Fracture].strain * 100.0, "%", 2);
+            add("Maximum load", hasData, maxLoad, u.force, 1);
+            return out;
+        }
+        add("Maximum load", hasData, maxLoad, u.force, 1);
+        add("Extension at maximum load", hasData, maxExtension, u.length, 3);
+        return out;
+    }
+
     //! The report sheet above the points table: test, specimen and (for E-modulus / 3-point bending) results.
     inline std::vector<Section> ReportSections(const Report& r)
     {
@@ -201,7 +298,7 @@ namespace ExcelReport
         std::vector<Section> sections;
 
         Section test{ "Test", {} };
-        test.lines.push_back(TextLine("Test date", r.date));
+        test.lines.push_back(TextLine("Test date", TidyDate(r.date)));
         test.lines.push_back(TextLine("Test type", TestKindText(r.kind)));
         test.lines.push_back(TextLine("Units", u.si ? "SI" : "English Engineering"));
         sections.push_back(test);

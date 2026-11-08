@@ -69,11 +69,18 @@ def main(out_dir):
     check(len(found) == 3, f"{path}: {len(found)} charts")
     if found:
         series, ranges = found[0]
-        check(series[:2] == ["Load", "Crucial point"], f"{path}: series names {series}")
+        # The curve, then one series per crucial point (own colour, labelled with its short name), one row each
+        check(series == ["Load", "UTS", "Fracture", "E-Lower"], f"{path}: series names {series}")
         check("'Graph N-mm'!$D$2:$D$602" in ranges, f"{path}: curve range {ranges}")
-        check("'Graph N-mm'!$B$2:$B$4" in ranges, f"{path}: points range {ranges}")
+        check(all(f"'Graph N-mm'!$B${r}" in ranges and f"'Graph N-mm'!$C${r}" in ranges for r in (2, 3, 4)), f"{path}: points ranges {ranges}")
     if len(found) == 3:
         check(found[1][0][0] == "Engineering stress" and found[2][0][0] == "True stress", f"{path}: stress series {found[1][0]} {found[2][0]}")
+    report_cells = cells(report)
+    check("Material test report" in report_cells.values(), f"{path}: no report title")
+    for label in ("Young's modulus", "Tensile strength", "Elongation at fracture", "Maximum load"):
+        check(label in report_cells.values(), f"{path}: no key result card {label!r}")
+    check(not report.sheet_view.showGridLines, f"{path}: gridlines shown on the report")
+    check(wb["Graph N-mm"].print_area is not None, f"{path}: no print area on the graph sheet")
     setup = wb["Setup"]
     check(row_of(setup, "Load error correction")[1] == -2.0, f"{path}: load error")
     check(row_of(setup, "Samples")[1] == 601, f"{path}: samples")

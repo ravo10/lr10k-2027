@@ -267,8 +267,60 @@ static void test_setup_lines()
     CHECK(samples);
 }
 
+static void test_tidy_date()
+{
+    CHECK(TidyDate("Sun Nov  8 15:02:26 2026\n") == "2026-11-08 15:02:26"); // std::ctime, as saved in .lr10k files
+    CHECK(TidyDate("Tue Mar 17 09:05:00 2026") == "2026-03-17 09:05:00");
+    CHECK(TidyDate("07.11.2026 18:30") == "07.11.2026 18:30");              // other text is kept
+    CHECK(TidyDate("Sun Foo  8 15:02:26 2026") == "Sun Foo 8 15:02:26 2026"); // not a month: only the spaces tidied
+    CHECK(TidyDate("") == "");
+}
+
+static void test_key_results()
+{
+    // Tension with dimensions: E, UTS stress, elongation at fracture, maximum load (from the data)
+    Report r = rectangularReport();
+    r.youngsModulus = 2.5;
+    r.points = { { TestCalc::UltimateTensileStrength, r.data[100] } };
+    r.nominal[TestCalc::UltimateTensileStrength] = { 0.1, 20.0 };
+    auto k = KeyResults(r);
+    CHECK(k.size() == 4);
+    CHECK(k[0].label == "Young's modulus" && k[0].known && k[0].value == 2.5 && k[0].unit == "GPa");
+    CHECK(k[1].label == "Tensile strength" && k[1].known && k[1].value == 20.0);
+    CHECK(k[2].label == "Elongation at fracture" && !k[2].known); // fracture not placed
+    CHECK(k[3].label == "Maximum load" && k[3].known && k[3].value == 400.0);
+
+    // Compression: largest load by size
+    r.kind = TestKind::Compression;
+    r.data[50].load = -900.0;
+    k = KeyResults(r);
+    CHECK(k[1].label == "Compressive strength");
+    CHECK(k[3].value == -900.0);
+
+    // 3-point bending
+    r.kind = TestKind::Bending3Point;
+    r.bending = { 400.0, 5.0, 6400.0, 240.0 };
+    k = KeyResults(r);
+    CHECK(k.size() == 4 && k[1].label == "Flexural strength" && k[1].value == 240.0 && k[3].value == 5.0);
+
+    // No dimensions: maximum load and the extension there (minus the zero offset)
+    Report none = rectangularReport();
+    none.specimen = {};
+    none.zeroOffset = 0.5;
+    k = KeyResults(none);
+    CHECK(k.size() == 2 && k[0].value == 400.0);
+    NEAR(k[1].value, 5.0);
+
+    // No data
+    Report empty;
+    k = KeyResults(empty);
+    CHECK(k.size() == 2 && !k[0].known && !k[1].known);
+}
+
 int main()
 {
+    test_tidy_date();
+    test_key_results();
     test_point_results();
     test_report_sections();
     test_setup_lines();

@@ -61,6 +61,34 @@ Without a laser cutter, a Ø5 mm hole punch through the green paper, or round gr
 
 More about the extensometer (resolution, smoothing, dead-band, recording) is in the [user guide](index.md#optical-extensometer).
 
+## How exact is it?
+
+`tests/extensometer_pipeline_check.cpp` measures this with the real OpenCV, on every push (GitHub Actions, job *extensometer-opencv*). It draws camera frames with two green Ø14 px dots 400 px apart (at 800 x 600; everything scales with the resolution, so the markers span the same part of the picture), moves one dot a little each frame as in a test, and runs the camera thread's steps on each frame. It compares the strain the software measures with the true strain. The test runs with and without camera noise and uneven light (20 % darker on one side). It also runs the code from before the sub-pixel centre (*old*) on the same frames.
+
+RMS strain error. These are the results with OpenCV 4.10, with camera noise and uneven light, averaged over 5 noise patterns:
+
+| Camera | New | Old | New, in µm at L0 = 60 mm | Time per frame (new) |
+|---|---|---|---|---|
+| 800 x 600 | 0.0081 % | 0.0377 % | about 5 µm | 4 ms |
+| 1920 x 1080 | 0.0035 % | 0.0099 % | about 2 µm | 22 ms |
+| 3840 x 2160 (4K) | 0.0012 % | 0.0026 % | under 1 µm | 14 ms |
+
+Without noise the new error is 0.0016 %, 0.0006 % and 0.0003 %. 4K is faster than 1080p because it is processed on a smaller working copy, and the centres are then refined in the full-resolution frame.
+
+These are drawn frames: flat, sharp dots, no lens distortion, no blur, no flicker and no reflections. A real setup will be less exact. Treat the numbers as the limit the software itself sets, and use *Measured noise* under *Dead-band* (with the specimen at rest) to see what your camera and light give. In practice the camera, the light and the marker quality decide the accuracy, not the software.
+
+To run it yourself (Linux or WSL with OpenCV, about 2 minutes):
+
+```bash
+g++ -std=c++17 -O2 -I main/LloydLR10KTensile tests/extensometer_pipeline_check.cpp -o extensometer_pipeline_check $(pkg-config --cflags --libs opencv4)
+```
+
+```bash
+./extensometer_pipeline_check
+```
+
+It prints the OpenCV version and, for each case, the error of each noise pattern ([old/new]), the worst frame and any frames where a marker's sub-pixel centre failed (*whole-pixel fallbacks*). It fails if the new centre is not clearly better than the old one.
+
 ## Troubleshooting
 
 | Problem | Try |
