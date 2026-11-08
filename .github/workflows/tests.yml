@@ -193,3 +193,46 @@ jobs:
         with:
           name: excel-sample-reports
           path: excel-samples/
+
+  sysml-model:
+    # Compiles the SysML v2 architecture model (docs/architecture/lr10k.sysml) with the SysML v2 Pilot
+    # Implementation, the reference compiler, and its standard library. Fails on any error or warning.
+    runs-on: ubuntu-latest
+    env:
+      KERNEL_VERSION: 0.59.0
+      KERNEL_RELEASE: 2026-04
+    steps:
+      - uses: actions/checkout@v4
+      - name: SysML v2 standard library (pinned commit)
+        uses: actions/checkout@v4
+        with:
+          repository: Systems-Modeling/SysML-v2-Release
+          ref: 9baca5908ca28b53da085de69336fde48420ea8f
+          path: sysml-v2-release
+          sparse-checkout: sysml.library
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Cache the SysML v2 Pilot kernel
+        uses: actions/cache@v4
+        with:
+          path: ~/sysml-kernel
+          key: sysml-kernel-${{ env.KERNEL_VERSION }}
+      - name: Download the SysML v2 Pilot kernel
+        run: |
+          jar=~/sysml-kernel/jupyter-sysml-kernel-$KERNEL_VERSION-all.jar
+          if [ ! -f "$jar" ]; then
+            mkdir -p ~/sysml-kernel
+            curl -fL --retry 3 --no-progress-meter -o /tmp/kernel.zip \
+              "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/releases/download/$KERNEL_RELEASE/jupyter-sysml-kernel-$KERNEL_VERSION.zip"
+            unzip -q -j /tmp/kernel.zip "sysml/jupyter-sysml-kernel-$KERNEL_VERSION-all.jar" -d ~/sysml-kernel
+          fi
+          ls -l "$jar"
+      - name: Check docs/architecture/lr10k.sysml
+        run: |
+          set -o pipefail   # the checker's exit code, not grep's
+          jar=~/sysml-kernel/jupyter-sysml-kernel-$KERNEL_VERSION-all.jar
+          javac -cp "$jar" -d sysml-check-classes tools/sysml-check/CheckSysml.java
+          java -cp "$jar:sysml-check-classes" CheckSysml sysml-v2-release/sysml.library docs/architecture/lr10k.sysml \
+            | grep -v '^Reading '

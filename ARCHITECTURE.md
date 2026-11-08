@@ -97,6 +97,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | File | What it does |
 |---|---|
 | `tools/theme_preview.cpp` | Draws a mock-up of the main window in each theme with the real Dear ImGui, ImPlot, fonts and `ThemeApply.h`, in software (no Windows, no GPU), and writes one picture per theme. Run it after changing a colour; CI builds and runs it on every push. The pictures in `docs/themes/` (used by the README) come from it. Build command at the top of the file |
+| `tools/sysml-check/CheckSysml.java` | Compiles SysML v2 files with the SysML v2 Pilot Implementation (the reference compiler) and prints each problem with its line; used by the *sysml-model* CI job. Build and run commands at the top of the file |
 | `tools/architecture-vsdx/` | Makes `docs/architecture/lr10k-architecture.vsdx` (Visio, one page per diagram) from the Mermaid diagrams in `docs/architecture/README.md`: `extract.js` draws them with Mermaid in headless Chromium and reads out the shapes, `mermaid_to_vsdx.py` writes the Visio file (standard library only) |
 | `tools/annotate_layout.py` | Draws `docs/themes/layout_annotated.png`: `theme_USN.png` with the parts of the main window outlined and numbered (README, *The main window*) |
 | `docs/Doxyfile`, `docs/build-docs.bat` | The developer documentation (Doxygen): `build-docs.bat` builds it on Windows and opens it; `.github/workflows/docs.yml` builds it on every push (artifact *docs-html*) and lists the warnings |
@@ -106,7 +107,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 
 | Workflow | Jobs |
 |---|---|
-| `tests.yml` | *unit-tests*: every test in the table above with g++ and AddressSanitizer/UBSan or ThreadSanitizer (most with `-Werror`), the headless ImGui/ImPlot checks and building and running the theme preview tool; *extensometer-opencv*: `extensometer_pipeline_check.cpp` with the real OpenCV; *excel-files*: sample Excel books checked with openpyxl (artifact *excel-sample-reports*) |
+| `tests.yml` | *unit-tests*: every test in the table above with g++ and AddressSanitizer/UBSan or ThreadSanitizer (most with `-Werror`), the headless ImGui/ImPlot checks and building and running the theme preview tool; *extensometer-opencv*: `extensometer_pipeline_check.cpp` with the real OpenCV; *excel-files*: sample Excel books checked with openpyxl (artifact *excel-sample-reports*); *sysml-model*: `docs/architecture/lr10k.sysml` compiled with the SysML v2 Pilot Implementation 0.59.0 and its standard library (`tools/sysml-check/CheckSysml.java`), failing on any error or warning |
 | `docs.yml` | The Doxygen documentation (artifact *docs-html*) and a summary of its warnings |
 
 The Windows app itself is built in Visual Studio (BUILDING.md), not in CI.
