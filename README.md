@@ -180,4 +180,4 @@ University of South-Eastern Norway (USN): access to a 1990s LR 10K tensile machi
 
 ## License
 
-MIT License, see [LICENSE.txt](LICENSE.txt).
+MIT License, see [LICENSE](LICENSE). The libraries and fonts it uses keep their own licenses (BSD, zlib, Apache 2.0, LGPL, SIL OFL), listed at the end of the same file.
