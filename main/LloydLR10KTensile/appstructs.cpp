@@ -2892,24 +2892,31 @@ void AppMainWidgets::SidePanelContainer(TabControl::TabTestDataClass* tabData)
                 // --- Sub-Window 1: Testing ---
                 // "ImVec2(0, 200)" means: Fill width (0), Fixed Height (200px)
                 // "true" enables the border (makes it look like a window)
-                if (ImGui::BeginChild("TestingPanel", ImVec2(0, 240), true, ImGuiWindowFlags_MenuBar))
+                // The two button panels fit their height to the buttons (AutoResizeY), and the gap between the buttons is the
+                // panel's padding, so the space is the same all around (it used to be a fixed 240 px height)
+                const float panelPad = ImGui::GetStyle().WindowPadding.x;
+                if (ImGui::BeginChild("TestingPanel", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_MenuBar))
                 {
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(panelPad, panelPad));
                     if (ImGui::BeginMenuBar()) { ImGui::Text("Control Panel for testing procedure"); ImGui::EndMenuBar(); }
 
                     ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
                         DockingApps::mainWidgets.ControlTestingCycleWindowDraw(tabData);
                     ImGui::EndDisabled();
+                    ImGui::PopStyleVar();
                 }
                 ImGui::EndChild();
 
                 // --- Sub-Window 2: Navigation ---
-                if (ImGui::BeginChild("NavigationPanel", ImVec2(0, 240), true, ImGuiWindowFlags_MenuBar))
+                if (ImGui::BeginChild("NavigationPanel", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_MenuBar))
                 {
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(panelPad, panelPad));
                     if (ImGui::BeginMenuBar()) { ImGui::Text("Control Panel for navigating the machine"); ImGui::EndMenuBar(); }
 
                     ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
                         DockingApps::mainWidgets.ControlNavigationWindowDraw(tabData);
                     ImGui::EndDisabled();
+                    ImGui::PopStyleVar();
                 }
                 ImGui::EndChild();
 
@@ -4095,9 +4102,14 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
 {
     if (tabData == nullptr) return;
 
-    // Size
-    float sizeWidth = 180.0f;
-    float sizeHeight = 47.0f + 13.0f;
+    // Size: two columns that fill the panel, with the same gap between the buttons as around them (the panel's
+    // padding; SidePanelContainer sets ItemSpacing to it). The sizes used to be fixed (180 x 60 px), so the gap at
+    // the right edge and at the bottom depended on the panel's size.
+    const float gap = ImGui::GetStyle().ItemSpacing.x;
+    const float avail = ImGui::GetContentRegionAvail().x;
+    const float sizeWidth = IM_TRUNC((avail - gap) / 2.0f);
+    const float sizeWidthRight = avail - gap - sizeWidth; // The right column takes the odd pixel
+    const float sizeHeight = IM_ROUND(ImGui::GetFontSize() * 3.3f);
 
     ImGui::BeginDisabled(!LR10KAppGlobals::MachineStatus().IsMachineConnected() && !mainGUIGlobals::useDemoMode);
 
@@ -4187,15 +4199,12 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::BeginDisabled(
         !tabData->test_unfinished_test_started
         || tabData->test_finished);
-    if (Extra::widgets.widgetCreate_ButtonType1("End Test", { sizeWidth, sizeHeight }, ThemeApply::ButtonRole::Danger))
+    if (Extra::widgets.widgetCreate_ButtonType1("End Test", { sizeWidthRight, sizeHeight }, ThemeApply::ButtonRole::Danger))
         DockingApps::console.ExecCommand(tabData, "end");
     ImGui::SetItemTooltip("Hotkey: F8");
     ImGui::EndDisabled();
 
     // When pausing a test
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, -3.0f));
-    ImGui::Spacing();
-    ImGui::PopStyleVar();
     ImGui::BeginDisabled(
         !tabData->test_running_test
         || !tabData->test_unfinished_test_started);
@@ -4209,7 +4218,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::BeginDisabled(
         tabData->test_running_test
         || !tabData->test_unfinished_test_started);
-    if (Extra::widgets.widgetCreate_ButtonType1("Continue Test", { sizeWidth, sizeHeight }))
+    if (Extra::widgets.widgetCreate_ButtonType1("Continue Test", { sizeWidthRight, sizeHeight }))
         DockingApps::console.ExecCommand(tabData, "continue");
     if (TabControl::CheckIfDistanceTravelControlActivated() && TabControl::LR10KTravelDistanceActionAfter == 1)
         ImGui::SetItemTooltip("Hotkey: F7\nTest will only be able to continue, if the distance travelled is less than the distance set.");
@@ -4218,9 +4227,6 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::EndDisabled();
 
     // When pausing a test
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, -3.0f));
-    ImGui::Spacing();
-    ImGui::PopStyleVar();
 
     ImGui::BeginDisabled(!LR10KAppGlobals::MachineStatus().IsMachineConnected() || tabData->test_finished);
     if (Extra::widgets.widgetCreate_ButtonType1("Set zero point", { sizeWidth, sizeHeight }))
@@ -4235,7 +4241,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
 
     ImGui::SameLine();
     ImGui::BeginDisabled(mainGUIGlobals::useDemoMode || !LR10KAppGlobals::MachineStatus().IsMachineConnected() || tabData->test_running_test);
-    if (Extra::widgets.widgetCreate_ButtonType1("Return to zero point", { sizeWidth, sizeHeight }))
+    if (Extra::widgets.widgetCreate_ButtonType1("Return to zero point", { sizeWidthRight, sizeHeight }))
         DockingApps::console.ExecCommand(tabData, "rezero");
     ImGui::SetItemTooltip("Move back to the zero point. Hotkey: F5");
     ImGui::EndDisabled();
@@ -4247,12 +4253,17 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
 {
     if (tabData == nullptr) return;
 
-    // Size
-    float sizeWidth1 = 110.0f + 2.5f;
-    float sizeHeight1 = 47.0f + 23.5f + 19.5f + 4.0f;
-
-    float sizeWidth2 = 180.0f;
-    float sizeHeight2 = sizeHeight1;
+    // Size: rows that fill the panel, with the same gap between the buttons as around them (see
+    // ControlTestingCycleWindowDraw). First row Stop (a bit wider), Up, Down; second row Fast up, Fast down.
+    const float gap = ImGui::GetStyle().ItemSpacing.x;
+    const float avail = ImGui::GetContentRegionAvail().x;
+    const float sizeHeight1 = IM_ROUND(ImGui::GetFontSize() * 5.2f);
+    const float sizeHeight2 = sizeHeight1;
+    const float sizeWidthStop = IM_TRUNC((avail - 2.0f * gap) * 0.36f);
+    const float sizeWidth1 = IM_TRUNC((avail - 2.0f * gap - sizeWidthStop) / 2.0f);
+    const float sizeWidthDown = avail - 2.0f * gap - sizeWidthStop - sizeWidth1; // Takes the odd pixel
+    const float sizeWidth2 = IM_TRUNC((avail - gap) / 2.0f);
+    const float sizeWidth2Right = avail - gap - sizeWidth2;
 
     static bool disableControl[4]{ false, false, false, false };
     auto disableAllControls = []()
@@ -4392,7 +4403,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
     );
 
     // Stop
-    if (Extra::widgets.widgetCreate_ButtonType1("Stop", { sizeWidth1 + 15, sizeHeight1 }, ThemeApply::ButtonRole::Danger))
+    if (Extra::widgets.widgetCreate_ButtonType1("Stop", { sizeWidthStop, sizeHeight1 }, ThemeApply::ButtonRole::Danger))
     {
         DockingApps::console.ExecCommand(tabData, "stop");
         disableAllControls();
@@ -4418,7 +4429,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
     // Down
     ImGui::SameLine();
     ImGui::BeginDisabled(disableControl[1]);
-    if (Extra::widgets.widgetCreate_ButtonType1("Down", { sizeWidth1, sizeHeight1 }))
+    if (Extra::widgets.widgetCreate_ButtonType1("Down", { sizeWidthDown, sizeHeight1 }))
     {
         DockingApps::console.ExecCommand(tabData, "down");
 
@@ -4432,9 +4443,6 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
     ImGui::EndDisabled();
 
     // Fast up
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, -3.0f));
-    ImGui::Spacing();
-    ImGui::PopStyleVar();
     // ImGui::BeginDisabled(disableControl[2]);
     if (Extra::widgets.widgetCreate_ButtonType1("Fast up", { sizeWidth2, sizeHeight2 }))
     {
@@ -4453,7 +4461,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
     // Fast down
     ImGui::SameLine();
     // ImGui::BeginDisabled(disableControl[3]);
-    if (Extra::widgets.widgetCreate_ButtonType1("Fast down", { sizeWidth2, sizeHeight2 }))
+    if (Extra::widgets.widgetCreate_ButtonType1("Fast down", { sizeWidth2Right, sizeHeight2 }))
     {
         DockingApps::console.ExecCommand(tabData, "fdown");
 
