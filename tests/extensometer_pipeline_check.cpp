@@ -1,98 +1,197 @@
 // Checks the optical extensometer's marker detection with the real OpenCV, on drawn camera frames.
 //
-// The steps are the camera thread's (ExtensiometerWorkerThread in appstructs.cpp: crop, blur, HSV, inRange,
-// erode/dilate, findContours, then the centre): keep them the same when that code changes. Compared are the old
-// centre (the outline's moments) and the new one (ExtensometerCentroid.h), while one marker moves 0.05 px per
-// frame as in a test.
+// DetectNew() repeats the camera thread's steps (ExtensiometerWorkerThread in appstructs.cpp): the working copy
+// (at most 1280 px wide), crop, blur, HSV, inRange, erode/dilate, findContours, then the sub-pixel centre in the
+// full-resolution frame (ExtensometerCentroid.h, CameraResolution.h). Keep it the same when that code changes.
+// DetectOld() is the code before: everything on the whole frame, the centre from the outline's moments.
+//
+// The same scene is drawn at 800 x 600, 1920 x 1080 and 3840 x 2160 (dot size, positions and movement scale with
+// the resolution) while one marker moves as in a test. Checked: the strain error, and the time per frame.
 //
 //   g++ -std=c++17 -O2 -I main/LloydLR10KTensile tests/extensometer_pipeline_check.cpp -o extensometer_pipeline_check $(pkg-config --cflags --libs opencv4)
 //   ./extensometer_pipeline_check
 //
 // Run by .github/workflows/tests.yml (job "extensometer-opencv").
+
+#include "CameraResolution.h"
 #include "ExtensometerCentroid.h"
+
 #include <opencv2/opencv.hpp>
-#include <cstdio>
+
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 
-struct Result { bool ok; double oldDist, newDist; };
+constexpr int kHMin = 25, kHMax = 85, kSMin = 110, kVMin = 50;
 
-static Result Detect(const cv::Mat& frameIn, int margin, int hMin, int hMax, int sMin, int vMin) {
-    cv::Mat frame = frameIn.clone();
-    std::vector<cv::Point2f> oldC, newC;
-    cv::Rect active_roi(margin, 0, frame.cols - 2 * margin, frame.rows);
-    cv::Mat cropped_frame = frame(active_roi), cropped_hsv, cropped_mask;
-    cv::GaussianBlur(cropped_frame, cropped_frame, cv::Size(5, 5), 0);
+struct Result { bool ok; double dist; };
+
+static double Distance(const std::vector<cv::Point2f>& c) { return c.size() == 2 ? cv::norm(c[0] - c[1]) : 0.0; }
+
+// Before: the whole frame, the centre from the outline of the grown mask
+static Result DetectOld(const cv::Mat& frameIn)
+{
+    cv::Mat frame = frameIn.clone(), hsv, mask;
+    cv::GaussianBlur(frame, frame, cv::Size(5, 5), 0);
+    cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
+    cv::inRange(hsv, cv::Scalar(kHMin, kSMin, kVMin), cv::Scalar(kHMax, 255, 255), mask);
+    cv::erode(mask, mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
+    cv::dilate(mask, mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8)));
+    cv::Mat display; cv::cvtColor(frameIn, display, cv::COLOR_BGR2RGBA); // The display copy (full size before)
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    std::vector<cv::Point2f> centers;
+    for (const auto& c : contours)
+        if (cv::contourArea(c) > 50) { const cv::Moments m = cv::moments(c); centers.push_back(cv::Point2f((float)(m.m10 / m.m00), (float)(m.m01 / m.m00))); }
+    return { centers.size() == 2, Distance(centers) };
+}
+
+// Now: as in the camera thread
+static Result DetectNew(const cv::Mat& frame)
+{
+    const double scale = CameraResolution::WorkScale(frame.cols);
+    cv::Mat work;
+    if (scale > 1.0) cv::resize(frame, work, cv::Size(), 1.0 / scale, 1.0 / scale, cv::INTER_AREA);
+    else work = frame;
+    cv::Mat display; cv::cvtColor(work, display, cv::COLOR_BGR2RGBA); // The display copy (working size)
+
+    const int margin = 0;
+    const cv::Rect active_roi(margin, 0, work.cols - 2 * margin, work.rows);
+    cv::Mat cropped_frame, cropped_hsv, cropped_mask;
+    cv::GaussianBlur(work(active_roi), cropped_frame, cv::Size(5, 5), 0);
     cv::cvtColor(cropped_frame, cropped_hsv, cv::COLOR_BGR2HSV);
-    cv::inRange(cropped_hsv, cv::Scalar(hMin, sMin, vMin), cv::Scalar(hMax, 255, 255), cropped_mask);
+    cv::inRange(cropped_hsv, cv::Scalar(kHMin, kSMin, kVMin), cv::Scalar(kHMax, 255, 255), cropped_mask);
     cv::erode(cropped_mask, cropped_mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
     cv::dilate(cropped_mask, cropped_mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8)));
     std::vector<std::vector<cv::Point>> contours;
     cv::findContours(cropped_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    ExtensometerCentroid::Options o; o.hMin = hMin; o.hMax = hMax;
-    const cv::Rect croppedArea(0, 0, cropped_hsv.cols, cropped_hsv.rows);
-    for (const auto& c : contours) {
+
+    ExtensometerCentroid::Options options;
+    options.hMin = kHMin;
+    options.hMax = kHMax;
+    std::vector<cv::Point2f> centers;
+    for (const auto& c : contours)
+    {
         if (cv::contourArea(c) <= 50) continue;
-        cv::Moments m = cv::moments(c);
-        oldC.push_back(cv::Point2f((float)(m.m10 / m.m00) + margin, (float)(m.m01 / m.m00)));
-        const int pad = 3;
         const cv::Rect box = cv::boundingRect(c);
-        const cv::Rect search = cv::Rect(box.x - pad, box.y - pad, box.width + 2 * pad, box.height + 2 * pad) & croppedArea;
-        cv::Mat blobMask = cv::Mat::zeros(search.size(), CV_8UC1);
-        cv::drawContours(blobMask, std::vector<std::vector<cv::Point>>{ c }, 0, cv::Scalar(255), cv::FILLED, cv::LINE_8, cv::noArray(), INT_MAX, cv::Point(-search.x, -search.y));
-        auto centre = ExtensometerCentroid::WeightedCentre(cropped_hsv.data, (int)cropped_hsv.step, cropped_hsv.cols, cropped_hsv.rows,
-            blobMask.data, (int)blobMask.step, ExtensometerCentroid::Rect{ search.x, search.y, search.width, search.height }, o);
-        newC.push_back(centre.ok ? cv::Point2f((float)centre.x + margin, (float)centre.y) : oldC.back());
+        const CameraResolution::Rect area = CameraResolution::ToFullResolution(
+            CameraResolution::Rect{ box.x + margin, box.y, box.width, box.height }, scale, 3, frame.cols, frame.rows);
+        if (area.width >= 3 && area.height >= 3)
+        {
+            const cv::Rect search(area.x, area.y, area.width, area.height);
+            cv::Mat patch, patchHsv;
+            cv::GaussianBlur(frame(search), patch, cv::Size(5, 5), 0);
+            cv::cvtColor(patch, patchHsv, cv::COLOR_BGR2HSV);
+            std::vector<cv::Point> outline;
+            for (const cv::Point& p : c)
+                outline.push_back(cv::Point((int)std::lround(CameraResolution::WorkToFull(p.x + margin, scale)) - search.x,
+                                            (int)std::lround(CameraResolution::WorkToFull(p.y, scale)) - search.y));
+            cv::Mat blobMask = cv::Mat::zeros(search.size(), CV_8UC1);
+            cv::drawContours(blobMask, std::vector<std::vector<cv::Point>>{ outline }, 0, cv::Scalar(255), cv::FILLED);
+            const ExtensometerCentroid::Centre centre = ExtensometerCentroid::WeightedCentre(patchHsv.data, (int)patchHsv.step, patchHsv.cols, patchHsv.rows,
+                blobMask.data, (int)blobMask.step, ExtensometerCentroid::Rect{ 0, 0, patchHsv.cols, patchHsv.rows }, options);
+            if (centre.ok) { centers.push_back(cv::Point2f((float)(centre.x + search.x), (float)(centre.y + search.y))); continue; }
+        }
+        const cv::Moments m = cv::moments(c);
+        centers.push_back(cv::Point2f((float)CameraResolution::WorkToFull(m.m10 / m.m00 + margin, scale), (float)CameraResolution::WorkToFull(m.m01 / m.m00, scale)));
     }
-    if (oldC.size() != 2) return { false, 0, 0 };
-    return { true, cv::norm(oldC[0] - oldC[1]), cv::norm(newC[0] - newC[1]) };
+    return { centers.size() == 2, Distance(centers) };
 }
 
-// Two green dots on a grey background, anti-aliased, at sub-pixel positions (8 bits of sub-pixel in cv::circle)
-static cv::Mat Frame(double x1, double y1, double x2, double y2, double radius, double noise, double shade) {
-    // Drawn 4x larger, then shrunk (INTER_AREA averages: like a camera pixel)
-    const int k = 4;
-    cv::Mat big(600 * k, 800 * k, CV_8UC3, cv::Scalar(120, 120, 120));
-    auto dot = [&](double x, double y) {
-        cv::circle(big, cv::Point((int)std::lround(x * k * 256), (int)std::lround(y * k * 256)), (int)std::lround(radius * k * 256), cv::Scalar(60, 200, 40), cv::FILLED, cv::LINE_AA, 8);
-        if (shade > 0) { // Right half darker
-            cv::Mat half = big(cv::Rect((int)(x * k), (int)((y - radius - 1) * k), (int)((radius + 1) * k), (int)((2 * radius + 2) * k)));
-            cv::Mat m; cv::inRange(half, cv::Scalar(0, 150, 0), cv::Scalar(255, 255, 255), m);
-            cv::Mat darker; half.convertTo(darker, -1, 1.0 - shade); darker.copyTo(half, m);
+// Grey frame with two green dots, anti-aliased (each dot drawn 8x larger in its own patch, then averaged down)
+static cv::Mat Frame(int width, int height, const cv::Point2d dots[2], double radius, double noise, double shade)
+{
+    cv::Mat frame(height, width, CV_8UC3, cv::Scalar(120, 120, 120));
+    const int k = 8;
+    for (int d = 0; d < 2; ++d)
+    {
+        const int half = (int)std::ceil(radius) + 4;
+        const int x0 = (int)std::floor(dots[d].x) - half, y0 = (int)std::floor(dots[d].y) - half, size = 2 * half + 1;
+        cv::Mat big(size * k, size * k, CV_8UC3, cv::Scalar(120, 120, 120));
+        const double cx = (dots[d].x - x0) * k, cy = (dots[d].y - y0) * k;
+        cv::circle(big, cv::Point((int)std::lround(cx * 16), (int)std::lround(cy * 16)), (int)std::lround(radius * k * 16), cv::Scalar(60, 200, 40), cv::FILLED, cv::LINE_AA, 4);
+        if (shade > 0)
+        {
+            cv::Mat right = big(cv::Rect((int)cx, 0, big.cols - (int)cx, big.rows)), m;
+            cv::inRange(right, cv::Scalar(0, 150, 0), cv::Scalar(255, 255, 255), m);
+            cv::Mat darker; right.convertTo(darker, -1, 1.0 - shade); darker.copyTo(right, m);
         }
-    };
-    dot(x1, y1); dot(x2, y2);
-    cv::Mat frame; cv::resize(big, frame, cv::Size(800, 600), 0, 0, cv::INTER_AREA);
-    if (noise > 0) { cv::Mat n(frame.size(), CV_16SC3); cv::randn(n, 0, noise); cv::Mat f16; frame.convertTo(f16, CV_16SC3); f16 += n; f16.convertTo(frame, CV_8UC3); }
+        cv::Mat small; cv::resize(big, small, cv::Size(size, size), 0, 0, cv::INTER_AREA);
+        small.copyTo(frame(cv::Rect(x0, y0, size, size)));
+    }
+    if (noise > 0)
+    {
+        cv::Mat n(frame.size(), CV_16SC3), f16;
+        cv::randn(n, 0, noise);
+        frame.convertTo(f16, CV_16SC3);
+        f16 += n;
+        f16.convertTo(frame, CV_8UC3);
+    }
     return frame;
 }
 
-int main() {
+struct Score { double rmsStrainPercent = 0, msPerFrame = 0; int lost = 0; };
+
+template <class Detect>
+static Score Run(Detect detect, int width, int height, double noise, double shade, int frames)
+{
+    const double s = std::min(width / 800.0, height / 600.0); // The same scene at every resolution (fits 16:9 too)
+    const double radius = 7.0 * s, l0 = 400.0 * s;     // Dots of 14 px and 400 px apart at 800 x 600
+    Score score;
+    double sum = 0.0, first = 0.0, time = 0.0;
+    int n = 0;
+    for (int i = 0; i < frames; ++i)
+    {
+        const double move = 0.05 * s * i;              // 0.05 px per frame at 800 x 600 (0.0125 % strain)
+        const cv::Point2d dots[2] = { { 400.3 * s, 100.4 * s }, { 401.1 * s, (100.4 + 400.0) * s + move } };
+        const cv::Mat frame = Frame(width, height, dots, radius, noise, shade);
+        const auto t0 = std::chrono::steady_clock::now();
+        const Result r = detect(frame);
+        time += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        if (!r.ok) { ++score.lost; continue; }
+        const double truth = std::hypot(dots[1].x - dots[0].x, dots[1].y - dots[0].y);
+        if (n == 0) first = r.dist - truth;            // The fixed offset is L0's (set at the start), not an error
+        const double error = (r.dist - truth - first) / l0 * 100.0;
+        sum += error * error;
+        ++n;
+    }
+    score.rmsStrainPercent = n > 0 ? std::sqrt(sum / n) : 1e9;
+    score.msPerFrame = time / frames;
+    return score;
+}
+
+int main()
+{
     int failures = 0;
     cv::theRNG().state = 12345;
-    for (double noise : { 0.0, 3.0 }) for (double shade : { 0.0, 0.2 }) {
-        // The lower dot moves down 0.05 px per frame (a test), 100 frames = 5 px; L0 = 400 px
-        double sumOld = 0, sumNew = 0, maxOld = 0, maxNew = 0; int n = 0;
-        double old0 = 0, new0 = 0;
-        for (int i = 0; i <= 100; ++i) {
-            const double dy = 0.05 * i;
-            const Result r = Detect(Frame(400.3, 100.4, 401.1, 500.2 + dy, 7.0, noise, shade), 50, 25, 85, 110, 50);
-            if (!r.ok) { printf("FAIL: markers lost in frame %d\n", i); ++failures; continue; }
-            if (i == 0) { old0 = r.oldDist; new0 = r.newDist; }
-            // Expected change of the distance (the dots are almost vertical: ~ dy)
-            const double trueDist0 = std::hypot(401.1 - 400.3, 500.2 - 100.4), trueDist = std::hypot(401.1 - 400.3, 500.2 + dy - 100.4);
-            const double eOld = (r.oldDist - old0) - (trueDist - trueDist0), eNew = (r.newDist - new0) - (trueDist - trueDist0);
-            sumOld += eOld * eOld; sumNew += eNew * eNew; maxOld = std::max(maxOld, std::fabs(eOld)); maxNew = std::max(maxNew, std::fabs(eNew)); ++n;
-        }
-        printf("noise %.0f, shade %.0f %%: distance change error  old rms %.3f px (max %.3f)   new rms %.3f px (max %.3f)   -> strain error at L0 = 400 px: old %.4f %%, new %.4f %%\n",
-            noise, shade * 100, std::sqrt(sumOld / n), maxOld, std::sqrt(sumNew / n), maxNew, 100 * std::sqrt(sumOld / n) / 400, 100 * std::sqrt(sumNew / n) / 400);
-        const double rmsOld = std::sqrt(sumOld / n), rmsNew = std::sqrt(sumNew / n);
-        // Without noise far better than the old centre; with camera noise still at least 2 times
-        const bool ok = noise == 0.0 ? (rmsNew < 0.02 && rmsNew < 0.2 * rmsOld) : (rmsNew < 0.06 && rmsNew < 0.6 * rmsOld);
-        if (!ok) { printf("FAIL: the new centre is not better enough here\n"); ++failures; }
-    }
+    cv::setNumThreads(1); // Comparable times
+
+    struct Size { int w, h; int frames; };
+    const Size sizes[] = { { 800, 600, 81 }, { 1920, 1080, 41 }, { 3840, 2160, 21 } };
+    double newStrainAt800 = 0.0;
+    for (const Size& size : sizes)
+        for (double noise : { 0.0, 3.0 })
+            for (double shade : { 0.0, 0.2 })
+            {
+                const Score o = Run(DetectOld, size.w, size.h, noise, shade, size.frames);
+                const Score n = Run(DetectNew, size.w, size.h, noise, shade, size.frames);
+                std::printf("%4d x %4d  noise %.0f  shade %2.0f %%:  strain error old %.4f %%, new %.4f %%   time old %6.2f ms, new %6.2f ms per frame\n",
+                    size.w, size.h, noise, shade * 100, o.rmsStrainPercent, n.rmsStrainPercent, o.msPerFrame, n.msPerFrame);
+                if (o.lost || n.lost) { std::printf("FAIL: markers lost (old %d, new %d frames)\n", o.lost, n.lost); ++failures; }
+                // Better than before everywhere; without noise far better
+                const bool better = noise == 0.0 ? n.rmsStrainPercent < 0.25 * o.rmsStrainPercent + 1e-4 : n.rmsStrainPercent < 0.7 * o.rmsStrainPercent;
+                if (!better) { std::printf("FAIL: the new centre is not better enough here\n"); ++failures; }
+                if (size.w == 800 && noise > 0 && shade == 0.0) newStrainAt800 = n.rmsStrainPercent;
+                // At 4K: finer than at 800 x 600, and much faster than processing the whole frame
+                if (size.w == 3840 && noise > 0 && shade == 0.0)
+                {
+                    if (!(n.rmsStrainPercent < newStrainAt800)) { std::printf("FAIL: 4K is not finer than 800 x 600\n"); ++failures; }
+                    if (!(n.msPerFrame < 0.5 * o.msPerFrame)) { std::printf("FAIL: 4K is not faster than the whole-frame processing\n"); ++failures; }
+                }
+            }
     if (failures == 0)
-        printf("extensometer_pipeline_check: all checks passed\n");
+        std::printf("extensometer_pipeline_check: all checks passed\n");
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

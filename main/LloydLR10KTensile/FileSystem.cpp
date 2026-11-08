@@ -11,6 +11,7 @@
 
 #include "common.h"
 #include "MaterialCalc.h"
+#include "CameraResolution.h"
 
 #include "LR10KController.h"
 
@@ -217,6 +218,7 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
 		settings["ext_targetColor"]			    = LR10KAppGlobals::opticalSourceExtensiometerTargetColor;
 		// The HSV ranges the camera uses (only the colour was saved: the ranges started as the green defaults,
 		// and the colour was then overwritten from them, so a chosen colour was lost after a restart)
+		settings["ext_resolution"]          = g_Extensiometer.resolution_index.load(); // Optional when loading (added in 2.0.0)
 		settings["ext_hsv"] = { g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max,
 		                        g_Extensiometer.settings.s_min, g_Extensiometer.settings.s_max,
 		                        g_Extensiometer.settings.v_min, g_Extensiometer.settings.v_max };
@@ -504,6 +506,10 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
 		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2]	= settings["ext_targetColor"][2];
 		// HSV ranges. Optional (not in the key check), so settings files without it stay valid: those get the
 		// default range widths centred on the saved colour.
+		// The camera resolution (optional: older settings files do not have it, then 800 x 600 as before)
+		if (settings.contains("ext_resolution") && settings["ext_resolution"].is_number_integer())
+			g_Extensiometer.resolution_index = CameraResolution::ClampIndex(settings["ext_resolution"].get<int>());
+
 		if (settings.contains("ext_hsv") && settings["ext_hsv"].is_array() && settings["ext_hsv"].size() == 6)
 		{
 			const json& hsv = settings["ext_hsv"];

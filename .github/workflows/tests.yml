@@ -105,6 +105,11 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/extensometer_centroid_test.cpp -o extensometer_centroid_test
           ./extensometer_centroid_test
+      - name: Extensometer camera resolution (working size, rectangles, recording size)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/camera_resolution_test.cpp -o camera_resolution_test
+          ./camera_resolution_test
       - name: Autosave (file names, when to write, writer thread; ThreadSanitizer)
         run: |
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread \
@@ -117,7 +122,8 @@ jobs:
           ./crash_report_test
 
   extensometer-opencv:
-    # The extensometer's marker detection with the real OpenCV, on drawn camera frames (old vs sub-pixel centre)
+    # The extensometer's marker detection with the real OpenCV, on drawn camera frames from 800 x 600 to 4K
+    # (old vs new: strain error and time per frame)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

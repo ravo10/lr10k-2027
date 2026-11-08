@@ -372,6 +372,10 @@ struct AppExtensiometer
 
     std::atomic<int> camera_index{ 1 };            //!< Current selected camera (starts at 0; 1 is external)
     std::atomic<bool> request_cam_switch{ false }; //!< Flag to tell the thread to restart
+    std::atomic<int> resolution_index{ 0 };        //!< CameraResolution::kOptions (0: 800 x 600); a change needs request_cam_switch
+    std::atomic<int> actual_width{ 0 };            //!< What the camera really gives (it picks the size nearest to the one asked for)
+    std::atomic<int> actual_height{ 0 };
+    std::atomic<float> actual_fps{ 0.0f };         //!< Frames per second as measured in the camera loop
     std::atomic<bool> is_connected{ false };       //!< If a camera is connected
 
     // Recording: the paths are set by the GUI thread at Start Test (under recording_mutex), then is_recording is set

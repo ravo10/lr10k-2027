@@ -16,6 +16,7 @@
 #include "ExtensometerFilter.h"
 #include "ExtensometerTracking.h"
 #include "ExtensometerCentroid.h"
+#include "CameraResolution.h"
 #include "CrashHandler.h"
 AppWindowStates g_WindowStates; //!< Create the variable in memory.
 AppExtensiometer g_Extensiometer; //!< Create the variable in memory.
@@ -1416,9 +1417,18 @@ void ExtensiometerWorkerThread()
     auto configureCamera = [](cv::VideoCapture& camera) {
         if (!camera.isOpened())
             return;
-        // Optimization: Cap resolution to 800x600 to save CPU (Camera driver picks closest match)
-        camera.set(cv::CAP_PROP_FRAME_WIDTH, 800);
-        camera.set(cv::CAP_PROP_FRAME_HEIGHT, 600);
+        // The resolution chosen in the settings (the driver picks the closest it has). Large frames are searched
+        // at a smaller size, so this costs little extra work (CameraResolution.h).
+        const CameraResolution::Option wanted = CameraResolution::kOptions[CameraResolution::ClampIndex(g_Extensiometer.resolution_index.load())];
+        if (wanted.width > CameraResolution::kCompressedAboveWidth)
+            camera.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G')); // Before the size (DirectShow)
+        camera.set(cv::CAP_PROP_FRAME_WIDTH, wanted.width);
+        camera.set(cv::CAP_PROP_FRAME_HEIGHT, wanted.height);
+        g_Extensiometer.actual_width = (int)camera.get(cv::CAP_PROP_FRAME_WIDTH);
+        g_Extensiometer.actual_height = (int)camera.get(cv::CAP_PROP_FRAME_HEIGHT);
+        if (g_Extensiometer.actual_width != wanted.width || g_Extensiometer.actual_height != wanted.height)
+            DockingApps::console.AddLog("[warning] Extensometer: asked the camera for %d x %d, it gives %d x %d.",
+                wanted.width, wanted.height, g_Extensiometer.actual_width.load(), g_Extensiometer.actual_height.load());
 
         camera.set(cv::CAP_PROP_AUTOFOCUS, 0);
         camera.set(cv::CAP_PROP_AUTO_EXPOSURE, (double)g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE); // Turn off Auto
@@ -1444,6 +1454,7 @@ void ExtensiometerWorkerThread()
     // Timer for throttling UI uploads, and the time between frames for the filter
     auto lastUploadTime = std::chrono::steady_clock::now();
     auto lastFrameTime = std::chrono::steady_clock::now();
+    double measuredFps = 0.0;
 
     // Markers lost: the test is paused only when they stay lost this long. (A single frame without exactly two
     // markers, e.g. a reflection or a flicker, used to pause the test at once.)
@@ -1484,9 +1495,25 @@ void ExtensiometerWorkerThread()
         }
 
         g_Extensiometer.is_connected = true;
+        g_Extensiometer.actual_width = frame.cols; // What the camera really gives (shown in the settings)
+        g_Extensiometer.actual_height = frame.rows;
         const auto frameTime = std::chrono::steady_clock::now();
+
+        // The working copy: frames wider than 1280 px are searched, shown and recorded (overlay) at 1280 px, so
+        // 4K costs about as much as before; the marker centres are measured in the full frame (CameraResolution.h)
+        const double scale = CameraResolution::WorkScale(frame.cols);
+        cv::Mat work;
+        if (scale > 1.0)
+            cv::resize(frame, work, cv::Size(), 1.0 / scale, 1.0 / scale, cv::INTER_AREA);
+        else
+            work = frame;
         const double dtS = std::chrono::duration<double>(frameTime - lastFrameTime).count();
         lastFrameTime = frameTime;
+        if (dtS > 0.0 && dtS < 2.0) // Frames per second as measured here (shows whether a resolution is too slow)
+        {
+            measuredFps = measuredFps > 0.0 ? 0.9 * measuredFps + 0.1 / dtS : 1.0 / dtS;
+            g_Extensiometer.actual_fps = (float)measuredFps;
+        }
 
         // --- 1. RECORDING: open/close the files, raw video ---
         const bool recording = g_Extensiometer.is_recording;
@@ -1509,8 +1536,10 @@ void ExtensiometerWorkerThread()
                 }
                 double fps = cap.get(cv::CAP_PROP_FPS);
                 if (fps < 1 || fps > 60) fps = 30.0;
-                OpenRecordingWriter(g_Extensiometer.video_writer_raw, rawPath, fps, frame.size(), "raw");
-                OpenRecordingWriter(g_Extensiometer.video_writer_overlay, overlayPath, fps, frame.size(), "overlay");
+                int rawWidth = 0, rawHeight = 0;
+                CameraResolution::RawRecordingSize(frame.cols, frame.rows, rawWidth, rawHeight);
+                OpenRecordingWriter(g_Extensiometer.video_writer_raw, rawPath, fps, cv::Size(rawWidth, rawHeight), "raw");
+                OpenRecordingWriter(g_Extensiometer.video_writer_overlay, overlayPath, fps, work.size(), "overlay");
                 g_Extensiometer.recording_frame_count = 0;
                 recordingStart = frameTime;
             }
@@ -1525,7 +1554,13 @@ void ExtensiometerWorkerThread()
                 snprintf(telemetry, sizeof(telemetry), "[%s] T+%.2fs | Frame: %05d | Strain: %.2f%%",
                     rec_blink, elapsed, g_Extensiometer.recording_frame_count, g_Extensiometer.results.strain_percentage.load());
 
-                frame.copyTo(frame_recorded);
+                // At most 1920 px wide: writing 4K video would slow the camera loop down
+                int rawWidth = 0, rawHeight = 0;
+                CameraResolution::RawRecordingSize(frame.cols, frame.rows, rawWidth, rawHeight);
+                if (rawWidth != frame.cols)
+                    cv::resize(frame, frame_recorded, cv::Size(rawWidth, rawHeight), 0, 0, cv::INTER_AREA);
+                else
+                    frame.copyTo(frame_recorded);
                 int y_pos = frame_recorded.rows - 10;
                 cv::rectangle(frame_recorded, cv::Point(5, y_pos - 15), cv::Point(360, y_pos + 5), cv::Scalar(0, 0, 0), -1);
                 cv::putText(frame_recorded, telemetry, cv::Point(10, y_pos),
@@ -1535,20 +1570,20 @@ void ExtensiometerWorkerThread()
             g_Extensiometer.recording_frame_count++;
         }
 
-        // --- 2. PREPARE DISPLAY FRAME & DIMMING ---
-        frame.copyTo(frame_display);
+        // --- 2. PREPARE DISPLAY FRAME & DIMMING (working size) ---
+        work.copyTo(frame_display);
 
-        int margin = 0;
+        int margin = 0; // In working pixels
         if (g_Extensiometer.restrictive_area > 0.001f) {
-            margin = (int)(frame.cols * g_Extensiometer.restrictive_area);
-            if (margin >= frame.cols / 2) margin = 0; // Safety fallback
+            margin = (int)(work.cols * g_Extensiometer.restrictive_area);
+            if (margin >= work.cols / 2) margin = 0; // Safety fallback
         }
 
         // Draw restrictive visual dimming
         if (margin > 0)
         {
-            cv::Mat roiLeft = frame_display(cv::Rect(0, 0, margin, frame.rows));
-            cv::Mat roiRight = frame_display(cv::Rect(frame.cols - margin, 0, margin, frame.rows));
+            cv::Mat roiLeft = frame_display(cv::Rect(0, 0, margin, work.rows));
+            cv::Mat roiRight = frame_display(cv::Rect(work.cols - margin, 0, margin, work.rows));
 
             roiLeft.convertTo(roiLeft, -1, 0.5, 0);   // Darken Left by 50%
             roiRight.convertTo(roiRight, -1, 0.5, 0); // Darken Right by 50%
@@ -1557,28 +1592,26 @@ void ExtensiometerWorkerThread()
             int thickness = 2;
             int dashLen = 20, gapLen = 15;
 
-            for (int y = 0; y < frame.rows; y += (dashLen + gapLen)) {
-                cv::line(frame_display, cv::Point(margin, y), cv::Point(margin, std::min(y + dashLen, frame.rows)), lineColor, thickness);
-                cv::line(frame_display, cv::Point(frame.cols - margin, y), cv::Point(frame.cols - margin, std::min(y + dashLen, frame.rows)), lineColor, thickness);
+            for (int y = 0; y < work.rows; y += (dashLen + gapLen)) {
+                cv::line(frame_display, cv::Point(margin, y), cv::Point(margin, std::min(y + dashLen, work.rows)), lineColor, thickness);
+                cv::line(frame_display, cv::Point(work.cols - margin, y), cv::Point(work.cols - margin, std::min(y + dashLen, work.rows)), lineColor, thickness);
             }
         }
 
         // =========================================================
         // 3. IMAGE PROCESSING (TRUE R.O.I. OPTIMIZATION)
         // =========================================================
-        cv::Mat full_mask = cv::Mat::zeros(frame.size(), CV_8UC1); // Full size black mask for UI
-        std::vector<cv::Point2f> centers;
+        cv::Mat full_mask = cv::Mat::zeros(work.size(), CV_8UC1); // Black mask for the UI (working size)
+        std::vector<cv::Point2f> centers; // Full-resolution pixels
 
-        if (margin < frame.cols / 2)
+        if (margin < work.cols / 2)
         {
-            cv::Rect active_roi(margin, 0, frame.cols - (2 * margin), frame.rows);
+            cv::Rect active_roi(margin, 0, work.cols - (2 * margin), work.rows);
 
-            // 0-cost memory crop. We only process the bright center!
-            cv::Mat cropped_frame = frame(active_roi);
-            cv::Mat cropped_hsv, cropped_mask;
-
-            // Lighter Blur Kernel (5x5 instead of 9x9)
-            cv::GaussianBlur(cropped_frame, cropped_frame, cv::Size(5, 5), 0);
+            // Only the part between the restricted sides is searched. (Blurred into its own image: the frame itself
+            // is used again below for the centres, and must not be blurred twice.)
+            cv::Mat cropped_frame, cropped_hsv, cropped_mask;
+            cv::GaussianBlur(work(active_roi), cropped_frame, cv::Size(5, 5), 0);
             cv::cvtColor(cropped_frame, cropped_hsv, cv::COLOR_BGR2HSV);
 
             cv::inRange(cropped_hsv,
@@ -1599,31 +1632,46 @@ void ExtensiometerWorkerThread()
             ExtensometerCentroid::Options centreOptions;
             centreOptions.hMin = g_Extensiometer.settings.h_min;
             centreOptions.hMax = g_Extensiometer.settings.h_max;
-            const cv::Rect croppedArea(0, 0, cropped_hsv.cols, cropped_hsv.rows);
 
             for (const auto& c : contours) {
                 if (cv::contourArea(c) > 50) {
-                    // Sub-pixel centre from the colour image (ExtensometerCentroid.h): each pixel weighted by how much
-                    // of it is marker. The mask only finds the blobs: its outline's centre (the old way) is rounded
-                    // to about whole pixels and moved by the mask growing (dilate). It is the fallback.
-                    const int pad = 3; // The rectangle's border must be background
+                    // Sub-pixel centre from the colour image, at full resolution (ExtensometerCentroid.h): each pixel
+                    // weighted by how much of it is marker, in a small rectangle around the blob. The mask only finds
+                    // the blobs: its outline's centre (the old way) is rounded to about whole pixels and moved by the
+                    // mask growing (dilate). It is the fallback.
                     const cv::Rect box = cv::boundingRect(c);
-                    const cv::Rect search = cv::Rect(box.x - pad, box.y - pad, box.width + 2 * pad, box.height + 2 * pad) & croppedArea;
-                    cv::Mat blobMask = cv::Mat::zeros(search.size(), CV_8UC1); // This blob only (not a neighbour in the rectangle)
-                    cv::drawContours(blobMask, std::vector<std::vector<cv::Point>>{ c }, 0, cv::Scalar(255), cv::FILLED, cv::LINE_8, cv::noArray(), INT_MAX, cv::Point(-search.x, -search.y));
-
-                    const ExtensometerCentroid::Centre centre = ExtensometerCentroid::WeightedCentre(
-                        cropped_hsv.data, (int)cropped_hsv.step, cropped_hsv.cols, cropped_hsv.rows,
-                        blobMask.data, (int)blobMask.step, ExtensometerCentroid::Rect{ search.x, search.y, search.width, search.height }, centreOptions);
-                    if (centre.ok)
+                    const int pad = 3; // The rectangle's border must be background
+                    const CameraResolution::Rect area = CameraResolution::ToFullResolution(
+                        CameraResolution::Rect{ box.x + margin, box.y, box.width, box.height }, scale, pad, frame.cols, frame.rows);
+                    if (area.width >= 3 && area.height >= 3)
                     {
-                        // Add 'margin' back to X so the dot matches the display frame!
-                        centers.push_back(cv::Point2f((float)centre.x + margin, (float)centre.y));
-                        continue;
+                        const cv::Rect search(area.x, area.y, area.width, area.height);
+                        cv::Mat patch, patchHsv;
+                        cv::GaussianBlur(frame(search), patch, cv::Size(5, 5), 0);
+                        cv::cvtColor(patch, patchHsv, cv::COLOR_BGR2HSV);
+
+                        // This blob only (not a neighbour in the rectangle): its outline, at full resolution
+                        std::vector<cv::Point> outline;
+                        outline.reserve(c.size());
+                        for (const cv::Point& p : c)
+                            outline.push_back(cv::Point((int)std::lround(CameraResolution::WorkToFull(p.x + margin, scale)) - search.x,
+                                                        (int)std::lround(CameraResolution::WorkToFull(p.y, scale)) - search.y));
+                        cv::Mat blobMask = cv::Mat::zeros(search.size(), CV_8UC1);
+                        cv::drawContours(blobMask, std::vector<std::vector<cv::Point>>{ outline }, 0, cv::Scalar(255), cv::FILLED);
+
+                        const ExtensometerCentroid::Centre centre = ExtensometerCentroid::WeightedCentre(
+                            patchHsv.data, (int)patchHsv.step, patchHsv.cols, patchHsv.rows,
+                            blobMask.data, (int)blobMask.step, ExtensometerCentroid::Rect{ 0, 0, patchHsv.cols, patchHsv.rows }, centreOptions);
+                        if (centre.ok)
+                        {
+                            centers.push_back(cv::Point2f((float)(centre.x + search.x), (float)(centre.y + search.y)));
+                            continue;
+                        }
                     }
                     cv::Moments m = cv::moments(c);
                     if (m.m00 != 0)
-                        centers.push_back(cv::Point2f((float)(m.m10 / m.m00) + margin, (float)(m.m01 / m.m00)));
+                        centers.push_back(cv::Point2f((float)CameraResolution::WorkToFull(m.m10 / m.m00 + margin, scale),
+                                                      (float)CameraResolution::WorkToFull(m.m01 / m.m00, scale)));
                 }
             }
         }
@@ -1637,7 +1685,7 @@ void ExtensiometerWorkerThread()
         blobs.reserve(centers.size());
         for (const cv::Point2f& c : centers)
             blobs.push_back({ c.x, c.y });
-        const ExtensometerTracking::Markers markers = ExtensometerTracking::PickMarkers(blobs, lastMarkers);
+        const ExtensometerTracking::Markers markers = ExtensometerTracking::PickMarkers(blobs, lastMarkers, CameraResolution::MaxMarkerMovePx(frame.cols));
         g_Extensiometer.blobs_found = (int)centers.size();
         g_Extensiometer.markers_found = markers.found ? 2 : (int)centers.size();
 
@@ -1673,9 +1721,12 @@ void ExtensiometerWorkerThread()
             g_Extensiometer.results.travel_mm = (float)(strain * PHYSICAL_L0_MM);
             g_Extensiometer.results.strain_percentage = (float)(strain * 100.0);
 
-            cv::line(frame_display, p1, p2, cv::Scalar(0, 255, 0), 2);
-            cv::circle(frame_display, p1, 5, cv::Scalar(0, 0, 255), -1);
-            cv::circle(frame_display, p2, 5, cv::Scalar(0, 0, 255), -1);
+            // Drawn on the camera view (working size)
+            const cv::Point2f d1((float)CameraResolution::FullToWork(p1.x, scale), (float)CameraResolution::FullToWork(p1.y, scale));
+            const cv::Point2f d2((float)CameraResolution::FullToWork(p2.x, scale), (float)CameraResolution::FullToWork(p2.y, scale));
+            cv::line(frame_display, d1, d2, cv::Scalar(0, 255, 0), 2);
+            cv::circle(frame_display, d1, 5, cv::Scalar(0, 0, 255), -1);
+            cv::circle(frame_display, d2, 5, cv::Scalar(0, 0, 255), -1);
         }
         else {
             live_camera_feed_text = centers.empty() ? "Live Camera Feed (Searching for markers...)"
@@ -2189,6 +2240,48 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                         ImGui::Spacing();
                         ImGui::SeparatorText("Camera Properties");
+
+                        // Resolution: higher gives finer strain. Large frames are searched at 1280 px wide and the
+                        // markers measured at full resolution, so 4K costs little extra (CameraResolution.h).
+                        {
+                            const int current = CameraResolution::ClampIndex(g_Extensiometer.resolution_index.load());
+                            ImGui::BeginDisabled(tabData->test_unfinished_test_started); // Changing it sets L0 again
+                            ImGui::PushItemWidth(190.0f);
+                            if (ImGui::BeginCombo("Resolution", CameraResolution::kOptions[current].name))
+                            {
+                                for (int i = 0; i < CameraResolution::kOptionCount; i++)
+                                {
+                                    if (ImGui::Selectable(CameraResolution::kOptions[i].name, i == current) && i != current)
+                                    {
+                                        g_Extensiometer.resolution_index = i;
+                                        g_Extensiometer.request_cam_switch = true; // Opens the camera again (and sets L0 again)
+                                        DockingApps::mainFileSystem.SaveApplicationSettings();
+                                    }
+                                    if (i == current)
+                                        ImGui::SetItemDefaultFocus();
+                                }
+                                ImGui::EndCombo();
+                            }
+                            ImGui::PopItemWidth();
+                            ImGui::EndDisabled();
+                            ImGui::SetItemTooltip("Higher: more pixels between the markers, so finer strain.\n"
+                                "The camera uses the size nearest to this that it has (shown below).\n"
+                                "Frames wider than 1280 px are searched at 1280 px and only the markers are measured at\n"
+                                "full resolution, so the work stays about the same; the camera view and the overlay\n"
+                                "video are 1280 px wide, the raw video at most 1920 px.\n"
+                                "Changing it opens the camera again and sets L0 again (not during a test).\n"
+                                "Older cameras: choose what they support, e.g. 800 x 600 or 1280 x 720.");
+
+                            if (g_Extensiometer.is_connected && g_Extensiometer.actual_width > 0)
+                            {
+                                const float fps = g_Extensiometer.actual_fps.load();
+                                if (fps > 0.5f)
+                                    ImGui::TextDisabled("Camera gives %d x %d, %.0f frames/s", g_Extensiometer.actual_width.load(), g_Extensiometer.actual_height.load(), fps);
+                                else
+                                    ImGui::TextDisabled("Camera gives %d x %d", g_Extensiometer.actual_width.load(), g_Extensiometer.actual_height.load());
+                            }
+                        }
+
                         ImGui::PushItemWidth(150.0f);
                         if (ImGui::SliderFloat("Auto Exposure", &g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE, 0.0f, 1.70f, "%.2f"))
                         {

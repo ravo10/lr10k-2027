@@ -190,6 +190,7 @@
     <ClInclude Include="ExtensometerFilter.h" />
     <ClInclude Include="ExtensometerTracking.h" />
     <ClInclude Include="ExtensometerCentroid.h" />
+    <ClInclude Include="CameraResolution.h" />
     <ClInclude Include="CrashReport.h" />
     <ClInclude Include="TestData.h" />
     <ClInclude Include="AutoPoints.h" />
