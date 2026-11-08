@@ -110,7 +110,7 @@ Then continue with step 5. If the markers are lost for more than half a second d
 | Know what is in the Excel book | [User guide, *Saving*](docs/index.md#saving-a-successfully-completed-test--excel) |
 | Solve a problem (crash, will not start, connection) | [User guide, *Problems with the software*](docs/index.md#problems-with-the-software-crashing-etc) and the *Troubleshooting* table in [BUILDING.md](BUILDING.md#troubleshooting) |
 | Build the software or the installer | **[BUILDING.md](BUILDING.md)** |
-| Find your way in the source code | **[ARCHITECTURE.md](ARCHITECTURE.md)** (every file and test), then the developer documentation below |
+| Find your way in the source code | **[ARCHITECTURE.md](ARCHITECTURE.md)** (every file and test), the **[SysML architecture diagrams](docs/architecture/README.md)** (structure, data flow, test states, workflow, connecting), then the developer documentation below |
 | Read the developer documentation | Doxygen, start page [docs/developer.md](docs/developer.md): run `docs\build-docs.bat` (opens it in the browser), or download *docs-html* from the latest *Docs* run under *Actions* |
 | Understand the machine's protocol | [User guide, *Communication*](docs/index.md#how-the-software-communicates-with-the-lr-10k-tensile-machine-outputinput): the recorded command sequences and what the bytes mean |
 

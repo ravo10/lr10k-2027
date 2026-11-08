@@ -2,6 +2,8 @@
 
 How the source code in `main/LloydLR10KTensile/` is organised, and where it is heading.
 
+**Diagrams:** [docs/architecture/](docs/architecture/README.md) has the architecture as five SysML diagrams (block definition, internal block, the states of a test, running a test, connecting to the LR 10K), drawn on GitHub, and the same model in SysML v2 textual notation ([lr10k.sysml](docs/architecture/lr10k.sysml)).
+
 The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **calculations**, **GUI** and **Excel export**. The independent parts can be unit tested without the machine, and are the parts a later Rust port starts with.
 
 ## Source files
