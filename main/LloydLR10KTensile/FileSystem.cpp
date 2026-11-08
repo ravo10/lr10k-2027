@@ -103,31 +103,32 @@ void AppMainFileSystem::OpenLR10KTestFileBrowserLogic()
         // 2. Save the last folder location
         DockingApps::mainFileSystem.SaveApplicationFolderSettingsOnly();
 
-        // 3. Load from JSON
-        TabControl::TabTestDataClass* tabDataLoaded = DockingApps::mainFileSystem.LoadJSONDataFromFileForANewTab(filename.c_str());
-        tabDataLoaded->loadedFromFileName = filename;
-
-        // 4. Sleek Path Logic: Use std::filesystem to get the folder path
-        // This replaces the stringstream/seglist loop entirely!
-        std::filesystem::path p(filename);
-        tabDataLoaded->current_temp_preSaveLocation = p.parent_path().string() + "\\";
-
-        // 5. Validation and Tab Creation (Rest of your existing code)
-        if (tabDataLoaded->isValid())
+        // 3. Load it into a new tab
+        if (OpenTestFile(filename) != nullptr)
         {
-            DockingApps::mainTabSystem.CreateANewTab(tabDataLoaded);
-
-            if ((tabDataLoaded->thickness > 0 && tabDataLoaded->width > 0) || tabDataLoaded->length > 0)
-                tabDataLoaded->ConvertUnitsToNewUnitAfterLoad(tabDataLoaded);
-
             PlaySoundEffect("saveFileSuccess");
-            tabDataLoaded->request_graph_autofit = true;
             DockingApps::console.AddLog("Successfully loaded plot data to a new tab!");
         }
-        else {
+        else
             DockingApps::console.AddLog("[error] Could not load plot data to new tab...");
-        }
     }
+}
+
+TabControl::TabTestDataClass* AppMainFileSystem::OpenTestFile(const std::string& filename)
+{
+    // nullptr if the file is missing or damaged (it used to crash: the result was used without a check)
+    TabControl::TabTestDataClass* tabDataLoaded = LoadJSONDataFromFileForANewTab(filename.c_str());
+    if (tabDataLoaded == nullptr)
+        return nullptr;
+
+    tabDataLoaded->loadedFromFileName = filename;
+    tabDataLoaded->current_temp_preSaveLocation = std::filesystem::path(filename).parent_path().string() + "\\";
+
+    DockingApps::mainTabSystem.CreateANewTab(tabDataLoaded);
+    if ((tabDataLoaded->thickness > 0 && tabDataLoaded->width > 0) || tabDataLoaded->length > 0)
+        tabDataLoaded->ConvertUnitsToNewUnitAfterLoad(tabDataLoaded);
+    tabDataLoaded->request_graph_autofit = true;
+    return tabDataLoaded;
 }
 
 void AppMainFileSystem::PreSaveVideoRecordingExtBrowserLogic(TabControl::TabTestDataClass* tabData)

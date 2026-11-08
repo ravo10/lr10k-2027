@@ -669,22 +669,20 @@ TabControl::TabTestDataClass* AppMainFileSystem::LoadJSONDataFromFileForANewTab(
 
     if (inFile && inFile.is_open())
     {
-        // Buffer container
-        json tabDataJson;
-
-        // Insert into container
-        inFile >> tabDataJson;
-
-        // Clean up
-        inFile.close();
-
-        return CreateTabTestDataFromJSON(tabDataJson);
+        // A damaged file (or one that is not a test) throws: report it instead of crashing
+        try
+        {
+            json tabDataJson = json::parse(inFile);
+            inFile.close();
+            return CreateTabTestDataFromJSON(tabDataJson);
+        }
+        catch (const std::exception& e)
+        {
+            DockingApps::console.AddLog("[error] \"%s\" is not a readable test file: %s", filename, e.what());
+        }
     }
 
-    // Clean up
-    inFile.close();
-
-    return { };
+    return nullptr;
 }
 
 // -----------------------------------------------------------------------------

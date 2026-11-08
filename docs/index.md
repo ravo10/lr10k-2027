@@ -63,6 +63,11 @@ The Excel book contains:
 - **Graph N-mm**: load against extension (from the zero point), with the crucial points labelled on the chart.
 - **Graph Eng. Stress** and **Graph True Stress** (tension/compression with dimensions): stress against strain in percent.
 
+## Autosave (if the software or the PC stops during a test)
+While a test runs, and afterwards until it is saved, the software keeps a copy of it every few seconds (every 5 s during a test, 15 s after a change otherwise) in *C:\\Users\\YourUser\\AppData\\Local\\LR10K\\Autosave*. When you save the test or close its tab, the copy is deleted, and all copies are deleted when you close the software normally.
+
+If the software crashed, the PC lost power or Windows closed it, the next start lists the unsaved tests it found: *Yes* opens them as new tabs, *No* deletes them, *Cancel* asks again next time. An opened test is marked unsaved and has no file yet: save it with *Save As* (Ctrl+Alt+S). A test that was still running is opened as an ended test (it cannot be continued), with the data up to the last copy (at most a few seconds missing).
+
 ## Loading a previous saved test
 By going to *Menu* > *Open*, you can load previous tests that are saved as a `.lr10k` file. From here you can further manipulate the file, but you need to save it again/overwrite to keep the changes.
 

@@ -266,6 +266,10 @@ int main(int argc, char** argv)
     }
     else DockingApps::console.AddLog("[error] LR 10K Initialization: Error getting \"AppData\" path for settings storage...");
 
+    // Autosave of unsaved tests; offer the tests a crashed session left behind
+    AppAutosave::Start();
+    AppAutosave::AskToRecover();
+
     // 1. argv[0] is always the path used to launch your program.
     // We use filesystem to extract just the folder where the .exe lives.
     fs::path exeFolder = fs::weakly_canonical(argv[0]).parent_path();
@@ -616,6 +620,7 @@ int main(int argc, char** argv)
         LR10KControlSystem::WatchdogTick();
         LR10KControlSystem::LoadSafetyTick(); // 50 N blocker and load limit (these had stopped running in Feb. 2026)
         DockingApps::console.FlushPending();  // Log lines from worker threads (also while the console is hidden)
+        AppAutosave::Tick();                  // Autosave of unsaved tests (and opening recovered ones)
         LR10KDataDeEncryptionSystem::trafficLog.FlushIdle(); // Write received bytes that are waiting for the end of a burst
         static bool notRespondingPopupOpen = false;
         if (LR10KDataDeEncryptionSystem::lr10kNotResponding.load() && !notRespondingPopupOpen)
@@ -856,6 +861,9 @@ int main(int argc, char** argv)
     }
 
     WaitForPendingOperations();
+
+    // A normal exit: the autosaves of this session are not needed
+    AppAutosave::Shutdown();
 
     // Cleanup
     ImGui_ImplDX12_Shutdown();

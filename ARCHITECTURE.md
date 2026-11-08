@@ -39,6 +39,8 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `TabSystem.cpp` | Test tabs: live plot data, limits, unit conversion (one `ScaleTabUnits()` for all data of a test), crucial points (through `TestData.h`) | globals, `TestData.h` |
 | | `FileSystem.cpp` | File dialogs, saving/loading tests and application settings | globals |
 | | `Console.cpp` | The in-app log window; also keeps the last 200 lines for a crash report | ImGui, `CrashReport.h` |
+| **Autosave** | `Autosave.h` | File names per session, when each tab is written or its file deleted (`Scheduler`), writing through a .tmp file and a rename, and the writer thread | nothing (portable, tested) |
+| | `AutosaveApp.cpp` | Which tabs need an autosave, the .lr10k copy (finished, in mm/N), offering the files of a crashed session at start, opening them as unsaved tabs | GUI, `Autosave.h` |
 | **Crash reports** | `CrashReport.h` | The text of a crash report (exception names, call stack, last console lines) and the thread-safe copy of the last console lines | nothing (portable, tested) |
 | | `CrashHandler.h/.cpp` | Catches crashes in any thread (Windows exceptions, uncaught C++ exceptions, abort/terminate, pure virtual calls) and writes `.dmp` + `.txt` to *Documents\\LR10K crash reports*; the next start tells the user | Windows API, DbgHelp |
 | **Shared** | `common.h` | Declarations and global state used by all of the above | |
@@ -66,6 +68,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `load_safety_test.cpp` | The 50 N blocker: stops when the load rises above the limit, lets the user move away, ignores noise, compression loads; the load limit (capped at 10 kN) |
 | `extensometer_filter_test.cpp` | Smoothing: settling with the time constant, the same at any frame rate, lag on a ramp, dead-band |
 | `extensometer_tracking_test.cpp` | Marker choice with 0/1/2/more blobs, following the markers past a reflection, the jump gate (bad frame ignored, fracture believed after 4 frames) |
+| `autosave_test.cpp` | File names (and that .tmp files are never recovered), which files belong to another session, when tabs are written (first at once, intervals, only when changed) and their files removed (saved, closed), atomic writing, the writer thread (newest request wins, delete after write, a failing write, work done at stop; with ThreadSanitizer) |
 | `crash_report_test.cpp` | Report text (exception names, call stack lines with only the file name, missing parts), report file names sort by time, only the newest reports are kept, the last console lines from many threads, and that the crash handler does not wait forever for a lock held by the crashed thread (with ThreadSanitizer) |
 | `serial_reader_test.cpp` | Reader thread against a fake port: byte order, connection loss after 3 failed reads, tolerated glitches, stopping (also with a full buffer), restarting |
 

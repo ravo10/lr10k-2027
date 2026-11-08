@@ -249,6 +249,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     </ClCompile>
     <ClCompile Include="Calculator.cpp" />
     <ClCompile Include="CrashHandler.cpp" />
+    <ClCompile Include="AutosaveApp.cpp" />
     <ClCompile Include="ExcelExport.cpp" />
     <ClCompile Include="ExcelWriter.cpp" />
     <ClCompile Include="FileSystem.cpp" />
@@ -304,6 +305,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClInclude Include="ExtensometerTracking.h" />
     <ClInclude Include="CrashReport.h" />
     <ClInclude Include="TestData.h" />
+    <ClInclude Include="Autosave.h" />
     <ClInclude Include="CrashHandler.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="styles.h" />

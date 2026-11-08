@@ -1131,6 +1131,18 @@ struct AppMainExcel
 };
 
 /**
+    @brief  Autosave of unsaved tests and recovery after a crash (AutosaveApp.cpp, Autosave.h).
+**/
+namespace AppAutosave
+{
+    void Start();         //!< At start-up, after the settings: the folder and the writer thread
+    void AskToRecover();  //!< At start-up: offers to open the tests a crashed session left behind
+    void Tick();          //!< Every frame (GUI thread): writes the unsaved tabs, opens recovered tests
+    void Shutdown();      //!< At a normal exit: deletes this session's files, stops the writer
+    std::wstring Folder();
+}
+
+/**
     @struct AppMainFileSystem
     @brief  Contains the logic that controls the file
             system manipulation used within the software.
@@ -1165,6 +1177,11 @@ struct AppMainFileSystem
         @brief Used for when wanting to open a saved LR10K test from software to a new tab.
     **/
     void OpenLR10KTestFileBrowserLogic();
+    /**
+        @brief  Opens a .lr10k file in a new tab (also used for recovered autosaves).
+        @retval The new tab, or nullptr if the file could not be read (the reason is in the console).
+    **/
+    TabControl::TabTestDataClass* OpenTestFile(const std::string& filename);
 
     /**
         @brief Used for when wanting to define save location for video recording when using an extensiometer.

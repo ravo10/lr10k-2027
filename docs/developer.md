@@ -38,6 +38,7 @@ Files whose header says *Portable ... and unit tested* contain no Windows, ImGui
 | Interpreter | LR10KMachine | Readings and status, through callbacks and LR10KStatus |
 | Connect / send setup / reconnect | `LR10KDataDeEncryptionSystem` (one at a time) | The machine and LR10KStatus |
 | Extensometer camera | `ExtensiometerWorkerThread` in appstructs.cpp | Atomics in `AppExtensiometer`; the recording paths under `recording_mutex` |
+| Autosave writer | `Autosave::Writer` (AutosaveApp.cpp) | Only the copies of the data it is given (the JSON is made on the GUI thread, turned into text and written on this one) |
 
 Rules learned the hard way:
 

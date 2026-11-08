@@ -55,6 +55,9 @@
     <ClCompile Include="CrashHandler.cpp">
       <Filter>sources</Filter>
     </ClCompile>
+    <ClCompile Include="AutosaveApp.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
     <ClCompile Include="ExcelExport.cpp">
       <Filter>sources</Filter>
     </ClCompile>
@@ -188,6 +191,7 @@
     <ClInclude Include="ExtensometerTracking.h" />
     <ClInclude Include="CrashReport.h" />
     <ClInclude Include="TestData.h" />
+    <ClInclude Include="Autosave.h" />
     <ClInclude Include="CrashHandler.h" />
     <ClInclude Include="..\..\stb_image.h" />
     <ClInclude Include="LR10KController.h" />
