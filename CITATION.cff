@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software in a report, thesis or paper, please cite it as below, with the version you used."
+title: "LR 10K Control Software"
+abstract: >-
+  Unofficial Windows software for the LLOYD LR 10K tensile testing machine: machine control over the serial port,
+  live load-extension graph, automatic E-modulus, yield strength (Rp0.2) and proportional limit, an optical
+  (camera) extensometer with sub-pixel marker tracking, and Excel reports.
+type: software
+authors:
+  - given-names: Rasmus Ullestad
+    family-names: Relling
+  - given-names: Joakim
+    family-names: Bjørk
+  - given-names: Olaf Hallan
+    family-names: Graven
+  - given-names: Richard
+    family-names: Thue
+  - name: "University of South-Eastern Norway (USN)"
+version: 2.0.0
+date-released: 2026-11-07
+license: MIT
+repository-code: "https://github.com/ravo10/lr10k-2027"
+keywords:
+  - tensile testing
+  - materials testing
+  - Lloyd LR 10K
+  - optical extensometer
+  - stress-strain

@@ -1,0 +1,21 @@
+name: Feature request
+description: An idea for something new, or a change to how something works.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to do, and why?
+      description: Describe the need (e.g. "compare two tests in one graph for a lab report") rather than only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could it work?
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to work on this myself (see CONTRIBUTING.md)

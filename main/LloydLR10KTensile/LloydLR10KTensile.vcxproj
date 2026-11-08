@@ -319,7 +319,6 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <None Include="..\..\docs\Doxyfile" />
     <None Include="..\..\misc\debuggers\imgui.natstepfilter" />
     <None Include="..\..\misc\debuggers\imgui.natvis" />
-    <None Include="..\README.txt" />
   </ItemGroup>
   <ItemGroup>
     <Media Include="effects\buttonClick0.wav">

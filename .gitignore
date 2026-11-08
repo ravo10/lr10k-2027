@@ -88,3 +88,6 @@ docs/doxygen-warnings.txt
 
 ## Packaged release output (scripts/package-release.ps1)
 dist/
+
+## Visual Studio project upgrade reports
+UpgradeLog*.htm

@@ -219,9 +219,6 @@
     <None Include="..\..\misc\debuggers\imgui.natstepfilter">
       <Filter>ImGUI</Filter>
     </None>
-    <None Include="..\README.txt">
-      <Filter>ImGUI</Filter>
-    </None>
     <None Include="..\..\docs\Doxyfile" />
   </ItemGroup>
   <ItemGroup>

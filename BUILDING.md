@@ -119,6 +119,15 @@ g++ -std=c++17 -O1 -g -fsanitize=address,undefined -I main/LloydLR10KTensile tes
 
 After changing a theme colour, `tools/theme_preview.cpp` draws the main window in every theme without building the app (see the command at the top of the file); the pictures in `docs/themes/` come from it.
 
+## 8. Publishing a release
+
+Users without Visual Studio download the program from the repository's *Releases* page, so attach the built files to each version:
+
+1. Raise the version (`LR10KAppVersion` in `common.h`, `vcpkg.json`, the installer's *ProductVersion*, `CITATION.cff`) and add the changes to *Releases and changelog* in the README.
+2. Build **Release | x64**, run `scripts\package-release.ps1`, and build the installer (section 5).
+3. On GitHub: *Releases* > *Draft a new release*, tag `v2.0.0` (the version), title e.g. *LR 10K Control Software 2.0.0*, paste the changelog, and attach `dist\LR10K-Control-Software.zip` and the `.msi`. Optionally attach the `.pdb` as a separate file, so crash reports from that version can be read later.
+4. Test the downloaded `.zip` on a PC without Visual Studio before telling users about it.
+
 ## Troubleshooting
 
 | Problem | Fix |

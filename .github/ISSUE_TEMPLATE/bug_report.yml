@@ -1,0 +1,56 @@
+name: Bug report
+description: Something does not work as it should (crash, wrong result, connection problem).
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! If the machine moved when it should not, or did not stop, start the title with **[Safety]**.
+  - type: input
+    id: version
+    attributes:
+      label: Software version
+      description: Shown at the bottom of the File menu and of the Help window (e.g. 2.0.0 [07.11.2026]).
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Connecting / machine control
+        - Running a test / load safety
+        - Graph / crucial points / calculator
+        - Optical extensometer (camera)
+        - Saving / Excel / autosave
+        - Look and layout (themes, windows)
+        - Installing / building
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Connect to COM3, Connect PC
+        2. Start Test with ...
+        3. ...
+  - type: textarea
+    id: files
+    attributes:
+      label: Files
+      description: |
+        Drag files here. Crash: both files from Documents\LR10K crash reports. Connection problem: a serial log
+        (Log serial traffic to file, then Connect PC; saved in Documents\LR10K serial logs). Wrong result: the .lr10k test file.
+  - type: input
+    id: setup
+    attributes:
+      label: PC and hardware
+      description: Windows version, USB-to-serial adapter, camera model and resolution (if relevant).

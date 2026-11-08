@@ -9,6 +9,8 @@ The LR 10K's own PC software (*Lloyd Instrument Data Analysis Package Dpmat 2.2*
 
 It was made at the University of South-Eastern Norway (USN) for students and staff who test materials on the LR 10K. It is tested with version 5.0 of the software built into the machine.
 
+> **Unofficial software, use at your own risk.** This is a student/community project. It is not made, supported or endorsed by Lloyd Instruments or AMETEK, and comes without any warranty (see [LICENSE](LICENSE)). A tensile machine can crush fingers and break specimens violently: follow your lab's safety rules, keep the machine's own stop within reach, and check the results before you rely on them. See [Safety](#safety).
+
 ## Contents
 
 - [What it can do](#what-it-can-do)
@@ -19,7 +21,9 @@ It was made at the University of South-Eastern Norway (USN) for students and sta
 - [Getting and building the software](#getting-and-building-the-software)
 - [How it works](#how-it-works)
 - [Releases and changelog](#releases-and-changelog)
+- [Safety](#safety)
 - [FAQ](#faq)
+- [Help, bug reports and contributing](#help-bug-reports-and-contributing)
 - [Credits, sponsors and license](#credits)
 
 ## What it can do
@@ -123,9 +127,10 @@ Then continue with step 5. If the markers are lost for more than half a second d
 
 ## Getting and building the software
 
-- **Lab PC:** ask the lab staff, or build the release package / `.msi` installer as described in [BUILDING.md](BUILDING.md) (sections 4 and 5). The program needs nothing else installed. Settings and the window layout are kept in `%LOCALAPPDATA%\LR10K`.
+- **Download:** the ready-to-run program (a `.zip` to unpack, or the `.msi` installer) is attached to each version on the [Releases](https://github.com/ravo10/lr10k-2027/releases) page. At USN, ask the lab staff. Windows 10 or 11 (64-bit); nothing else needs installing. Settings and the window layout are kept in `%LOCALAPPDATA%\LR10K`.
+- **What you need:** the LR 10K connected to a serial (COM) port, directly or with a USB-to-serial adapter. For the optical extensometer, any USB webcam Windows recognises (a 1080p or 4K camera gives finer strain), and two markers in a bright colour.
 - **Build from source:** Visual Studio 2026 (C++), vcpkg and OpenCV 4.12; step by step in [BUILDING.md](BUILDING.md).
-- **Tutorial videos:** too large for git, so they are assets of the [`demo-videos-1.0` release](https://github.com/ravo10/lr10k-2027/releases/tag/demo-videos-1.0). After cloning, download them into `main/LloydLR10KTensile/videos/` (needs the [GitHub CLI](https://cli.github.com), `gh auth login` first, because the repository is private):
+- **Tutorial videos:** too large for git, so they are assets of the [`demo-videos-1.0` release](https://github.com/ravo10/lr10k-2027/releases/tag/demo-videos-1.0). After cloning, download them into `main/LloydLR10KTensile/videos/` with the script below (while the repository is private it needs the [GitHub CLI](https://cli.github.com), `gh auth login` first):
 
   ```powershell
   powershell -ExecutionPolicy Bypass -File scripts\fetch-videos.ps1
@@ -156,6 +161,13 @@ v1.0.2: Fixed a crash when moving up/down and then quickly up/down.
 v1.0.1: More features, such as an automated saving procedure.  
 v1.0.0: Basic functionality.
 
+## Safety
+
+- The software sends movement commands to a machine that can apply up to 10 kN. Keep hands out of the grips while the crosshead can move, and know where the machine's own stop button is: the software's *Stop* (F1) depends on the PC, the cable and the software working.
+- The 50 N translation blocker (moving the crosshead without a test) and the load limit are on by default. They act through the software, so they are an extra safeguard, not a replacement for the machine's own limits or for watching the test.
+- Wear safety glasses for brittle specimens and composites; they can break with flying fragments.
+- The results are only as good as the setup: correct specimen dimensions, a zero point set without load, and a calibrated load cell (*Load error* corrects a known error). Always look at the automatic crucial points before using the numbers.
+
 ## FAQ
 
 **Who uses the LR 10K Control Software?**
@@ -167,8 +179,23 @@ Yes. It is meant for research and for teaching: the calculator gives the materia
 **Can I try it without the machine?**
 Yes: *GUI Settings* > *LR 10K Simulation* > *Activate*.
 
+**Does it work with other machines, or other LR 10K firmware versions?**
+It is only tested with the LR 10K and version 5.0 of its built-in software. Other Lloyd machines of the same generation may use the same commands, but this is untested. If you try, record the traffic (*Log serial traffic to file*) and open an issue with the log.
+
+**Which webcam can I use for the extensometer?**
+Any USB webcam Windows recognises. Choose its resolution in the extensometer window; higher gives finer strain. A fixed focus or manual focus, and a stand that does not move, matter more than the resolution.
+
+**Where are my files?**
+Tests and Excel books go to the storage folder you choose (*File* > *Specify Storage Folder*). Settings, window layout and autosaves are in `%LOCALAPPDATA%\LR10K`; crash reports in *Documents\\LR10K crash reports*.
+
 **Why is the software open source?**
-So others can add features that everyone gains from. We maintain it as much as we can, but not everyone will have time or access to the machine forever. Please get in touch before starting on a new feature, or show it working (for example in a video) before it is added.
+So others can add features that everyone gains from. We maintain it as much as we can, but not everyone will have time or access to the machine forever. Please open an issue before starting on a new feature (see below), or show it working (for example in a video) before it is added.
+
+## Help, bug reports and contributing
+
+- **Questions and bug reports:** open an [issue](https://github.com/ravo10/lr10k-2027/issues/new/choose). For a bug, give the version (at the bottom of the *File* menu and of the *Help* window), what you did and what happened. Attach the crash report (*Documents\\LR10K crash reports*, both files) if the program crashed, and a serial log (*Log serial traffic to file*) for connection problems.
+- **Contributing:** see [CONTRIBUTING.md](CONTRIBUTING.md): how to build, the tests, the coding conventions and what a pull request needs.
+- **Citing the software:** if you use it for a report, thesis or paper, use *Cite this repository* on GitHub (from [CITATION.cff](CITATION.cff)), and state the version.
 
 ## Credits
 

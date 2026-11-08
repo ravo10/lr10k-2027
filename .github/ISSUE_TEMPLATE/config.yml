@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: User guide
+    url: https://github.com/ravo10/lr10k-2027/blob/main/docs/index.md
+    about: How to set up, run and save tests, the extensometer, and solutions to common problems.
+  - name: Building the software
+    url: https://github.com/ravo10/lr10k-2027/blob/main/BUILDING.md
+    about: Tools, building, packaging and troubleshooting the build.
