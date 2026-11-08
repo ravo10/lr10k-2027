@@ -66,6 +66,7 @@ The output goes to `main\LloydLR10KTensile\Debug\` or `...\Release\`. After each
 - `fonts`, `images`, `icons`, `effects` and `videos` (if downloaded)
 - the OpenCV DLLs (`opencv_world4120[d].dll`, `opencv_videoio_ffmpeg4120_64.dll`)
 - the vcpkg DLLs (`xlsxwriter.dll`, `z.dll` (zlib; called `zlib1.dll` before zlib 1.3.2), `minizip.dll`), done by vcpkg
+- Release only: the Visual C++ runtime (`vcruntime140.dll`, `vcruntime140_1.dll`, `msvcp140.dll`, `msvcp140_1.dll`, `msvcp140_2.dll`, `concrt140.dll`) from Visual Studio's redistributable folder, so the installer can ship it next to the program
 
 ## 4. Run it on another PC (lab PC)
 

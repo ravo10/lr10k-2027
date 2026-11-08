@@ -194,6 +194,8 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
 xcopy /y /d /i "$(ProjectDir)images" "$(OutDir)images"
 xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
 xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"
+rem The Visual C++ runtime next to the .exe (app-local, as package-release.ps1 does), for the installer
+for /d %%D in ("$(VCToolsRedistDir)x64\Microsoft.VC*.CRT") do (for %%F in (concrt140.dll msvcp140.dll msvcp140_1.dll msvcp140_2.dll vcruntime140.dll vcruntime140_1.dll) do (if exist "%%D\%%F" xcopy /y /d "%%D\%%F" "$(OutDir)"))
 if exist "$(OpenCVDir)\x64\vc16\bin\opencv_world4120.dll" (xcopy /y /d "$(OpenCVDir)\x64\vc16\bin\opencv_world4120.dll" "$(OutDir)") else (echo OpenCV DLL not found: $(OpenCVDir)\x64\vc16\bin\opencv_world4120.dll)
 if exist "$(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll" (xcopy /y /d "$(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll" "$(OutDir)") else (echo OpenCV DLL not found: $(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll)
 if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos") else (echo Tutorial videos not found, skipping. Run scripts\fetch-videos.ps1 to download them.)</Command>
