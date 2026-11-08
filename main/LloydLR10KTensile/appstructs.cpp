@@ -3091,12 +3091,14 @@ void cuttedOutAreaMarkedDeltaL(TabControl::TabTestDataClass* tabData)
         // Calculate current visual center of Y axis
         double center_y = ImPlot::GetPlotLimits().Y.Min + (ImPlot::GetPlotLimits().Y.Size() / 2.0);
 
-        // This line is the magic bullet:
+        // Vertical, and not counted when the plot is fitted (ImPlot 1.x: flags go in the item's ImPlotSpec)
+        ImPlotSpec textSpec;
+        textSpec.Flags = (ImPlotItemFlags)ImPlotTextFlags_Vertical | ImPlotItemFlags_NoFit;
         ImPlot::PlotText(filter_label,
             visual_offset_x / 2.0,
             center_y,
             ImVec2(0, 0),
-            ImPlotTextFlags_Vertical | (int)ImPlotItemFlags_NoFit);
+            textSpec);
 
         ImPlot::PopStyleColor();
     }
@@ -3473,16 +3475,19 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
                 const ImVec4 lineColor = style.Colors[ImGuiCol_HeaderHovered];
                 const ImVec4 crosshairColor = style.Colors[ImGuiCol_CheckMark];
 
-                ImPlot::PushStyleColor(ImPlotCol_Line, crosshairColor);
-                ImPlot::PushStyleColor(ImPlotCol_Fill, lineColor);
+                // Line and fill colour, the shaded area under the curve, and the stride of the x/y pairs
+                // (ImPlot 1.x: in the item's ImPlotSpec; before, PushStyleColor(ImPlotCol_Line/Fill) and arguments)
+                ImPlotSpec curveSpec;
+                curveSpec.LineColor = crosshairColor;
+                curveSpec.FillColor = lineColor;
+                curveSpec.Flags = ImPlotLineFlags_Shaded;
+                curveSpec.Stride = (int)sizeof(ImVec2); // x and y interleaved (ImVec2)
 
                 ImPlot::PlotLine(tabData->tension ? "Tension" : "Compression"
                     , &stressStrainData[0].x
                     , &stressStrainData[0].y
                     , stressStrainData.Size
-                    , ImPlotLineFlags_Shaded, 0, 2 * sizeof(float));
-
-                ImPlot::PopStyleColor(2);
+                    , curveSpec);
             }
         }
 

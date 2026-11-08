@@ -120,6 +120,12 @@ jobs:
           g++ -std=c++17 -O1 -I . -I main/LloydLR10KTensile tests/default_layout_check.cpp \
             imgui.cpp imgui_draw.cpp imgui_tables.cpp imgui_widgets.cpp -o default_layout_check
           ./default_layout_check
+      - name: Graph calls with the real ImPlot and Dear ImGui (headless, AddressSanitizer)
+        run: |
+          # -O0: ImPlot's templates take minutes to compile with sanitizers and optimisation
+          g++ -std=c++17 -O0 -g -fsanitize=address -I . tests/implot_smoke_check.cpp \
+            imgui.cpp imgui_draw.cpp imgui_tables.cpp imgui_widgets.cpp implot.cpp implot_items.cpp -o implot_smoke_check
+          ./implot_smoke_check
       - name: Autosave (file names, when to write, writer thread; ThreadSanitizer)
         run: |
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread \

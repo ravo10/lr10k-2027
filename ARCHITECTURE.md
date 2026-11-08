@@ -81,6 +81,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `extensometer_pipeline_check.cpp` | The camera thread's OpenCV steps with the real OpenCV (CI job *extensometer-opencv*), the same scene at 800x600, 1920x1080 and 4K while a marker moves: the new centres are several times more exact than the old ones, 4K is finer than 800x600 and takes ~14 ms per frame (the old whole-frame processing ~80 ms) |
 | `settings_file_test.cpp` | Old/new settings file names, the newest old file is copied once and never over a newer one |
 | `default_layout_check.cpp` | The default layout with the real Dear ImGui (headless) at 1366x768 .. 4K and 100-200 % scale: every window docked, side panel left, settings and calculator tabbed right, console under the graph |
+| `implot_smoke_check.cpp` | The graph's ImPlot calls (load-extension with shading and stride, stress-strain getters, vertical label, drag point, annotation) headless with the real ImPlot 1.x and Dear ImGui under AddressSanitizer: items, colours, the fit to the data. Run it after an ImPlot update |
 | `serial_reader_test.cpp` | Reader thread against a fake port: byte order, connection loss after 3 failed reads, tolerated glitches, stopping (also with a full buffer), restarting |
 
 ## Still to do
