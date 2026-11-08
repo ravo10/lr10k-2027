@@ -1,7 +1,7 @@
 """Synthesises candidate UI sounds for the LR 10K software (original sounds, no samples): 3 options per event.
 44.1 kHz, 16-bit mono WAV. Standard library only.
 
-    python3 make_sounds.py <out folder>
+    python3 make_sounds.py <out folder> [event ...]
 """
 import math
 import os
@@ -135,13 +135,79 @@ def candidates():
         'B': ('Falling minor', finish(mix((0, bell(E4 * 2, 0.25, 0.9, 0.003, 0.1, MARIMBA)), (0.12, bell(C4 * 2, 0.4, 0.9, 0.003, 0.15, MARIMBA))))),
         'C': ('Muted thud', finish(mix((0, sweep(300, 160, 0.18, 1.0, 0.07)), (0.0, noise_tick(0.01, 0.3, 0.2, 7))))),
     }
+    # ======== Machine and test controls (second set) ========
+    # ---- moveUp / moveDown: Up (F2) and Down (F3); also Fast up / Fast down. Short mirror images.
+    c['moveUp'] = {
+        'A': ('Rising pop', finish(sweep(520, 1040, 0.09, 1.0, 0.04), peak=0.38)),
+        'B': ('Marimba up (two short notes)', finish(mix((0, bell(C6, 0.12, 0.9, 0.002, 0.05, MARIMBA)), (0.05, bell(G6, 0.16, 0.9, 0.002, 0.06, MARIMBA))), peak=0.38)),
+        'C': ('Glide up', finish(mix((0, sweep(660, 990, 0.12, 0.8, 0.07, 0.01)), (0, noise_tick(0.004, 0.25, 0.4, 5))), peak=0.38)),
+    }
+    c['moveDown'] = {
+        'A': ('Falling pop', finish(sweep(1040, 520, 0.09, 1.0, 0.04), peak=0.38)),
+        'B': ('Marimba down (two short notes)', finish(mix((0, bell(G6, 0.12, 0.9, 0.002, 0.05, MARIMBA)), (0.05, bell(C6, 0.16, 0.9, 0.002, 0.06, MARIMBA))), peak=0.38)),
+        'C': ('Glide down', finish(mix((0, sweep(990, 660, 0.12, 0.8, 0.07, 0.01)), (0, noise_tick(0.004, 0.25, 0.4, 5))), peak=0.38)),
+    }
+    # ---- stop: Stop (F1). Firm, short, not musical: it must never sound like a confirmation.
+    c['stop'] = {
+        'A': ('Muted thunk', finish(mix((0, sweep(220, 120, 0.12, 1.0, 0.035)), (0, noise_tick(0.012, 0.6, 0.25, 11))), peak=0.45)),
+        'B': ('Wood block (low, dry)', finish(mix((0, bell(330, 0.1, 1.0, 0.001, 0.025, MARIMBA)), (0, noise_tick(0.006, 0.5, 0.35, 12))), peak=0.45)),
+        'C': ('Double damper', finish(mix((0, sweep(260, 150, 0.07, 1.0, 0.02)), (0.07, sweep(260, 150, 0.08, 1.0, 0.025)), (0, noise_tick(0.008, 0.4, 0.3, 13))), peak=0.45)),
+    }
+    # ---- returnToZero: Return to zero point (F5). "Going home": falling, landing on the lowest note.
+    c['returnToZero'] = {
+        'A': ('Home (three falling notes)', finish(mix((0, bell(G5, 0.2, 0.7, 0.002, 0.08, MARIMBA)), (0.07, bell(E5, 0.2, 0.7, 0.002, 0.08, MARIMBA)),
+                                                    (0.14, bell(C5, 0.45, 0.9, 0.002, 0.18, MARIMBA))))),
+        'B': ('Glide down to a bell', finish(mix((0, sweep(990, 520, 0.16, 0.5, 0.12, 0.01)), (0.13, bell(C5, 0.6, 0.9, 0.003, 0.28, SOFT))))),
+        'C': ('Octave down', finish(mix((0, bell(C6, 0.25, 0.8, 0.003, 0.1, GLASS)), (0.1, bell(C5, 0.6, 0.9, 0.003, 0.3, GLASS))))),
+    }
+    # ---- recordOn / recordOff: Record > Record tests ticked / unticked. A pair; "off" lower and softer.
+    c['recordOn'] = {
+        'A': ('Blip up', finish(mix((0, bell(A5, 0.08, 0.8, 0.002, 0.03, SOFT)), (0.06, bell(E6, 0.2, 0.9, 0.002, 0.08, SOFT))), peak=0.42)),
+        'B': ('Glass dot (high)', finish(bell(E6 * 1.5, 0.3, 1.0, 0.002, 0.1, GLASS), peak=0.42)),
+        'C': ('Tape start (tick + rising tone)', finish(mix((0, noise_tick(0.005, 0.5, 0.5, 21)), (0.02, sweep(880, 1320, 0.14, 0.7, 0.09, 0.01))), peak=0.42)),
+    }
+    c['recordOff'] = {
+        'A': ('Blip down', finish(mix((0, bell(E6, 0.08, 0.8, 0.002, 0.03, SOFT)), (0.06, bell(A5, 0.2, 0.9, 0.002, 0.08, SOFT))), peak=0.32)),
+        'B': ('Glass dot (low)', finish(bell(A5, 0.3, 1.0, 0.002, 0.1, GLASS), peak=0.32)),
+        'C': ('Tape stop (falling tone + tick)', finish(mix((0, sweep(1320, 880, 0.14, 0.7, 0.09, 0.01)), (0.13, noise_tick(0.005, 0.5, 0.5, 22))), peak=0.32)),
+    }
+    # ---- pauseTest / continueTest: Pause Test / Continue Test. A pair: "hold" and "resume".
+    c['pauseTest'] = {
+        'A': ('Hold (two notes down)', finish(mix((0, bell(A5, 0.2, 0.8, 0.003, 0.08, SOFT)), (0.09, bell(E5, 0.4, 0.8, 0.003, 0.16, SOFT))))),
+        'B': ('Soft held tone', finish(bell(E5, 0.55, 1.0, 0.03, 0.3, SOFT), peak=0.42)),
+        'C': ('Marimba repeat (same note twice)', finish(mix((0, bell(E6, 0.15, 0.8, 0.002, 0.06, MARIMBA)), (0.12, bell(E6, 0.25, 0.7, 0.002, 0.08, MARIMBA))))),
+    }
+    c['continueTest'] = {
+        'A': ('Resume (two notes up)', finish(mix((0, bell(E5, 0.2, 0.8, 0.003, 0.08, SOFT)), (0.09, bell(A5, 0.4, 0.8, 0.003, 0.16, SOFT))))),
+        'B': ('Soft rising tone', finish(mix((0, sweep(330, 440, 0.3, 0.6, 0.25, 0.04)), (0.2, bell(A5, 0.4, 0.6, 0.004, 0.2, SOFT))), peak=0.42)),
+        'C': ('Marimba step up', finish(mix((0, bell(E6, 0.15, 0.8, 0.002, 0.06, MARIMBA)), (0.12, bell(A6, 0.25, 0.8, 0.002, 0.08, MARIMBA))))),
+    }
+    # ---- setZeroPoint: Set zero point (before every test). A neutral, recognisable "mark".
+    c['setZeroPoint'] = {
+        'A': ('Tick and ping', finish(mix((0, noise_tick(0.004, 0.5, 0.5, 31)), (0.03, bell(B6, 0.2, 0.7, 0.002, 0.06, GLASS))), peak=0.4)),
+        'B': ('Double tick', finish(mix((0, bell(1800, 0.04, 0.8, 0.001, 0.01, MARIMBA)), (0.06, bell(1800, 0.05, 0.8, 0.001, 0.012, MARIMBA))), peak=0.38)),
+        'C': ('Soft click-ding', finish(mix((0, noise_tick(0.004, 0.4, 0.4, 32)), (0.0, bell(C6, 0.3, 0.8, 0.002, 0.12, SOFT))), peak=0.4)),
+    }
+    # ---- warning: safety and machine warnings (Down stopped above 50 N, the LR 10K stopped answering).
+    # Hard to miss, clearly different from "error" (which is low): higher, repeated.
+    c['warning'] = {
+        'A': ('Two-tone alert', finish(mix((0, bell(E6, 0.15, 0.9, 0.003, 0.08, SOFT)), (0.15, bell(C6, 0.15, 0.9, 0.003, 0.08, SOFT)),
+                                            (0.3, bell(E6, 0.15, 0.9, 0.003, 0.08, SOFT)), (0.45, bell(C6, 0.25, 0.9, 0.003, 0.1, SOFT))))),
+        'B': ('Triple pulse', finish(mix((0, bell(A5 * 1.5, 0.1, 1.0, 0.003, 0.05, SOFT)), (0.13, bell(A5 * 1.5, 0.1, 1.0, 0.003, 0.05, SOFT)),
+                                          (0.26, bell(A5 * 1.5, 0.18, 1.0, 0.003, 0.07, SOFT))))),
+        'C': ('Glass alarm (up and down)', finish(mix((0, bell(D6, 0.15, 0.8, 0.003, 0.07, GLASS)), (0.11, bell(A6, 0.15, 0.8, 0.003, 0.07, GLASS)),
+                                                    (0.22, bell(D6, 0.3, 0.8, 0.003, 0.12, GLASS))))),
+    }
     return c
 
 
 if __name__ == '__main__':
     out = sys.argv[1]
+    only = set(sys.argv[2:])          # optional: only these events
     os.makedirs(out, exist_ok=True)
     for event, options in candidates().items():
+        if only and event not in only:
+            continue
         for key, (name, samples) in options.items():
             path = os.path.join(out, '%s_%s.wav' % (event, key))
             write(path, samples)

@@ -1971,7 +1971,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             {
                 if (LR10KControlSystem::SetZeroPoint(tabData))
                 {
-                    PlaySoundEffect("buttonClick0");
+                    PlaySoundEffect("setZeroPoint");
                 }
             }
             ImGui::SetItemTooltip("Hotkey: F6\nAlso sets the optical L0, so the extension starts at 0.");
@@ -2077,7 +2077,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 if (ImGui::BeginMenu("Record")) {
                     // Videos go into "Recordings" inside the test's storage folder (no separate folder to pick)
                     if (ImGui::MenuItem("Record tests", NULL, &g_Extensiometer.record_test))
-                        PlaySoundEffect("buttonClick1");
+                        PlaySoundEffect(g_Extensiometer.record_test ? "recordOn" : "recordOff");
                     if (tabData->current_temp_preSaveLocation.empty())
                         ImGui::SetItemTooltip("Records the camera (raw and with markers, .mp4) during each test,\ninto a \"Recordings\" folder inside the storage folder.\nSet the storage folder first: File > Specify Storage Folder.");
                     else
@@ -4257,7 +4257,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     {
         if (LR10KControlSystem::SetZeroPoint(tabData))
         {
-            PlaySoundEffect("buttonClick0");
+            PlaySoundEffect("setZeroPoint");
         }
     }
     ImGui::SetItemTooltip("Hotkey: F6\nZero point will also be set automatically\nwhen applying a setup (or Start Test).");
@@ -4373,7 +4373,8 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_F6))
         {
-            LR10KControlSystem::SetZeroPoint(tabData);
+            if (LR10KControlSystem::SetZeroPoint(tabData))
+                PlaySoundEffect("setZeroPoint");
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_F7))
         {

@@ -334,6 +334,7 @@ void LR10KControlSystem::WatchdogTick()
     DockingApps::console.AddLog("[error] LR 10K has not answered for %lld s (status requested %d times).", silence / 1000, watchdogProbesSent);
     LR10KAppGlobals::MachineStatus().SetStatus("Not responding");
     lr10kNotResponding.store(true);
+    PlaySoundEffect("warning");
 }
 /**
     @brief  Software load safety, once per frame on the GUI thread (see LoadSafety.h).
@@ -397,7 +398,7 @@ void LR10KControlSystem::LoadSafetyTick()
             DockingApps::console.AddLog("[warning] Stopped the crosshead: the load rose above %.0f N while moving without a test (%.1f N). Move the other way to relieve it, or turn off \"Translation load blocker\" under Zero Point & Safety.", LoadSafety::kTranslationBlockerN, std::fabs(loadN));
         else
             DockingApps::console.AddLog("[warning] Stopped the crosshead: the load limit of %.0f N was reached (%.1f N).", limitN, std::fabs(loadN));
-        PlaySoundEffect("error");
+        PlaySoundEffect("warning");
     }
 }
 /**
@@ -695,7 +696,7 @@ bool LR10KControlSystem::PauseTest(TabControl::TabTestDataClass* tabData)
 
         tabData->test_running_test = false;
 
-        PlaySoundEffect("buttonClick0");
+        PlaySoundEffect("pauseTest");
 
         return true;
     }
@@ -717,7 +718,7 @@ bool LR10KControlSystem::ContinueTest(TabControl::TabTestDataClass* tabData)
 
         tabData->test_running_test = true;
 
-        PlaySoundEffect("buttonClick0");
+        PlaySoundEffect("continueTest");
 
         return true;
     }
@@ -738,7 +739,7 @@ bool LR10KControlSystem::ReturnToZeroPoint(TabControl::TabTestDataClass* tabData
             _LR10KController.w_ReturnZero();
         DockingApps::console.AddLog("... From GUI.");
 
-        PlaySoundEffect("buttonClick1");
+        PlaySoundEffect("returnToZero");
 
         return true;
     }
@@ -759,6 +760,8 @@ bool LR10KControlSystem::Translation_STOP(TabControl::TabTestDataClass* tabData)
         if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
             _LR10KController.w_Stop();
         DockingApps::console.AddLog("... From GUI.");
+
+        PlaySoundEffect("stop");
 
         return true;
     }
@@ -781,6 +784,8 @@ bool LR10KControlSystem::Translation_UP(TabControl::TabTestDataClass* tabData, f
             _LR10KController.w_Up();
         DockingApps::console.AddLog("... From GUI.");
 
+        PlaySoundEffect("moveUp");
+
         return true;
     }
 
@@ -802,11 +807,17 @@ bool LR10KControlSystem::Translation_DOWN(TabControl::TabTestDataClass* tabData,
             _LR10KController.w_Down();
         DockingApps::console.AddLog("... From GUI.");
 
+        PlaySoundEffect("moveDown");
+
         return true;
     }
 
     return false;
 }
+// Fast up / Fast down are held: true from the press until the release, so the sound plays once per hold
+static bool fastUpHeld   = false;
+static bool fastDownHeld = false;
+
 /**
     @brief  Move the LR 10K Tensile Machine fast upwards.
     @param  tabData -
@@ -822,6 +833,11 @@ bool LR10KControlSystem::Translation_FASTUP_press(TabControl::TabTestDataClass* 
             _LR10KController.w_FastUpPress();
         DockingApps::console.AddLog("... From GUI.");
 
+        // Same sound as Up, once per hold (the Fast buttons call this when pressed and again when released)
+        if (!fastUpHeld)
+            PlaySoundEffect("moveUp");
+        fastUpHeld = true;
+
         return true;
     }
 
@@ -833,6 +849,8 @@ bool LR10KControlSystem::Translation_FASTUP_press(TabControl::TabTestDataClass* 
 **/
 bool LR10KControlSystem::Translation_FASTUP_release()
 {
+    fastUpHeld = false;
+
     if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
         _LR10KController.w_FastUpRelease();
     DockingApps::console.AddLog("... From GUI.");
@@ -854,6 +872,11 @@ bool LR10KControlSystem::Translation_FASTDOWN_press(TabControl::TabTestDataClass
             _LR10KController.w_FastDownPress();
         DockingApps::console.AddLog("... From GUI.");
 
+        // Same sound as Down, once per hold (the Fast buttons call this when pressed and again when released)
+        if (!fastDownHeld)
+            PlaySoundEffect("moveDown");
+        fastDownHeld = true;
+
         return true;
     }
 
@@ -865,6 +888,8 @@ bool LR10KControlSystem::Translation_FASTDOWN_press(TabControl::TabTestDataClass
 **/
 bool LR10KControlSystem::Translation_FASTDOWN_release()
 {
+    fastDownHeld = false;
+
     if (LR10KAppGlobals::MachineStatus().IsMachineConnected())
         _LR10KController.w_FastDownRelease();
     DockingApps::console.AddLog("... From GUI.");

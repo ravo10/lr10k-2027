@@ -287,7 +287,10 @@ void AppConsole::ExecCommand(TabControl::TabTestDataClass* tabData, const char* 
         if (Stricmp(command_line, "ZERO") == 0)
         {
             if (LR10KControlSystem::SetZeroPoint(tabData))
+            {
                 AddLog("[before testing] Setting zero point!");
+                PlaySoundEffect("setZeroPoint");
+            }
             else
                 AddLog("[error] Could not set zero point...");
         }

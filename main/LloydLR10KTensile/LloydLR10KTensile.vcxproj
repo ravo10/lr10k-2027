@@ -328,13 +328,46 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <Media Include="effects\buttonClick1.wav">
       <FileType>Document</FileType>
     </Media>
+    <Media Include="effects\continueTest.wav">
+      <FileType>Document</FileType>
+    </Media>
     <Media Include="effects\endTest.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\error.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\moveDown.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\moveUp.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\pauseTest.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\recordOff.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\recordOn.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\returnToZero.wav">
       <FileType>Document</FileType>
     </Media>
     <Media Include="effects\saveFileSuccess.wav">
       <FileType>Document</FileType>
     </Media>
+    <Media Include="effects\setZeroPoint.wav">
+      <FileType>Document</FileType>
+    </Media>
     <Media Include="effects\startTest.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\stop.wav">
+      <FileType>Document</FileType>
+    </Media>
+    <Media Include="effects\warning.wav">
       <FileType>Document</FileType>
     </Media>
     <Media Include="videos\LR10K_COMPLETEATEST.mp4" />

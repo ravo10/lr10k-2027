@@ -238,13 +238,46 @@
     <Media Include="effects\buttonClick1.wav">
       <Filter>Effects</Filter>
     </Media>
+    <Media Include="effects\continueTest.wav">
+      <Filter>Effects</Filter>
+    </Media>
     <Media Include="effects\endTest.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\error.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\moveDown.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\moveUp.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\pauseTest.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\recordOff.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\recordOn.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\returnToZero.wav">
       <Filter>Effects</Filter>
     </Media>
     <Media Include="effects\saveFileSuccess.wav">
       <Filter>Effects</Filter>
     </Media>
+    <Media Include="effects\setZeroPoint.wav">
+      <Filter>Effects</Filter>
+    </Media>
     <Media Include="effects\startTest.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\stop.wav">
+      <Filter>Effects</Filter>
+    </Media>
+    <Media Include="effects\warning.wav">
       <Filter>Effects</Filter>
     </Media>
   </ItemGroup>
