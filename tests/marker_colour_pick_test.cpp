@@ -62,15 +62,71 @@ static void test_not_a_marker()
 
 static void test_limits()
 {
-    // Hue at the ends of OpenCV's range, a weak but acceptable colour: clamped, never below the minimums
-    const auto red = Pixels(9, 3, 90, 60);
+    // A weak but acceptable colour: saturation and brightness never below the minimums
+    const auto weak = Pixels(9, 30, 90, 60);
+    const Result r = FromPixels(weak.data(), 9);
+    CHECK(r.ok);
+    CHECK(r.range.sMin == kMinSat && r.range.vMin == kMinVal);
+}
+
+static void test_red_wraps_around()
+{
+    // A red marker near hue 0: the range goes through 179 and 0 instead of being cut at 0
+    const auto red = Pixels(9, 3, 220, 200);
     const Result r = FromPixels(red.data(), 9);
     CHECK(r.ok);
-    CHECK(r.range.hMin == 0 && r.range.hMax == 18);
-    CHECK(r.range.sMin == kMinSat && r.range.vMin == kMinVal);
+    CHECK(r.range.hMin == 168 && r.range.hMax == 18);
+    CHECK(HueWraps(r.range.hMin, r.range.hMax));
+    CHECK(InHueRange(175, r.range.hMin, r.range.hMax) && InHueRange(0, r.range.hMin, r.range.hMax) && InHueRange(10, r.range.hMin, r.range.hMax));
+    CHECK(!InHueRange(90, r.range.hMin, r.range.hMax) && !InHueRange(30, r.range.hMin, r.range.hMax));
+    // Magenta-red near 179
     const auto magenta = Pixels(9, 175, 255, 255);
     const Result m = FromPixels(magenta.data(), 9);
-    CHECK(m.range.hMax == 179 && m.range.hMin == 160);
+    CHECK(m.range.hMin == 160 && m.range.hMax == 10);
+
+    // A red marker whose pixels are on both sides of 0/179: the median is red (not ~90, cyan)
+    std::vector<unsigned char> mixed;
+    for (int h : { 177, 178, 179, 179, 0, 0, 1, 1, 2 }) { mixed.push_back((unsigned char)h); mixed.push_back(210); mixed.push_back(200); }
+    const Result x = FromPixels(mixed.data(), 9);
+    CHECK(x.ok);
+    CHECK(x.h == 179 || x.h == 0);
+    CHECK(InHueRange(177, x.range.hMin, x.range.hMax) && InHueRange(2, x.range.hMin, x.range.hMax));
+}
+
+static void test_hue_helpers()
+{
+    // Plain range
+    CHECK(HueWidth(25, 85) == 60);
+    CHECK(HueCentre(25, 85) == 55.0);
+    // Wrapping range 168..12: 24 steps, centre 0
+    CHECK(HueWidth(168, 12) == 24);
+    CHECK(HueCentre(168, 12) == 0.0);
+    CHECK(HueCentre(170, 10) == 0.0);
+    CHECK(HueCentre(160, 10) == 175.0);
+    // Around a centre, both ways round
+    HsvRange a = HueRangeAround(5, 15);
+    CHECK(a.hMin == 170 && a.hMax == 20);
+    a = HueRangeAround(60, 15);
+    CHECK(a.hMin == 45 && a.hMax == 75);
+    a = HueRangeAround(90, 100); // wider than the circle: everything
+    CHECK(a.hMin == 0 && a.hMax == 179);
+    // The parts for cv::inRange
+    HueParts p = MaskHueParts(25, 85);
+    CHECK(p.count == 1 && p.lo[0] == 25 && p.hi[0] == 85);
+    p = MaskHueParts(168, 12);
+    CHECK(p.count == 2 && p.lo[0] == 168 && p.hi[0] == 179 && p.lo[1] == 0 && p.hi[1] == 12);
+    // Every hue is in exactly the parts InHueRange says
+    for (int lo = 0; lo < 180; lo += 7)
+        for (int hi = 0; hi < 180; hi += 11)
+        {
+            const HueParts q = MaskHueParts(lo, hi);
+            for (int h = 0; h < 180; ++h)
+            {
+                bool inParts = false;
+                for (int i = 0; i < q.count; ++i) inParts |= (h >= q.lo[i] && h <= q.hi[i]);
+                CHECK(inParts == InHueRange(h, lo, hi));
+            }
+        }
 }
 
 static void test_sample_radius()
@@ -87,6 +143,8 @@ int main()
     test_median_ignores_some_background();
     test_not_a_marker();
     test_limits();
+    test_red_wraps_around();
+    test_hue_helpers();
     test_sample_radius();
     if (g_failures == 0)
         std::printf("marker_colour_pick_test: all tests passed\n");

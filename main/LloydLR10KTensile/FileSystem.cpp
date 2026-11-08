@@ -10,6 +10,7 @@
 **/
 
 #include "common.h"
+#include "MarkerColourPick.h" // Hue ranges that wrap around (red markers)
 #include "MaterialCalc.h"
 #include "CameraResolution.h"
 #include "SettingsFile.h"
@@ -515,7 +516,12 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
 				lo = (std::max)(0, (int)centre - halfWidth);
 				hi = (std::min)(maxValue, (int)centre + halfWidth);
 			};
-			centred(h * 179.0f, 30, 179, g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max);
+			{
+				// Hue wraps around (a red colour gives e.g. 150..30), the others are clamped
+				const MarkerColourPick::HsvRange hue = MarkerColourPick::HueRangeAround((int)std::lround(h * 180.0f) % 180, 30);
+				g_Extensiometer.settings.h_min = hue.hMin;
+				g_Extensiometer.settings.h_max = hue.hMax;
+			}
 			centred(sat * 255.0f, 97, 255, g_Extensiometer.settings.s_min, g_Extensiometer.settings.s_max);
 			centred(val * 255.0f, 102, 255, g_Extensiometer.settings.v_min, g_Extensiometer.settings.v_max);
 		}

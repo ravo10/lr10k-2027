@@ -1607,10 +1607,19 @@ void ExtensiometerWorkerThread()
             cv::GaussianBlur(work(active_roi), cropped_frame, cv::Size(5, 5), 0);
             cv::cvtColor(cropped_frame, cropped_hsv, cv::COLOR_BGR2HSV);
 
-            cv::inRange(cropped_hsv,
-                cv::Scalar(g_Extensiometer.settings.h_min, g_Extensiometer.settings.s_min, g_Extensiometer.settings.v_min),
-                cv::Scalar(g_Extensiometer.settings.h_max, g_Extensiometer.settings.s_max, g_Extensiometer.settings.v_max),
-                cropped_mask);
+            // A hue range with h_min > h_max wraps around (reds: e.g. 168..12): then two parts, combined
+            {
+                const MarkerColourPick::HueParts hue = MarkerColourPick::MaskHueParts(g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max);
+                const int sMin = g_Extensiometer.settings.s_min, sMax = g_Extensiometer.settings.s_max;
+                const int vMin = g_Extensiometer.settings.v_min, vMax = g_Extensiometer.settings.v_max;
+                cv::inRange(cropped_hsv, cv::Scalar(hue.lo[0], sMin, vMin), cv::Scalar(hue.hi[0], sMax, vMax), cropped_mask);
+                if (hue.count == 2)
+                {
+                    cv::Mat second;
+                    cv::inRange(cropped_hsv, cv::Scalar(hue.lo[1], sMin, vMin), cv::Scalar(hue.hi[1], sMax, vMax), second);
+                    cv::bitwise_or(cropped_mask, second, cropped_mask);
+                }
+            }
 
             cv::erode(cropped_mask, cropped_mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
             cv::dilate(cropped_mask, cropped_mask, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(8, 8)));
@@ -1790,13 +1799,14 @@ void SetExtensiometerTargetColor(float* color, bool reset = false)
         g_Extensiometer.settings.v_max = 255;
     }
 
-    // Need to set it, since the color variable is static
-    float h_avg = (g_Extensiometer.settings.h_min + g_Extensiometer.settings.h_max) / 2.0f;
+    // Need to set it, since the color variable is static. (The hue's middle on the circle: a red range such as
+    // 168..12 wraps around, its middle is 0, not 90.)
+    float h_avg = (float)MarkerColourPick::HueCentre(g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max);
     float s_avg = (g_Extensiometer.settings.s_min + g_Extensiometer.settings.s_max) / 2.0f;
     float v_avg = (g_Extensiometer.settings.v_min + g_Extensiometer.settings.v_max) / 2.0f;
 
     float r, g, b;
-    ImGui::ColorConvertHSVtoRGB(h_avg / 179.0f, s_avg / 255.0f, v_avg / 255.0f, r, g, b);
+    ImGui::ColorConvertHSVtoRGB(h_avg / 180.0f, s_avg / 255.0f, v_avg / 255.0f, r, g, b);
     color[0] = r; color[1] = g; color[2] = b;
 
     // Save only when the colour changed. This runs every frame while the settings panel is open, and it used to
@@ -2356,12 +2366,12 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                         // 1. Calculate current Range Widths (Tolerance)
                         // We preserve these so picking a color doesn't reset your strictness
-                        float h_width = (float)(g_Extensiometer.settings.h_max - g_Extensiometer.settings.h_min);
+                        float h_width = (float)MarkerColourPick::HueWidth(g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max); // Wraps for reds
                         float s_width = (float)(g_Extensiometer.settings.s_max - g_Extensiometer.settings.s_min);
                         float v_width = (float)(g_Extensiometer.settings.v_max - g_Extensiometer.settings.v_min);
 
                         // 2. Calculate current Averages (Centroids)
-                        float h_avg = (g_Extensiometer.settings.h_min + g_Extensiometer.settings.h_max) / 2.0f;
+                        float h_avg = (float)MarkerColourPick::HueCentre(g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max);
                         float s_avg = (g_Extensiometer.settings.s_min + g_Extensiometer.settings.s_max) / 2.0f;
                         float v_avg = (g_Extensiometer.settings.v_min + g_Extensiometer.settings.v_max) / 2.0f;
 
@@ -2369,7 +2379,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         // 3. Convert HSV -> RGB for the Picker
                         float r, g, b;
                         // Note: OpenCV uses H:0-179, S:0-255, V:0-255. ImGui uses 0.0-1.0
-                        ImGui::ColorConvertHSVtoRGB(h_avg / 179.0f, s_avg / 255.0f, v_avg / 255.0f, r, g, b);
+                        ImGui::ColorConvertHSVtoRGB(h_avg / 180.0f, s_avg / 255.0f, v_avg / 255.0f, r, g, b);
                         // Load the current saved color from globals (in case it was changed from another tab or something)
                         static float color[3] = { LR10KAppGlobals::opticalSourceExtensiometerTargetColor[0], LR10KAppGlobals::opticalSourceExtensiometerTargetColor[1], LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2] };
 
@@ -2402,7 +2412,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             ImGui::ColorConvertRGBtoHSV(color[0], color[1], color[2], h_new, s_new, v_new);
 
                             // Scale back to OpenCV ranges
-                            int h_center = (int)(h_new * 179.0f);
+                            int h_center = (int)std::lround(h_new * 180.0f) % 180;
                             int s_center = (int)(s_new * 255.0f);
                             int v_center = (int)(v_new * 255.0f);
 
@@ -2416,8 +2426,10 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             // Simple helper lambda for clamping
                             auto clamp = [](int val, int min, int max) { return val < min ? min : (val > max ? max : val); };
 
-                            g_Extensiometer.settings.h_min = clamp(h_center - h_half, 0, 179);
-                            g_Extensiometer.settings.h_max = clamp(h_center + h_half, 0, 179);
+                            // Hue wraps around (a red centre gives e.g. 168..12), the others are clamped
+                            const MarkerColourPick::HsvRange hueRange = MarkerColourPick::HueRangeAround(h_center, h_half);
+                            g_Extensiometer.settings.h_min = hueRange.hMin;
+                            g_Extensiometer.settings.h_max = hueRange.hMax;
 
                             g_Extensiometer.settings.s_min = clamp(s_center - s_half, 0, 255);
                             g_Extensiometer.settings.s_max = clamp(s_center + s_half, 0, 255);
@@ -2469,8 +2481,10 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                                 g_Extensiometer.settings.v_max = picked.range.vMax;
                                 SetExtensiometerTargetColor(color); // Updates the colour box and saves the settings
                                 DockingApps::mainFileSystem.SaveApplicationSettings();
-                                DockingApps::console.AddLog("Extensometer: marker colour picked (H %d, S %d, V %d); hue %d-%d, saturation %d-255, brightness %d-255.",
-                                    h, sat, val, picked.range.hMin, picked.range.hMax, picked.range.sMin, picked.range.vMin);
+                                DockingApps::console.AddLog("Extensometer: marker colour picked (H %d, S %d, V %d); hue %d-%d%s, saturation %d-255, brightness %d-255.",
+                                    h, sat, val, picked.range.hMin, picked.range.hMax,
+                                    MarkerColourPick::HueWraps(picked.range.hMin, picked.range.hMax) ? " (wraps around 179/0: red)" : "",
+                                    picked.range.sMin, picked.range.vMin);
                             }
                             else
                             {
@@ -2490,6 +2504,9 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             bool hsvEdited = false;
                             ImGui::SliderInt("Hue Min", &g_Extensiometer.settings.h_min, 0, 179); hsvEdited |= ImGui::IsItemDeactivatedAfterEdit();
                             ImGui::SliderInt("Hue Max", &g_Extensiometer.settings.h_max, 0, 179); hsvEdited |= ImGui::IsItemDeactivatedAfterEdit();
+                            if (MarkerColourPick::HueWraps(g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max))
+                                ImGui::TextDisabled("Hue Min > Hue Max: the range wraps around\n(%d..179 and 0..%d, for red markers).",
+                                    g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max);
                             ImGui::Separator();
                             ImGui::SliderInt("Sat Min", &g_Extensiometer.settings.s_min, 0, 255); hsvEdited |= ImGui::IsItemDeactivatedAfterEdit();
                             ImGui::SliderInt("Sat Max", &g_Extensiometer.settings.s_max, 0, 255); hsvEdited |= ImGui::IsItemDeactivatedAfterEdit();
@@ -4597,7 +4614,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
              "The laser-cut sheet (FlexiDESIGNER .fs / .dxf, Ø6 mm circles on printed A4), the laser settings, a 3D-printed placement guide "
              "and 3D-printable specimens are in the \"extensometer-tracking-marker\" release on GitHub; see docs/extensometer-markers.md.");
         Item("Even light without reflections matters most. The Mask (binary) and Side by side tabs show what is found as a marker.");
-        Item("Marker colour: \"Pick from image\" (Color Segmentation), then click the middle of a marker in the camera image.");
+        Item("Marker colour: \"Pick from image\" (Color Segmentation), then click the middle of a marker in the camera image. Any colour works, also red.");
         Item("Higher resolution gives finer strain; if the frames per second drop a lot, choose a lower one.");
         Item("Smoothing (default 0.25 s): more is calmer but lags the load. Dead-band (default 0.05 px): keep it about 1-2 times the measured noise shown under it.");
         Item("Measured noise (under Dead-band): how much the marker distance jumps from frame to frame while nothing moves. "
