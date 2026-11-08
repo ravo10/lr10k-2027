@@ -115,6 +115,16 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/settings_file_test.cpp -o settings_file_test
           ./settings_file_test
+      - name: Theme colours (WCAG contrast of every text/background pair)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/theme_palette_test.cpp -o theme_palette_test
+          ./theme_palette_test
+      - name: Theme previews build (tools/theme_preview.cpp)
+        run: |
+          g++ -std=c++17 -O1 -I . -I main/LloydLR10KTensile tools/theme_preview.cpp \
+            imgui.cpp imgui_draw.cpp imgui_tables.cpp imgui_widgets.cpp implot.cpp implot_items.cpp -o theme_preview
+          mkdir -p theme-previews && ./theme_preview theme-previews
       - name: Default window layout (the real Dear ImGui, headless)
         run: |
           g++ -std=c++17 -O1 -I . -I main/LloydLR10KTensile tests/default_layout_check.cpp \

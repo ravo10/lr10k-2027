@@ -41,6 +41,8 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `appstructs.h/.cpp` | Docking windows, menus, settings, .lr10k JSON save/load | everything |
 | | `TabSystem.cpp` | Test tabs: live plot data, limits, unit conversion (one `ScaleTabUnits()` for all data of a test), crucial points (through `TestData.h`) | globals, `TestData.h` |
 | | `FileSystem.cpp` | File dialogs, saving/loading tests and application settings | globals |
+| | `ThemePalette.h` | The four themes (USN, NITO, Light, Dark) as colour palettes, WCAG contrast, old theme names to new | nothing (portable, tested) |
+| | `ThemeApply.h` | A palette to the ImGui and ImPlot style (sizes, colours, the graph's colormap), rounded corners | ImGui, ImPlot |
 | | `DefaultLayout.h` | The default window layout (side panel, graph, console, settings/calculator), built with ImGui's DockBuilder on a first start, a reset or a new `AppLayout::kVersion` | ImGui (tested headless) |
 | | `SettingsFile.h` | The settings file's fixed name (`lr10k_settings.ini`) and copying the old `v..._lr10k.ini` to it once | nothing (portable, tested) |
 | | `Console.cpp` | The in-app log window; also keeps the last 200 lines for a crash report | ImGui, `CrashReport.h` |
@@ -82,6 +84,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `settings_file_test.cpp` | Old/new settings file names, the newest old file is copied once and never over a newer one |
 | `default_layout_check.cpp` | The default layout with the real Dear ImGui (headless) at 1366x768 .. 4K and 100-200 % scale: every window docked, side panel left, settings and calculator tabbed right, console under the graph |
 | `implot_smoke_check.cpp` | The graph's ImPlot calls (load-extension with shading and stride, stress-strain getters, vertical label, drag point, annotation) headless with the real ImPlot 1.x and Dear ImGui under AddressSanitizer: items, colours, the fit to the data. Run it after an ImPlot update |
+| `theme_palette_test.cpp` | Every theme: text on every background it is drawn on, dim and coloured text, the graph's curve and points (WCAG AA); the contrast formula against the NITO manual's values; old theme names |
 | `serial_reader_test.cpp` | Reader thread against a fake port: byte order, connection loss after 3 failed reads, tolerated glitches, stopping (also with a full buffer), restarting |
 
 ## Still to do

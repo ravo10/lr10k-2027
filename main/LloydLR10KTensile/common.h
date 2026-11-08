@@ -311,6 +311,7 @@ namespace mainGUIGlobals {
     inline bool fullScreen = false;               //!< Used for enabling fullscreen for the GUI.
     inline bool enableDPIAwareness = false;       //!< Used for enabling DPI Awerness for high resolution screens.
     inline bool roundedCorners = true;            //!< Rounded buttons, fields, tabs, popups and panels on top of any theme (GUI Settings menu)
+    inline float textScale = 1.0f;                //!< Text size (GUI Settings > Text size): 1 = the font's 18 px
 
     inline bool done = false;                        //!< Used for keeping the main hook alive.
     inline bool openPopupCloseApp = false;           //!< Used for opening the "close window" pop up. (used for when clicking in "X" button or "Exit" from menu)
@@ -1595,60 +1596,36 @@ inline bool PlaySoundEffect(std::string soundNameID)
 extern float main_scale; //!< The screen's DPI scale (main.cpp)
 
 /**
-    @brief  Rounded corners on top of the theme (mainGUIGlobals::roundedCorners).
-    @details Windows themselves keep square corners while windows can float outside the main window as their own
-             Windows windows (viewports): those are square, and rounded corners would show the edges.
+    @brief  The palette of the theme in use (colours for code that draws itself, e.g. the graph and its points).
 **/
-inline void ImGuiCustomApplyRoundedCorners(ImGuiStyle& style)
+inline const ThemePalette::Palette& CurrentThemePalette()
 {
-    if (!mainGUIGlobals::roundedCorners)
-        return;
-    style.FrameRounding = 5.0f;      // Buttons, input fields, sliders, check boxes
-    style.GrabRounding = 4.0f;       // Slider handles
-    style.ChildRounding = 6.0f;      // Panels inside windows
-    style.PopupRounding = 6.0f;      // Pop ups, menus, tooltips
-    style.ScrollbarRounding = 8.0f;
-    style.TabRounding = 5.0f;
-    style.WindowRounding = 6.0f;
-    style.FramePadding = ImVec2((std::max)(style.FramePadding.x, 8.0f), (std::max)(style.FramePadding.y, 4.0f)); // Room for the rounding
+    return ThemePalette::ById(mainGUIGlobals::guiTheme);
 }
 
+/**
+    @brief  Loads the theme (at start-up and on a theme change), then the rounded corners, the DPI scale and the text
+            size on top of it.
+    @param  mainFileSystem - Saves the settings if given.
+    @param  theme          - A theme id (mainGUIThemes); empty: the one in use. Old ids map to the nearest new theme.
+**/
 inline void ImGuiCustomThemeLoadCorrectTheme(AppMainFileSystem* mainFileSystem = nullptr, std::string theme = "")
 {
     if (theme == "") theme = mainGUIGlobals::guiTheme;
+    const ThemePalette::Palette& palette = ThemePalette::ById(theme);
+    mainGUIGlobals::guiTheme = palette.id; // e.g. "USNDark" (before 2.0.0) becomes "USN"
 
-    ImGuiCustomThemeSetup_Default(); // To set variables.
-
-    // Load correct theme.
-    if (theme == mainGUIThemes::USNDark)                ImGuiCustomThemeSetup_USNDark();
-    else if (theme == mainGUIThemes::USNLight)          ImGuiCustomThemeSetup_USNLight();
-    else if (theme == mainGUIThemes::Comfy)             ImGuiCustomThemeSetup_Comfy();
-    else if (theme == mainGUIThemes::DiscordDark)       ImGuiCustomThemeSetup_DiscordDark();
-    else if (theme == mainGUIThemes::FutureDark)        ImGuiCustomThemeSetup_FutureDark();
-    else if (theme == mainGUIThemes::Cherry)            ImGuiCustomThemeSetup_Cherry();
-    else if (theme == mainGUIThemes::ClassicSteam)      ImGuiCustomThemeSetup_ClassicSteam();
-    else if (theme == mainGUIThemes::Enemymouse)        ImGuiCustomThemeSetup_Enemymouse();
-    else if (theme == mainGUIThemes::Gold)              ImGuiCustomThemeSetup_Gold();
-    else if (theme == mainGUIThemes::GreenFont)         ImGuiCustomThemeSetup_GreenFont();
-    else if (theme == mainGUIThemes::Light)             ImGuiCustomThemeSetup_Light();
-    else if (theme == mainGUIThemes::MaterialFlat)      ImGuiCustomThemeSetup_MaterialFlat();
-    else if (theme == mainGUIThemes::Photoshop)         ImGuiCustomThemeSetup_Photoshop();
-    else if (theme == mainGUIThemes::SoftCherry)        ImGuiCustomThemeSetup_SoftCherry();
-    else if (theme == mainGUIThemes::VisualStudio)      ImGuiCustomThemeSetup_VisualStudio();
+    ThemeApply::Apply(palette);
 
     ImGuiStyle& style = ImGui::GetStyle();
-    ImGuiCustomApplyRoundedCorners(style);
+    const bool viewports = (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0;
+    if (mainGUIGlobals::roundedCorners)
+        ThemeApply::ApplyRoundedCorners(style, viewports); // Windows that float outside stay square
 
-    // Windows that float outside the main window are their own Windows windows: square, and an opaque background
-    if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        style.WindowRounding = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-    }
-
-    // The themes set sizes for a 100 % screen. They used to be scaled once at start-up, before the theme was loaded,
+    // The theme sets sizes for a 100 % screen. They used to be scaled once at start-up, before the theme was loaded,
     // so on a high-DPI screen the padding and spacing were too small (and after every theme change)
     style.ScaleAllSizes(main_scale);
+    style.FontScaleMain = mainGUIGlobals::textScale;
 
     if (mainFileSystem) mainFileSystem->SaveApplicationSettings();
 }

@@ -448,21 +448,21 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
         float static check_offsetZeroPoint = defaultValuesGUI::offsetZeroPointExtensionAxis;*/
 
         // Warning if any values have changed but no calculated again
-        static ImVec4 colorNormal = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-        static ImVec4 colorNormal2 = ImVec4(0.695f, 1.000f, 0.442f, 0.784f);
-        static ImVec4 colorNormal3 = ImVec4(0.647f, 1.000f, 0.780f, 0.784f);
-        static ImVec4 colorWarning = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+        // The theme's colours (they were fixed colours for dark themes: white or yellow text was unreadable on light ones)
+        const ThemePalette::Palette& themePalette = CurrentThemePalette();
+        const ImVec4 colorNormal = ImGui::GetStyle().Colors[ImGuiCol_Text];
+        const ImVec4 colorNormal2 = ImVec4(0.695f, 1.000f, 0.442f, 0.784f); // On its own dark box (TextWithBackground)
+        const ImVec4 colorWarning = ThemeApply::Col(themePalette.textWarning);
 
-        // Used for local (green) or global colors (orange)
-        ImVec4 greenColor = ImColor::HSV(1.38f, 0.8f, 1.0f);
-        ImVec4 greenColor2 = ImColor::HSV(1.38f, 0.8f, 0.5f);
-        ImVec4 orangeColor = ImColor::HSV(2.1f, 0.8f, 1.0f);
-        ImVec4 orangeColor2 = ImColor::HSV(2.1f, 0.8f, 0.5f);
+        // Used for local (green) or global colors (orange): separators, and a tint behind the button text
+        const ImVec4 greenColor = ThemeApply::Col(themePalette.textSuccess);
+        const ImVec4 greenColor2 = ThemeApply::Col(themePalette.textSuccess, 0.30f);
+        const ImVec4 orangeColor = ThemeApply::Col(themePalette.textWarning);
+        const ImVec4 orangeColor2 = ThemeApply::Col(themePalette.textWarning, 0.30f);
 
-        // First Curve (Red-ish)
-        const ImVec4 IMPLOT_RED = ImVec4(0.894f, 0.102f, 0.110f, 1.0f);
-        // Second Curve (Blue-ish)
-        const ImVec4 IMPLOT_BLUE = ImVec4(0.216f, 0.494f, 0.722f, 1.0f);
+        // The colours of the engineering and true stress lines in the graph
+        const ImVec4 IMPLOT_RED = ThemeApply::Col(themePalette.series[0]);
+        const ImVec4 IMPLOT_BLUE = ThemeApply::Col(themePalette.series[1]);
 
         ImVec4 colorText = colorNormal;
         ImVec4 colorText_nom = IMPLOT_RED;//ImPlot::GetColormapColor(1);//orangeColor;//colorNormal3;
@@ -895,11 +895,11 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     // Give the user a nice visual hint if they are using custom bounds vs standard
                     if (!foundLowerE || !foundUpperE)
                     {
-                        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "according to ASTM D638 / ISO 527 defaults.");
+                        ImGui::TextDisabled("according to ASTM D638 / ISO 527 defaults.");
                     }
                     else
                     {
-                        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "using your custom dragged boundaries.");
+                        ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textSuccess), "using your custom dragged boundaries.");
 
                         // Add the reset button exactly here!
                         ImGui::SameLine();
@@ -943,7 +943,7 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                         }
                         if (std::round(lowerEPerc * 100.0) / 100 == 0.05 && std::round(upperEPerc * 100.0) / 100 == 0.25)
                         {
-                            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "According to ASTM D638 / ISO 527 defaults.");
+                            ImGui::TextDisabled("According to ASTM D638 / ISO 527 defaults.");
                         }
                     }
 

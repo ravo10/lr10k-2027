@@ -177,14 +177,17 @@ void AppConsole::Draw(TabControl::TabTestDataClass* tabData, const char* title, 
 
             // Normally you would store more information in your item than just a string.
             // (e.g. make Items[] an array of structure, store color/type etc.)
+            // The theme's colours (readable on light and dark themes)
+            const ThemePalette::Palette& palette = CurrentThemePalette();
             ImVec4 color;
             bool has_color = false;
-            if (strstr(item, "[error]")) { color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f); has_color = true; }
-            else if (strncmp(item, "# ", 2) == 0) { color = ImVec4(1.0f, 0.8f, 0.6f, 1.0f); has_color = true; }
-            else if (strstr(item, "[translation]")) { color = ImVec4(0.798f, 0.926f, 0.05f, 1.0f); has_color = true; }
-            else if (strstr(item, "[before testing]")) { color = ImVec4(0.34f, 0.920f, 0.677f, 1.0f); has_color = true; }
-            else if (strstr(item, "[testing]")) { color = ImVec4(0.044f, 0.920f, 0.677f, 1.0f); has_color = true; }
-            else if (strstr(item, "[after testing]")) { color = ImVec4(0.34f, 0.920f, 0.677f, 1.0f); has_color = true; }
+            if (strstr(item, "[error]")) { color = ThemeApply::Col(palette.textError); has_color = true; }
+            else if (strstr(item, "[warning]")) { color = ThemeApply::Col(palette.textWarning); has_color = true; }
+            else if (strncmp(item, "# ", 2) == 0) { color = ThemeApply::Col(palette.textWarning); has_color = true; }
+            else if (strstr(item, "[translation]")) { color = ThemeApply::Col(palette.textWarning); has_color = true; }
+            else if (strstr(item, "[before testing]")) { color = ThemeApply::Col(palette.textInfo); has_color = true; }
+            else if (strstr(item, "[testing]")) { color = ThemeApply::Col(palette.textSuccess); has_color = true; }
+            else if (strstr(item, "[after testing]")) { color = ThemeApply::Col(palette.textInfo); has_color = true; }
             if (has_color)
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
             ImGui::TextUnformatted(item);

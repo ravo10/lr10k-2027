@@ -819,11 +819,11 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
             // Float left
             //ImGui::SameLine(strHotkeysSize.x);
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4({ 0.967f, 0.936f, 0.396f, 1.000f }), strHotkeys.c_str());
+            ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textInfo), strHotkeys.c_str());
         }
         if (mainGUIGlobals::useDemoMode)
         {
-            ImGui::TextColored((ImVec4)ImColor::HSV(0.149f, 0.860f, 1.0f), "(Warning: DEMO MODE ACTIVATED - You can not record valid data for tests in demo mode)");
+            ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textWarning), "(Warning: DEMO MODE ACTIVATED - You can not record valid data for tests in demo mode)");
         }
 
         // Add a menu bar
@@ -936,7 +936,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 std::string strV = "Application Version: ";
                 strV.append(LR10KAppVersion).append(" (").append(LR10KAppRepository).append(")");
 
-                ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 0.50f, 0.90f }), strV.c_str());
+                ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textSuccess), strV.c_str());
 
                 ImGui::EndMenu();
             }
@@ -986,7 +986,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 }
                 else
                 {
-                    ImGui::TextColored(ImVec4(0.060f, 1.0f, 1.0f, 1.0f), "No COM ports found on computer\nCheck if any are disabled!");
+                    ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textWarning), "No COM ports found on computer\nCheck if any are disabled!");
                     ImGui::Spacing();
 
                     // If the user pulls out a USB cable, then this will disconnect automatically
@@ -1142,25 +1142,30 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 {
                     AppMainFileSystem* mainFileSystem = &DockingApps::mainFileSystem;
 
-                    if (ImGui::MenuItem("Default", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Default ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Default;       ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("USN Dark", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::USNDark ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::USNDark;       ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("USN Light", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::USNLight ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::USNLight;      ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Comfy", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Comfy ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Comfy;         ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Discord", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::DiscordDark ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::DiscordDark;   ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Future", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::FutureDark ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::FutureDark;    ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Cherry", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Cherry ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Cherry;        ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Classic Steam", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::ClassicSteam ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::ClassicSteam;  ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Enemymouse", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Enemymouse ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Enemymouse;    ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Gold", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Gold ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Gold;          ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Green Font", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::GreenFont ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::GreenFont;     ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Light", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Light ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Light;         ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Material Flat", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::MaterialFlat ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::MaterialFlat;  ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Photoshop", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::Photoshop ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::Photoshop;     ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Soft Cherry", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::SoftCherry ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::SoftCherry;    ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
-                    if (ImGui::MenuItem("Visual Studio", NULL, mainGUIGlobals::guiTheme == mainGUIThemes::VisualStudio ? true : false)) { mainGUIGlobals::guiTheme = mainGUIThemes::VisualStudio;  ImGuiCustomThemeLoadCorrectTheme(mainFileSystem); }
+                    // USN, NITO, Light, Dark (ThemePalette.h)
+                    for (const ThemePalette::Palette* palette : ThemePalette::kAll)
+                        if (ImGui::MenuItem(palette->name, nullptr, mainGUIGlobals::guiTheme == palette->id))
+                            ImGuiCustomThemeLoadCorrectTheme(mainFileSystem, palette->id);
 
                     ImGui::EndMenu();
                 }
+
+                if (ImGui::BeginMenu("Text size"))
+                {
+                    const float sizes[] = { 0.9f, 1.0f, 1.1f, 1.25f, 1.5f };
+                    for (float size : sizes)
+                    {
+                        char label[16];
+                        snprintf(label, sizeof(label), "%.0f %%", size * 100.0f);
+                        if (ImGui::MenuItem(label, nullptr, std::fabs(mainGUIGlobals::textScale - size) < 0.01f))
+                        {
+                            mainGUIGlobals::textScale = size;
+                            ImGuiCustomThemeLoadCorrectTheme(&DockingApps::mainFileSystem); // Applies it, and saves
+                        }
+                    }
+                    ImGui::EndMenu();
+                }
+                ImGui::SetItemTooltip("The size of all text (the font stays the same). 100 %% is 18 px on a 100 %% screen.");
 
                 ImGui::Separator();
                 if (ImGui::MenuItem("Fullscreen (restart req.)", nullptr, mainGUIGlobals::fullScreen))
@@ -1263,7 +1268,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
             // Float right
             ImGui::SameLine(ImGui::GetWindowWidth() - 20 - stLSize.x);
-            ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), strL.c_str());
+            ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textInfo), strL.c_str());
             ImGui::SameLine(0, 0);
             ImGui::Text(LR10KAppGlobals::MachineStatus().Get().LiveText());
 
@@ -1293,7 +1298,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
             // Float right
             ImGui::SameLine(ImGui::GetWindowWidth() - 20 - stLSize.x - strSSize.x - 25);
-            ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), strS.c_str());
+            ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textInfo), strS.c_str());
             ImGui::SameLine(0, 0);
             ImGui::Text(statusText);
 
@@ -1309,7 +1314,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
             // Float right
             ImGui::SameLine(ImGui::GetWindowWidth() - 20 - stLSize.x - strSSize.x - 25 - strWESize.x - 25);
-            ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), strWE.c_str());
+            ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textInfo), strWE.c_str());
             ImGui::SameLine(0, 0);
             ImGui::Text(LR10KAppGlobals::MachineStatus().WarnError());
 
@@ -1333,7 +1338,7 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
             // Float right
             ImGui::SameLine(ImGui::GetWindowWidth() - 20 - stLSize.x - strSSize.x - 25 - strWESize.x - 25 - strCSize.x - 25);
-            ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), strC.c_str());
+            ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textInfo), strC.c_str());
             ImGui::SameLine(0, 0);
             if (LR10KAppGlobals::MachineStatus().ComPort() == -1)
                 ImGui::Text("Not connected");
@@ -1996,7 +2001,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
             // Recording status (Record menu)
             if (g_Extensiometer.is_recording)
-                ImGui::TextColored(ImVec4(1.0f, 0.25f, 0.25f, 1.0f), "REC  Recording this test (also when the markers are not tracked).");
+                ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textError), "REC  Recording this test (also when the markers are not tracked).");
             else if (g_Extensiometer.record_test)
                 ImGui::Text("Recording: on. Each test is saved in \"Recordings\" in the storage folder%s",
                     tabData->current_temp_preSaveLocation.empty() ? " (set a storage folder first: File > Specify Storage Folder)." : ".");
@@ -2024,10 +2029,10 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 {
                     // 1. Connection Status Summary
                     if (g_Extensiometer.is_connected) {
-                        ImGui::TextColored(ImVec4(0, 1, 0, 1), "STATUS: Connected"); // Green
+                        ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textSuccess), "STATUS: Connected");
                     }
                     else {
-                        ImGui::TextColored(ImVec4(1, 0, 0, 1), "STATUS: Disconnected"); // Red
+                        ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textError), "STATUS: Disconnected");
                     }
 
                     ImGui::Separator();
@@ -2113,14 +2118,14 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             const bool tracking = markers == 2;
                             const int blobs = g_Extensiometer.blobs_found.load();
                             if (tracking && blobs > 2)
-                                ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Tracking: 2 markers (%d other blob%s ignored)", blobs - 2, blobs - 2 == 1 ? "" : "s");
+                                ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textSuccess), "Tracking: 2 markers (%d other blob%s ignored)", blobs - 2, blobs - 2 == 1 ? "" : "s");
                             else if (tracking)
-                                ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Tracking: 2 markers");
+                                ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textSuccess), "Tracking: 2 markers");
                             else
-                                ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "Tracking lost (%d marker%s found)", markers, markers == 1 ? "" : "s");
+                                ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textError), "Tracking lost (%d marker%s found)", markers, markers == 1 ? "" : "s");
 
                             ImGui::SeparatorText("Current values");
-                            const ImVec4 valueColor = tracking ? ImVec4(0, 1, 0, 1) : ImVec4(0.6f, 0.6f, 0.6f, 1.0f);
+                            const ImVec4 valueColor = tracking ? ThemeApply::Col(CurrentThemePalette().textSuccess) : ThemeApply::Col(CurrentThemePalette().textDim);
                             ImGui::TextColored(valueColor, "Extension: %.3f mm", g_Extensiometer.results.travel_mm.load());
                             ImGui::TextColored(valueColor, "Strain:    %.2f %%", g_Extensiometer.results.strain_percentage.load());
 
@@ -2153,7 +2158,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                     if (ImGui::BeginChild("Ext.CenterPanel", ImVec2(centerWidth, 0), true, ImGuiWindowFlags_MenuBar))
                     {
                         if (ImGui::BeginMenuBar()) { ImGui::TextUnformatted(live_camera_feed_text.load());
-                            if (g_Extensiometer.is_recording) { ImGui::SameLine(); ImGui::TextColored(ImVec4(1.0f, 0.25f, 0.25f, 1.0f), "  REC"); } ImGui::EndMenuBar(); }
+                            if (g_Extensiometer.is_recording) { ImGui::SameLine(); ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textError), "  REC"); } ImGui::EndMenuBar(); }
 
                         ImGui::PushFont(Extra::fonts.jetbrainsFont);
 
@@ -2575,7 +2580,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
                 const bool pending = tabData->oldLoadErrorValue != LR10KAppGlobals::testing_speedAndPlotActual[2];
                 ImGui::SameLine();
                 if (pending)
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Applied: %.1f %% (press Update)", tabData->oldLoadErrorValue);
+                    ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textWarning), "Applied: %.1f %% (press Update)", tabData->oldLoadErrorValue);
                 else
                     ImGui::Text("Applied: %.1f %%", tabData->oldLoadErrorValue);
             }
@@ -3413,7 +3418,8 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         // SETUP
         // ------------------------------------------------------------------
         // Set plot style
-        ImPlot::PushColormap("Dark"); // Paired, Deep
+        const ThemePalette::Palette& themePalette = CurrentThemePalette(); // The graph's colours follow the theme
+        ImPlot::PushColormap(ThemeApply::ColormapName(themePalette).c_str());
 
         // Show the different axis
         // Start with no flags (which allows full mouse zooming and panning)
@@ -3463,23 +3469,24 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
 
         // Assuming your real-time data is stored in standard arrays/vectors inside tabData
         if (LR10KAppGlobals::showStressStrain) {
-            ImPlot::PlotLineG("Engineering stress", LR10KAppGlobals::NominalStressStrainGetter, &ctx, stressStrainData.Size);
-            ImPlot::PlotLineG("True stress", LR10KAppGlobals::TrueStressStrainGetter, &ctx, stressStrainData.Size);
+            ImPlotSpec engineeringSpec, trueSpec;
+            engineeringSpec.LineColor = ThemeApply::Col(themePalette.series[0]);
+            trueSpec.LineColor = ThemeApply::Col(themePalette.series[1]);
+            engineeringSpec.LineWeight = trueSpec.LineWeight = 2.0f;
+            ImPlot::PlotLineG("Engineering stress", LR10KAppGlobals::NominalStressStrainGetter, &ctx, stressStrainData.Size, engineeringSpec);
+            ImPlot::PlotLineG("True stress", LR10KAppGlobals::TrueStressStrainGetter, &ctx, stressStrainData.Size, trueSpec);
         }
         else {
             // Plot standard Load-Extension in real-time
             // ImPlot::PlotLine("Load/Extension", &tabData->LR10KTensileData.Data[0].x, ...);
             if (stressStrainData.Size > 0)
             {
-                ImGuiStyle& style = ImGui::GetStyle();
-                const ImVec4 lineColor = style.Colors[ImGuiCol_HeaderHovered];
-                const ImVec4 crosshairColor = style.Colors[ImGuiCol_CheckMark];
-
                 // Line and fill colour, the shaded area under the curve, and the stride of the x/y pairs
                 // (ImPlot 1.x: in the item's ImPlotSpec; before, PushStyleColor(ImPlotCol_Line/Fill) and arguments)
                 ImPlotSpec curveSpec;
-                curveSpec.LineColor = crosshairColor;
-                curveSpec.FillColor = lineColor;
+                curveSpec.LineColor = ThemeApply::Col(themePalette.curve);
+                curveSpec.FillColor = ThemeApply::Col(themePalette.curveFill, themePalette.curveFillAlpha);
+                curveSpec.LineWeight = 2.0f;
                 curveSpec.Flags = ImPlotLineFlags_Shaded;
                 curveSpec.Stride = (int)sizeof(ImVec2); // x and y interleaved (ImVec2)
 
@@ -3560,10 +3567,10 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
                 if (pointID == 5 || pointID == 6)
                 {
                     if (e_bounds_crossed) {
-                        color = ImVec4(1.0f, 0.2f, 0.2f, 1.0f); // RED: Error state!
+                        color = ThemeApply::Col(CurrentThemePalette().pointError); // Error state (red)
                     }
                     else {
-                        color = ImVec4(0.2f, 1.0f, 0.2f, 1.0f); // GREEN: Valid state
+                        color = ThemeApply::Col(CurrentThemePalette().pointValid); // Valid state (green)
                     }
                 }
                 else
@@ -3572,16 +3579,16 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
                     {
                         // Exact comparison: Has the raw data point changed since we clicked it?
                         if (raw_pt.x == active_drag_original_raw_x && raw_pt.y == active_drag_original_raw_y) {
-                            color = ImVec4(1.0f, 1.0f, 1.0f, 0.85f); // Hasn't moved (Normal Alpha)
+                            color = ThemeApply::Col(CurrentThemePalette().point, 0.85f); // Hasn't moved (Normal Alpha)
                         }
                         else {
-                            color = ImVec4(1.0f, 1.0f, 1.0f, 0.30f); // Moved to a new snap point! (Low Alpha)
+                            color = ThemeApply::Col(CurrentThemePalette().point, 0.30f); // Moved to a new snap point! (Low Alpha)
                         }
                     }
                     else
                     {
-                        // Not being dragged
-                        color = ImVec4(1.0f, 1.0f, 1.0f, 0.85f);
+                        // Not being dragged (white on dark themes, dark on light themes)
+                        color = ThemeApply::Col(CurrentThemePalette().point, 0.85f);
                     }
                 }
 
@@ -3724,8 +3731,8 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
             statusForTest = "Paused";
     }
 
-    ImGui::TextColored(ImVec4({ 0.952f, 0.619f, 0.046f, 1.00f }), "Testing Cycle Status:");
-    ImGui::TextColored(ImVec4({ 0.335f, 0.834f, 1.00f, 1.00f }), statusForTest.c_str());
+    ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textWarning), "Testing Cycle Status:");
+    ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textInfo), statusForTest.c_str());
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -3733,7 +3740,7 @@ void AppMainWidgets::LiveWindowDraw(TabControl::TabTestDataClass* tabData)
 
 
     // Warn user
-    ImVec4 textColor = mainGUIGlobals::useDemoMode ? (ImVec4)ImColor::HSV(0.149f, 0.860f, 1.0f) : ImVec4({ 1.0f, 1.0f, 1.0f, 1.00f });
+    ImVec4 textColor = mainGUIGlobals::useDemoMode ? ThemeApply::Col(CurrentThemePalette().textWarning) : ImGui::GetStyle().Colors[ImGuiCol_Text];
 
     if (LR10KAppGlobals::showStressStrain)
     {
@@ -4380,40 +4387,25 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     }
 
     ImGui::Text("Video training tutorials:\n(\"Setup\" and \"Completing a test\" are mandatory to complete for safety reasons!)");
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.051f, 0.815f, 0.931f, 0.8f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.051f, 0.815f, 0.931f, 0.9f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.051f, 0.815f, 0.931f, 0.85f));
+    // The video buttons use the theme's button colours (each had its own bright colour: unreadable on light themes)
     if (ImGui::Button("GUI", { 200, 35 }))
         Extra::tools.PlayVideo("videos\\lr10k_gui.mp4");
     ImGui::SetItemTooltip("This will make the user aware of what functions exists in the application.\nIt will also give an overview over every settings available for software and for LR 10K.");
-    ImGui::PopStyleColor(3);
     ImGui::SameLine();
 
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.964f, 0.882f, 0.040f, 0.8f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.964f, 0.882f, 0.040f, 0.9f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.964f, 0.882f, 0.040f, 0.85f));
     if (ImGui::Button("Setup", { 200, 35 }))
         Extra::tools.PlayVideo("videos\\lr10k_setup.mp4");
     ImGui::SetItemTooltip("This will walk the user through how to setup LR 10K with the software.\nIt will also give an overview over what settings are suggested and roughly\nwhat is best for what material.");
-    ImGui::PopStyleColor(3);
     ImGui::SameLine();
 
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.040f, 0.964f, 0.353f, 0.8f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.040f, 0.964f, 0.353f, 0.9f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.040f, 0.964f, 0.353f, 0.85f));
     if (ImGui::Button("Completing a test", { 200, 35 }))
         Extra::tools.PlayVideo("videos\\lr10k_completeatest.mp4");
     ImGui::SetItemTooltip("This will tell what the user needs to think about before clicking \"Start Test\".\nIt will also show how to handle test data when a test is finished to get a complete test.");
-    ImGui::PopStyleColor(3);
     ImGui::SameLine();
 
-    ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(IM_COL32(185, 18, 248, 204)));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(IM_COL32(185, 18, 248, 230)));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(IM_COL32(185, 18, 248, 217)));
     if (ImGui::Button("Using an extensometer", { 200, 35 }))
         Extra::tools.PlayVideo("videos\\lr10k_usinganextensiometer.mp4");
     ImGui::SetItemTooltip("This will walk a user through how to complete a test with the optical extensometer.");
-    ImGui::PopStyleColor(3);
 
     ImGui::Spacing();
 

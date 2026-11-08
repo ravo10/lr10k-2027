@@ -50,5 +50,9 @@ namespace DefaultLayout
         ImGui::DockBuilderDockWindow(kCalculator, right);
         ImGui::DockBuilderDockWindow(kConsole, bottom);
         ImGui::DockBuilderFinish(dockspaceId);
+
+        // Settings is the open tab on the right (otherwise the window drawn first in a frame is)
+        if (ImGuiDockNode* node = ImGui::DockBuilderGetNode(right))
+            node->SelectedTabId = ImHashStr(kSettings);
     }
 }

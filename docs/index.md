@@ -44,6 +44,9 @@ The yield points need the gauge length (L0) of the specimen, and are not placed 
 
 Ctrl+S saves (.lr10k and .xlsx), Ctrl+Alt+S saves as, Ctrl+Alt+E saves an Excel book, Ctrl+O opens a test and Ctrl+Z removes the last crucial point. The buttons show their hotkey as a tooltip.
 
+## Themes and text size
+*GUI Settings* > *Theme* has four themes: **USN** (dark, USN purple), **NITO** (light, the NITO greens from NITO's design manual), **Light** and **Dark**. The graph follows the theme. *GUI Settings* > *Text size* makes all text smaller or larger (90 % to 150 %), and *Rounded corners* turns the rounded look on or off. Pictures of the themes are in [docs/themes](themes/). A theme chosen in an older version is replaced by the nearest of the four.
+
 ## Optical extensometer
 
 - *Set zero point* (also done by *Start Test* by default) sets the optical L0 too, so the optical extension starts at 0 together with the machine's. *SET L0 / RESET* still does it by hand.

@@ -193,6 +193,8 @@
     <ClInclude Include="CameraResolution.h" />
     <ClInclude Include="SettingsFile.h" />
     <ClInclude Include="DefaultLayout.h" />
+    <ClInclude Include="ThemePalette.h" />
+    <ClInclude Include="ThemeApply.h" />
     <ClInclude Include="CrashReport.h" />
     <ClInclude Include="TestData.h" />
     <ClInclude Include="AutoPoints.h" />

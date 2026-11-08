@@ -195,6 +195,7 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
 		// and the colour was then overwritten from them, so a chosen colour was lost after a restart)
 		settings["ext_resolution"]          = g_Extensiometer.resolution_index.load(); // Optional when loading (added in 2.0.0)
 		settings["gui_roundedCorners"]      = mainGUIGlobals::roundedCorners;          // Optional when loading (added in 2.0.0)
+		settings["gui_textScale"]           = mainGUIGlobals::textScale;               // Optional when loading (added in 2.0.0)
 		settings["gui_layoutVersion"]       = AppLayout::kVersion;                     // Optional when loading (added in 2.0.0)
 		settings["ext_hsv"] = { g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max,
 		                        g_Extensiometer.settings.s_min, g_Extensiometer.settings.s_max,
@@ -282,7 +283,7 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
 
         settings["ignoreSavingPrompt"]  = false;
         settings["ignoreSavingPrompt2"] = false;
-        settings["guiTheme"]            = mainGUIThemes::USNDark;
+        settings["guiTheme"]            = mainGUIThemes::Default;
 
         // ---------------------------------------------------------------------
 
@@ -488,6 +489,8 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
 		// Rounded corners (optional, default on), and the window layout: an older layout (or none) gets the default once
 		if (settings.contains("gui_roundedCorners") && settings["gui_roundedCorners"].is_boolean())
 			mainGUIGlobals::roundedCorners = settings["gui_roundedCorners"].get<bool>();
+		if (settings.contains("gui_textScale") && settings["gui_textScale"].is_number())
+			mainGUIGlobals::textScale = std::clamp(settings["gui_textScale"].get<float>(), 0.75f, 2.0f);
 		if (!settings.contains("gui_layoutVersion") || !settings["gui_layoutVersion"].is_number_integer()
 			|| settings["gui_layoutVersion"].get<int>() < AppLayout::kVersion)
 			AppLayout::rebuildRequested = true;
@@ -524,7 +527,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
 
         mainGUIGlobals::ignoreSavingPrompt  = settings["ignoreSavingPrompt"];
         mainGUIGlobals::ignoreSavingPrompt2 = settings["ignoreSavingPrompt2"];
-        mainGUIGlobals::guiTheme            = settings["guiTheme"];
+        mainGUIGlobals::guiTheme            = ThemePalette::ById(settings["guiTheme"].get<std::string>()).id; // Old themes: the nearest new one
 
         // ---------------------------------------------------------------------
 

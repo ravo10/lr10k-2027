@@ -70,6 +70,8 @@ static void Check(float width, float height, float scale)
     {
         CHECK(side->DockNode && graph->DockNode && settings->DockNode && calculator->DockNode && console->DockNode);
         CHECK(settings->DockNode == calculator->DockNode);                 // Tabs in one place
+        CHECK(settings->DockNode && settings->DockNode->SelectedTabId == settings->TabId); // Settings open, not Calculator
+        CHECK(!calculator->DockTabIsVisible);
         const float padding = ImGui::GetStyle().WindowPadding.x + 1.0f;      // The dock space is inside "Tabulate"
         CHECK(side->Pos.x <= padding);                                      // At the left edge (not floating at 50,50)
         CHECK(side->Pos.x + side->Size.x <= graph->Pos.x + 1.0f);           // Side panel | graph | settings
