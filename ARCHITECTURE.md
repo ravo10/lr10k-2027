@@ -34,6 +34,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `ExcelExport.cpp` | `MakeExcelReport()` fills a `Report` from a test tab, saves it with `ExcelWriter` and logs the result | GUI, `ExcelWriter.h` |
 | **Optical extensometer** | `ExtensometerFilter.h` | Smoothing of the marker distance (time constant in seconds, dead-band) and the strain from it | nothing (portable, tested) |
 | | `ExtensometerTracking.h` | Picks the two markers among the detected blobs (follows them past extra blobs) and ignores single-frame jumps of their distance | nothing (portable, tested) |
+| | `ExtensometerCentroid.h` | Sub-pixel marker centre: each pixel weighted by its chroma between the background and the brightest marker pixel near it (proportional to how much of the pixel is marker); the mask only finds the blobs | nothing (portable, tested) |
 | | `appstructs.cpp` (`ExtensiometerWorkerThread`) | Camera thread: OpenCV marker detection, recording, images for the window; shares only atomics/mutex-protected data with the GUI | OpenCV |
 | **GUI** | `main.cpp` | Window, DirectX 12, main loop, pop ups | everything |
 | | `appstructs.h/.cpp` | Docking windows, menus, settings, .lr10k JSON save/load | everything |
@@ -72,6 +73,8 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `extensometer_tracking_test.cpp` | Marker choice with 0/1/2/more blobs, following the markers past a reflection, the jump gate (bad frame ignored, fracture believed after 4 frames) |
 | `autosave_test.cpp` | File names (and that .tmp files are never recovered), which files belong to another session, when tabs are written (first at once, intervals, only when changed) and their files removed (saved, closed), atomic writing, the writer thread (newest request wins, delete after write, a failing write, work done at stop; with ThreadSanitizer) |
 | `crash_report_test.cpp` | Report text (exception names, call stack lines with only the file name, missing parts), report file names sort by time, only the newest reports are kept, the last console lines from many threads, and that the crash handler does not wait forever for a lock held by the crashed thread (with ThreadSanitizer) |
+| `extensometer_centroid_test.cpp` | Drawn dots at sub-pixel positions: centre within 0.02 px (old outline centre 0.135 px), uneven light, camera noise (3x less), rectangle and mask |
+| `extensometer_pipeline_check.cpp` | The camera thread's OpenCV steps with the real OpenCV (CI job *extensometer-opencv*) on drawn 800x600 frames while a marker moves 0.05 px per frame: the distance follows 15-20x more exactly without noise, 2-3x with camera noise |
 | `serial_reader_test.cpp` | Reader thread against a fake port: byte order, connection loss after 3 failed reads, tolerated glitches, stopping (also with a full buffer), restarting |
 
 ## Still to do

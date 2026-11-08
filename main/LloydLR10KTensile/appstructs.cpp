@@ -15,6 +15,7 @@
 #include "MaterialCalc.h"
 #include "ExtensometerFilter.h"
 #include "ExtensometerTracking.h"
+#include "ExtensometerCentroid.h"
 #include "CrashHandler.h"
 AppWindowStates g_WindowStates; //!< Create the variable in memory.
 AppExtensiometer g_Extensiometer; //!< Create the variable in memory.
@@ -1411,14 +1412,23 @@ void ExtensiometerWorkerThread()
         cap.open(g_Extensiometer.camera_index.load(), cv::CAP_DSHOW); // Fallback to internal
     }
 
-    if (cap.isOpened()) {
+    // The same settings for every camera (after a camera switch only the exposure used to be set again)
+    auto configureCamera = [](cv::VideoCapture& camera) {
+        if (!camera.isOpened())
+            return;
         // Optimization: Cap resolution to 800x600 to save CPU (Camera driver picks closest match)
-        cap.set(cv::CAP_PROP_FRAME_WIDTH, 800);
-        cap.set(cv::CAP_PROP_FRAME_HEIGHT, 600);
+        camera.set(cv::CAP_PROP_FRAME_WIDTH, 800);
+        camera.set(cv::CAP_PROP_FRAME_HEIGHT, 600);
 
-        cap.set(cv::CAP_PROP_AUTOFOCUS, 0);
-        cap.set(cv::CAP_PROP_AUTO_EXPOSURE, (double)g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE); // Turn off Auto
-    }
+        camera.set(cv::CAP_PROP_AUTOFOCUS, 0);
+        camera.set(cv::CAP_PROP_AUTO_EXPOSURE, (double)g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE); // Turn off Auto
+
+        // Automatic white balance off: it shifts the colours when the light changes (a person walking past, the
+        // sun), so the markers' hue drifts out of the colour range and they are lost
+        if (!camera.set(cv::CAP_PROP_AUTO_WB, 0))
+            DockingApps::console.AddLog("[warning] Extensometer: this camera does not let the software turn off its automatic white balance.\n If markers are lost when the light changes, turn it off in the camera's own settings.");
+    };
+    configureCamera(cap);
 
     // Local variables for processing
     cv::Mat frame, frame_display, frame_recorded;
@@ -1453,7 +1463,7 @@ void ExtensiometerWorkerThread()
             std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Brief pause for hardware
 
             cap.open(g_Extensiometer.camera_index.load(), cv::CAP_DSHOW);
-            cap.set(cv::CAP_PROP_AUTO_EXPOSURE, (double)g_Extensiometer.settings.CAP_PROP_AUTO_EXPOSURE);
+            configureCamera(cap);
 
             g_Extensiometer.request_cam_switch = false;
             g_Extensiometer.initialized = false; // Reset the gauge length for the new view
@@ -1585,15 +1595,35 @@ void ExtensiometerWorkerThread()
             std::vector<std::vector<cv::Point>> contours;
             cv::findContours(cropped_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
+            // The marker colour for the sub-pixel centres
+            ExtensometerCentroid::Options centreOptions;
+            centreOptions.hMin = g_Extensiometer.settings.h_min;
+            centreOptions.hMax = g_Extensiometer.settings.h_max;
+            const cv::Rect croppedArea(0, 0, cropped_hsv.cols, cropped_hsv.rows);
+
             for (const auto& c : contours) {
                 if (cv::contourArea(c) > 50) {
-                    cv::Moments m = cv::moments(c);
-                    if (m.m00 != 0) {
+                    // Sub-pixel centre from the colour image (ExtensometerCentroid.h): each pixel weighted by how much
+                    // of it is marker. The mask only finds the blobs: its outline's centre (the old way) is rounded
+                    // to about whole pixels and moved by the mask growing (dilate). It is the fallback.
+                    const int pad = 3; // The rectangle's border must be background
+                    const cv::Rect box = cv::boundingRect(c);
+                    const cv::Rect search = cv::Rect(box.x - pad, box.y - pad, box.width + 2 * pad, box.height + 2 * pad) & croppedArea;
+                    cv::Mat blobMask = cv::Mat::zeros(search.size(), CV_8UC1); // This blob only (not a neighbour in the rectangle)
+                    cv::drawContours(blobMask, std::vector<std::vector<cv::Point>>{ c }, 0, cv::Scalar(255), cv::FILLED, cv::LINE_8, cv::noArray(), INT_MAX, cv::Point(-search.x, -search.y));
+
+                    const ExtensometerCentroid::Centre centre = ExtensometerCentroid::WeightedCentre(
+                        cropped_hsv.data, (int)cropped_hsv.step, cropped_hsv.cols, cropped_hsv.rows,
+                        blobMask.data, (int)blobMask.step, ExtensometerCentroid::Rect{ search.x, search.y, search.width, search.height }, centreOptions);
+                    if (centre.ok)
+                    {
                         // Add 'margin' back to X so the dot matches the display frame!
-                        float cx = (float)(m.m10 / m.m00) + margin;
-                        float cy = (float)(m.m01 / m.m00);
-                        centers.push_back(cv::Point2f(cx, cy));
+                        centers.push_back(cv::Point2f((float)centre.x + margin, (float)centre.y));
+                        continue;
                     }
+                    cv::Moments m = cv::moments(c);
+                    if (m.m00 != 0)
+                        centers.push_back(cv::Point2f((float)(m.m10 / m.m00) + margin, (float)(m.m01 / m.m00)));
                 }
             }
         }

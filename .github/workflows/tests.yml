@@ -100,6 +100,11 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/extensometer_tracking_test.cpp -o extensometer_tracking_test
           ./extensometer_tracking_test
+      - name: Optical extensometer sub-pixel marker centre
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/extensometer_centroid_test.cpp -o extensometer_centroid_test
+          ./extensometer_centroid_test
       - name: Autosave (file names, when to write, writer thread; ThreadSanitizer)
         run: |
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread \
@@ -110,6 +115,21 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread \
             -I main/LloydLR10KTensile tests/crash_report_test.cpp -o crash_report_test
           ./crash_report_test
+
+  extensometer-opencv:
+    # The extensometer's marker detection with the real OpenCV, on drawn camera frames (old vs sub-pixel centre)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OpenCV
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libopencv-dev
+      - name: Check the marker centres
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -I main/LloydLR10KTensile tests/extensometer_pipeline_check.cpp \
+            -o extensometer_pipeline_check $(pkg-config --cflags --libs opencv4)
+          ./extensometer_pipeline_check
 
   excel-files:
     # Writes sample .xlsx reports with the real libxlsxwriter and checks them with openpyxl

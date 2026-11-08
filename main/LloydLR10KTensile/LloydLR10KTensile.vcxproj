@@ -303,6 +303,7 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClInclude Include="LoadSafety.h" />
     <ClInclude Include="ExtensometerFilter.h" />
     <ClInclude Include="ExtensometerTracking.h" />
+    <ClInclude Include="ExtensometerCentroid.h" />
     <ClInclude Include="CrashReport.h" />
     <ClInclude Include="TestData.h" />
     <ClInclude Include="AutoPoints.h" />
