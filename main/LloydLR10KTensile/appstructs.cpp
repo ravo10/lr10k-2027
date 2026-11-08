@@ -4625,11 +4625,12 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
     if (ImGui::CollapsingHeader("Credits"))
     {
         ImGui::Spacing();
-        Item("Rasmus Ullestad Relling (mechanical engineering student, USN): creator and main developer of the software and its documentation.");
+        Item("Rasmus Ullestad Relling (mechanical engineering student, USN): creator and main developer of the software and its documentation. Made as a summer project in 2023, and improved since alongside an industry master's and work at USN as a Systems Engineer.");
         Item("Richard Thue (mechanical engineering teacher and lab engineer, USN): the idea, and support for the project.");
         Item("Joakim Bjørk and Olaf Hallan Graven (computer engineering teachers, USN): decoding the communication with the LR 10K.");
         Item("The students who used the software in the lab and gave feedback, and USN for access to the machine.");
-        Item("The authors of the open source software above. Parts of the code were developed with AI assistants (Gemini, Claude).");
+        Item("The authors of the open source software above.");
+        Item("AI assistants: Gemini helped develop the optical extensometer (2026). Claude Opus has been used since late 2026 to fix critical bugs, improve stability and performance, and improve the look and the documentation.");
         ImGui::Spacing();
     }
 
