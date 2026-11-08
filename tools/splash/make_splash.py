@@ -4,7 +4,7 @@ The app stretches it to the window, so keep 16:9. Needs Pillow and the Inter fon
 
     python3 tools/splash/make_splash.py main/LloydLR10KTensile/images/bootbackground_start.png preview.png
 """
-import math, sys
+import math, random, sys
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 W, H = 3200, 1800
@@ -24,6 +24,77 @@ glow2 = glow2.filter(ImageFilter.GaussianBlur(300))
 img = Image.composite(Image.new('RGB', (W, H), (40, 20, 90)), img, glow2)
 
 layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+d = ImageDraw.Draw(layer)
+
+# ---- Stars: a sparse faint field, and the Pleiades (M45) at the upper right, with a static twinkle
+rnd = random.Random(45)
+for _ in range(170):
+    sx, sy = rnd.uniform(0, W), rnd.uniform(0, H * 0.62)
+    if sx < 1900 and 330 < sy:   # Keep the text area calm
+        continue
+    r = rnd.choice((1.6, 2.0, 2.4, 3.0))
+    a = rnd.randint(30, 90)
+    d.ellipse((sx - r, sy - r, sx + r, sy + r), fill=(220, 230, 255, a))
+
+# The nine named stars: (name, RA in hours, Dec in degrees, magnitude). North up, east left, as seen in the sky.
+PLEIADES = [
+    ('Alcyone', 3 + 47 / 60 + 29 / 3600, 24 + 6 / 60, 2.87), ('Atlas', 3 + 49 / 60 + 9 / 3600, 24 + 3 / 60, 3.62),
+    ('Electra', 3 + 44 / 60 + 52 / 3600, 24 + 7 / 60, 3.70), ('Maia', 3 + 45 / 60 + 50 / 3600, 24 + 22 / 60, 3.86),
+    ('Merope', 3 + 46 / 60 + 20 / 3600, 23 + 57 / 60, 4.17), ('Taygeta', 3 + 45 / 60 + 12 / 3600, 24 + 28 / 60, 4.29),
+    ('Pleione', 3 + 49 / 60 + 11 / 3600, 24 + 8 / 60, 5.05), ('Celaeno', 3 + 44 / 60 + 48 / 3600, 24 + 17 / 60, 5.45),
+    ('Asterope', 3 + 45 / 60 + 55 / 3600, 24 + 33 / 60, 5.76),
+]
+ra0 = sum(st[1] for st in PLEIADES) / len(PLEIADES)
+de0 = sum(st[2] for st in PLEIADES) / len(PLEIADES)
+cx, cy, scale = 2690, 250, 640   # Centre on the splash and pixels per degree
+pos = []
+for name, ra, de, mag in PLEIADES:
+    x = cx - (ra - ra0) * 15 * math.cos(math.radians(de0)) * scale
+    y = cy - (de - de0) * scale
+    pos.append((x, y, mag))
+
+# A faint blue haze (the reflection nebula)
+haze = Image.new('L', (W, H), 0)
+hd = ImageDraw.Draw(haze)
+for x, y, mag in pos:
+    rr = 150 - mag * 14
+    hd.ellipse((x - rr, y - rr, x + rr, y + rr), fill=60)
+haze = haze.filter(ImageFilter.GaussianBlur(70))
+haze_rgba = Image.new('RGBA', (W, H), (110, 150, 255, 0))
+haze_rgba.putalpha(haze)
+layer = Image.alpha_composite(layer, haze_rgba)
+
+# Each star: a soft glow, a bright core and, for the brighter ones, four thin spikes (the "twinkle")
+glow_l = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+gl = ImageDraw.Draw(glow_l)
+for x, y, mag in pos:
+    g = 52 - mag * 6
+    gl.ellipse((x - g, y - g, x + g, y + g), fill=(170, 200, 255, 150))
+glow_l = glow_l.filter(ImageFilter.GaussianBlur(14))
+layer = Image.alpha_composite(layer, glow_l)
+# Spikes on their own layer (drawing them straight onto the stars would cut dark lines through the cores)
+spikes = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+sp = ImageDraw.Draw(spikes)
+for x, y, mag in pos:
+    if mag >= 4.4:
+        continue
+    length = 150 - mag * 24
+    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        steps = 40
+        for i in range(steps):
+            t0, t1 = i / steps, (i + 1) / steps
+            a = int(235 * (1 - t0) ** 1.8)
+            w = 4 if t0 < 0.25 else (3 if t0 < 0.55 else 2)
+            sp.line((x + dx * length * t0, y + dy * length * t0, x + dx * length * t1, y + dy * length * t1),
+                    fill=(230, 238, 255, a), width=w)
+spikes = spikes.filter(ImageFilter.GaussianBlur(0.8))
+layer = Image.alpha_composite(layer, spikes)
+cores = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+cd = ImageDraw.Draw(cores)
+for x, y, mag in pos:
+    core = 13 - mag * 1.5
+    cd.ellipse((x - core, y - core, x + core, y + core), fill=(255, 255, 255, 255))
+layer = Image.alpha_composite(layer, cores)
 d = ImageDraw.Draw(layer)
 
 # A faint graph on the right: grid and a stress-strain curve (elastic, yield, UTS, necking, fracture)
