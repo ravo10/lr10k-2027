@@ -395,6 +395,8 @@ struct AppExtensiometer
     std::atomic<bool> test_running{ false };    //!< A test is running (not paused)
     std::atomic<bool> window_visible{ false };  //!< The extensometer window is open (only then the images are prepared for it)
     std::atomic<float> smoothing_time_s{ 0.25f }; //!< Time constant of the distance smoothing (see ExtensometerFilter.h)
+    std::atomic<float> deadband_px{ 0.05f };      //!< Dead-band of the distance smoothing (ExtensometerFilter::kDefaultDeadbandPx)
+    std::atomic<float> noise_px{ 0.0f };          //!< Measured noise of the raw marker distance (NoiseMeter), 0 = not known yet
 
     //! \note Internal state for logic (Initial Length logic)
     std::atomic<bool> reset_requested{ false };

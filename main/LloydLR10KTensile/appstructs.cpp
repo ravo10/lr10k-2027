@@ -1459,6 +1459,7 @@ void ExtensiometerWorkerThread()
     // Local variables for processing
     cv::Mat frame, frame_display, frame_recorded;
     ExtensometerFilter filter; // Distance smoothing in seconds, not per frame (ExtensometerFilter.h)
+    NoiseMeter noiseMeter;     // Pixel noise of the raw distance, shown next to the dead-band slider
     ExtensometerTracking::Markers lastMarkers;  // Markers in the last good frame (to follow them past extra blobs)
     ExtensometerTracking::JumpGate jumpGate;    // Ignores single-frame jumps of the distance (bad lighting)
     double lastAcceptedPx = 0.0;                // Distance in the last accepted frame
@@ -1718,6 +1719,9 @@ void ExtensiometerWorkerThread()
             // it stays for 4 frames (fracture). After lost frames the smoothing catches up gradually.
             const double currentRawDist = cv::norm(p1 - p2);
             filter.SetTimeConstant(g_Extensiometer.smoothing_time_s.load());
+            filter.SetDeadband(g_Extensiometer.deadband_px.load());
+            noiseMeter.Add(currentRawDist);
+            g_Extensiometer.noise_px = noiseMeter.Ready() ? (float)noiseMeter.NoisePx() : 0.0f;
             if (!g_Extensiometer.initialized || g_Extensiometer.reset_requested) {
                 filter.Reset(currentRawDist);
                 jumpGate.Reset();
@@ -1750,6 +1754,7 @@ void ExtensiometerWorkerThread()
                                        : "Live Camera Feed (More than 2 markers found: check the colour settings / restrict sides)");
             if (!markersMissing)
             {
+                noiseMeter.Reset(); // The next distance is not one frame after the last one
                 markersMissing = true;
                 markersMissingSince = frameTime;
             }
@@ -2238,6 +2243,27 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                                 "More: a calmer curve, but the extension lags the load by about this time,\n"
                                 "which tilts the stress-strain curve and raises the E-modulus.\n"
                                 "0.25 s is the default; the old fixed setting was about 1.3 s.");
+                        }
+
+                        // Dead-band of the smoothing (ExtensometerFilter.h), with the measured noise. Not saved: starts at 0.05 px.
+                        {
+                            float deadband = g_Extensiometer.deadband_px.load();
+                            ImGui::PushItemWidth(150.0f);
+                            if (ImGui::SliderFloat("Dead-band", &deadband, 0.0f, (float)ExtensometerFilter::kMaxDeadbandPx, "%.2f px"))
+                                g_Extensiometer.deadband_px = deadband;
+                            ImGui::PopItemWidth();
+                            ImGui::SetItemTooltip("Changes of the marker distance smaller than this are ignored,\n"
+                                "so the extension does not wander while nothing moves.\n"
+                                "Smaller: finer strain in the elastic region, but more jitter at rest.\n"
+                                "Keep it about 1-2 times the noise shown below. 0.05 px is the default (it was 0.15 px).");
+                            const float noise = g_Extensiometer.noise_px.load();
+                            const double l0Px = g_Extensiometer.initial_dist_px.load();
+                            if (noise > 0.0f)
+                                ImGui::TextDisabled("Measured noise: %.3f px (%.4f %% strain)", noise, l0Px > 0.0 ? 100.0 * noise / l0Px : 0.0);
+                            else
+                                ImGui::TextDisabled("Measured noise: waiting for 2 markers");
+                            ImGui::SetItemTooltip("How much the distance between the markers jumps from frame to frame (1 standard deviation),\n"
+                                "measured over the last ~2 s. A steady stretch does not count, shaking and pixel noise do.");
                         }
 
                         ImGui::SeparatorText("Region of Interest");

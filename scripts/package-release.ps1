@@ -38,6 +38,8 @@ Copy-Item $exe $dist
 $pdb = [System.IO.Path]::ChangeExtension($exe, '.pdb')
 if (Test-Path $pdb) { Copy-Item $pdb $dist } else { Write-Warning "No .pdb next to the .exe: crash reports will not show function names." }
 Get-ChildItem $buildDir -Filter '*.dll' | Copy-Item -Destination $dist
+# The licenses (MIT for the app; BSD, zlib, Apache, LGPL for the DLLs): their notices must ship with the program
+Copy-Item (Join-Path $repo 'LICENSE') (Join-Path $dist 'LICENSE.txt')
 
 # 2. Files the program loads from its own folder
 foreach ($folder in 'fonts', 'images', 'icons', 'effects', 'videos') {
