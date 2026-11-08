@@ -1010,7 +1010,6 @@ EXCLUDE_SYMLINKS       = NO
 
 EXCLUDE_PATTERNS       =    */test/* \
                             */backends/* \
-                            */markdown/* \
                             */misc/* \
                             */nlohmann/* \
                             */scratch/* \
