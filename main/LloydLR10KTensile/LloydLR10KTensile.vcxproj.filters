@@ -191,6 +191,8 @@
     <ClInclude Include="ExtensometerTracking.h" />
     <ClInclude Include="ExtensometerCentroid.h" />
     <ClInclude Include="CameraResolution.h" />
+    <ClInclude Include="SettingsFile.h" />
+    <ClInclude Include="DefaultLayout.h" />
     <ClInclude Include="CrashReport.h" />
     <ClInclude Include="TestData.h" />
     <ClInclude Include="AutoPoints.h" />

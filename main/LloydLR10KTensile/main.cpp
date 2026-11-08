@@ -221,6 +221,18 @@ namespace fs = std::filesystem;
 **/
 int main(int argc, char** argv)
 {
+    // Work in the .exe's folder (fonts, images, sounds and videos are loaded from there). The folder comes from
+    // Windows: argv[0] can be a relative path, or the name only. This used to happen after the settings were set
+    // up, so a start from another folder (a double-clicked .lr10k file) could not find imgui_original.ini.
+    fs::path exeFolder;
+    {
+        wchar_t exePath[MAX_PATH] = {};
+        const DWORD length = GetModuleFileNameW(NULL, exePath, MAX_PATH);
+        std::error_code error;
+        exeFolder = (length > 0 && length < MAX_PATH) ? fs::path(exePath).parent_path() : fs::weakly_canonical(argv[0], error).parent_path();
+        fs::current_path(exeFolder, error);
+    }
+
     // Crash reports (Documents\LR10K crash reports): installed first, so a crash during start-up is caught too
     CrashHandler::Install(LR10KAppVersion, [](std::vector<std::string>& out) { return DockingApps::console.Recent.TryCopy(out); });
     if (argc > 1 && std::strcmp(argv[1], "--test-crash") == 0)
@@ -259,10 +271,11 @@ int main(int argc, char** argv)
     {
         DockingApps::mainFileSystem.FileBrowsersInitialization();                       // File Management
         DockingApps::mainFileSystem.LR10KGUISettingsInitialization(appData.second);     // Settings
-        if (!DockingApps::mainFileSystem.CreateImguiConfigurationFile(appData.second))  // ImGui
-            DockingApps::console.AddLog("[error] ImGui Initialization: Error creating the ImGui configuration file...");
-        else
-            DockingApps::console.AddLog("*Initialization of ImGui successful! Copied new ImGui init.-file to\n AppData folder, or it already existed");
+
+        // No saved window layout yet (first start, or deleted): build the default one (AppLayout)
+        std::error_code error;
+        if (!fs::exists(fs::path(appData.second) / "imgui.ini", error))
+            AppLayout::rebuildRequested = true;
     }
     else DockingApps::console.AddLog("[error] LR 10K Initialization: Error getting \"AppData\" path for settings storage...");
 
@@ -270,15 +283,7 @@ int main(int argc, char** argv)
     AppAutosave::Start();
     AppAutosave::AskToRecover();
 
-    // 1. argv[0] is always the path used to launch your program.
-    // We use filesystem to extract just the folder where the .exe lives.
-    fs::path exeFolder = fs::weakly_canonical(argv[0]).parent_path();
-
-    // 2. Force Windows to use this folder as the working directory
-    fs::current_path(exeFolder);
-
-    // --- Asset Loading is now Safe! ---
-    // "fonts/Inter_18pt-Regular.ttf" will now ALWAYS look inside the .exe's folder.
+    // (The working folder is the .exe's folder: set at the start of main().)
 
     // 3. Now handle your .lr10k file double-click
     if (argc > 1) {
@@ -368,9 +373,8 @@ int main(int argc, char** argv)
     //ImGui::StyleColorsDark();
     //ImGui::StyleColorsLight();
 
-    // Setup scaling
+    // Setup scaling (the sizes are scaled by ImGuiCustomThemeLoadCorrectTheme, after the theme set them)
     ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(main_scale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
     style.FontScaleDpi = main_scale;        // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
 
     // Set custom ini filename location
@@ -397,14 +401,7 @@ int main(int argc, char** argv)
     io.FontAllowUserScaling = true;         // Allow scaling text with scroll wheel
 
     // Setup Dear ImGui style
-    ImGuiCustomThemeLoadCorrectTheme(nullptr, mainGUIGlobals::guiTheme);
-
-    // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        style.WindowRounding = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-    }
+    ImGuiCustomThemeLoadCorrectTheme(nullptr, mainGUIGlobals::guiTheme); // (Also the rounded corners, viewports and DPI scale)
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(hwnd);

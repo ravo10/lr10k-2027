@@ -60,7 +60,7 @@ The app builds and runs without them; the Help buttons then open the download pa
 
 The output goes to `main\LloydLR10KTensile\Debug\` or `...\Release\`. After each build the project copies next to the `.exe`:
 
-- `fonts`, `images`, `icons`, `effects`, `videos` (if downloaded) and `imgui_original.ini`
+- `fonts`, `images`, `icons`, `effects` and `videos` (if downloaded)
 - the OpenCV DLLs (`opencv_world4120[d].dll`, `opencv_videoio_ffmpeg4120_64.dll`)
 - the vcpkg DLLs (`xlsxwriter.dll`, `zlib1.dll`, `minizip.dll`), done by vcpkg
 
@@ -77,12 +77,12 @@ powershell -ExecutionPolicy Bypass -File scripts\package-release.ps1
 It creates `dist\LR10K-Control-Software\` and `dist\LR10K-Control-Software.zip` containing only what the program needs:
 
 - the `.exe` and its DLLs (OpenCV, libxlsxwriter, zlib, minizip)
-- the folders it loads files from (`fonts`, `images`, `icons`, `effects`, `videos`) and `imgui_original.ini`
+- the folders it loads files from (`fonts`, `images`, `icons`, `effects`, `videos`)
 - the Visual C++ runtime DLLs (`vcruntime140.dll`, `msvcp140.dll`, ...), so the lab PC does not need the Visual C++ Redistributable installed
 
 Copy the folder (or unzip the .zip) anywhere on the lab PC and start `Lloyd LR10K Tensile Machine Control Software.exe`. Nothing needs to be installed. Settings are stored in the user's local AppData folder.
 
-If PowerShell scripts are blocked on your PC, do it by hand: copy from `main\LloydLR10KTensile\Release\` the `.exe`, all `.dll` files, the five folders and `imgui_original.ini`, plus the DLLs from `C:\Program Files\Microsoft Visual Studio\18\<edition>\VC\Redist\MSVC\<newest version>\x64\Microsoft.VC*.CRT\`.
+If PowerShell scripts are blocked on your PC, do it by hand: copy from `main\LloydLR10KTensile\Release\` the `.exe`, all `.dll` files and the five folders, plus the DLLs from `C:\Program Files\Microsoft Visual Studio\18\<edition>\VC\Redist\MSVC\<newest version>\x64\Microsoft.VC*.CRT\`.
 
 ## 5. Build the .msi installer
 

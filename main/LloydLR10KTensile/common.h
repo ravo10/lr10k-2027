@@ -37,9 +37,7 @@ if (appDataFolderPath.first)
 // 
 static const char* LR10KAppVersion = "2.0.0 [07.11.2026]"; //!< App version - E.g.: 1.0.0 (01.01.2024)
 static const char* LR10KAppRepository = "lr10k-2027";       //!< GitHub repository (github.com/ravo10/lr10k-2027)
-//! The settings file is "v<this>_lr10k.ini" in AppData. Kept at the old version so a new app version does not start
-//! with default settings (the file name used to follow LR10KAppVersion). Change it only when the settings format changes.
-static const char* LR10KSettingsFileVersion = "1.1.2 [26.02.2026]";
+// (The settings file is "lr10k_settings.ini" in %LOCALAPPDATA%\LR10K, see SettingsFile.h.)
 
 
 // ###############################################--------------------------------------------------------------------------------------------------------------
@@ -312,6 +310,7 @@ namespace mainGUIGlobals {
     inline bool enableSound = true;               //!< Used for enabling sound for the GUI.
     inline bool fullScreen = false;               //!< Used for enabling fullscreen for the GUI.
     inline bool enableDPIAwareness = false;       //!< Used for enabling DPI Awerness for high resolution screens.
+    inline bool roundedCorners = true;            //!< Rounded buttons, fields, tabs, popups and panels on top of any theme (GUI Settings menu)
 
     inline bool done = false;                        //!< Used for keeping the main hook alive.
     inline bool openPopupCloseApp = false;           //!< Used for opening the "close window" pop up. (used for when clicking in "X" button or "Exit" from menu)
@@ -1143,6 +1142,19 @@ struct AppMainExcel
 };
 
 /**
+    @brief  The default window layout, built in code (AppMain::Draw).
+    @details It used to be copied from imgui_original.ini, a saved layout of an older version: the side panel
+             (newer) was not in it, so on a first start it floated at the top left. A layout built from the
+             window names always matches the windows. The user's own changes are saved in imgui.ini as before.
+**/
+namespace AppLayout
+{
+    //! Raise when the default layout changes: every PC gets the new one once (saved as "gui_layoutVersion").
+    constexpr int kVersion = 1;
+    inline bool rebuildRequested = false; //!< Build the default layout in the next frame (first start, reset, new version)
+}
+
+/**
     @brief  Autosave of unsaved tests and recovery after a crash (AutosaveApp.cpp, Autosave.h).
 **/
 namespace AppAutosave
@@ -1215,13 +1227,6 @@ struct AppMainFileSystem
 
     // -------------------------------------------------------------------------
 
-    /**
-        @brief  Initialization of the "imgui.ini". Makes a copy of the "imgui.ini" from the applications folder. (so don't delete it)
-        @param  targetFolderPath -
-        @param  overwrite        -
-        @retval                  -
-    **/
-    bool CreateImguiConfigurationFile(std::string targetFolderPath, bool overwrite = false);
 
     // -------------------------------------------------------------------------
 
@@ -1587,6 +1592,27 @@ inline bool PlaySoundEffect(std::string soundNameID)
     @param mainFileSystem -
     @param theme          -
 **/
+extern float main_scale; //!< The screen's DPI scale (main.cpp)
+
+/**
+    @brief  Rounded corners on top of the theme (mainGUIGlobals::roundedCorners).
+    @details Windows themselves keep square corners while windows can float outside the main window as their own
+             Windows windows (viewports): those are square, and rounded corners would show the edges.
+**/
+inline void ImGuiCustomApplyRoundedCorners(ImGuiStyle& style)
+{
+    if (!mainGUIGlobals::roundedCorners)
+        return;
+    style.FrameRounding = 5.0f;      // Buttons, input fields, sliders, check boxes
+    style.GrabRounding = 4.0f;       // Slider handles
+    style.ChildRounding = 6.0f;      // Panels inside windows
+    style.PopupRounding = 6.0f;      // Pop ups, menus, tooltips
+    style.ScrollbarRounding = 8.0f;
+    style.TabRounding = 5.0f;
+    style.WindowRounding = 6.0f;
+    style.FramePadding = ImVec2((std::max)(style.FramePadding.x, 8.0f), (std::max)(style.FramePadding.y, 4.0f)); // Room for the rounding
+}
+
 inline void ImGuiCustomThemeLoadCorrectTheme(AppMainFileSystem* mainFileSystem = nullptr, std::string theme = "")
 {
     if (theme == "") theme = mainGUIGlobals::guiTheme;
@@ -1609,6 +1635,20 @@ inline void ImGuiCustomThemeLoadCorrectTheme(AppMainFileSystem* mainFileSystem =
     else if (theme == mainGUIThemes::Photoshop)         ImGuiCustomThemeSetup_Photoshop();
     else if (theme == mainGUIThemes::SoftCherry)        ImGuiCustomThemeSetup_SoftCherry();
     else if (theme == mainGUIThemes::VisualStudio)      ImGuiCustomThemeSetup_VisualStudio();
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImGuiCustomApplyRoundedCorners(style);
+
+    // Windows that float outside the main window are their own Windows windows: square, and an opaque background
+    if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+
+    // The themes set sizes for a 100 % screen. They used to be scaled once at start-up, before the theme was loaded,
+    // so on a high-DPI screen the padding and spacing were too small (and after every theme change)
+    style.ScaleAllSizes(main_scale);
 
     if (mainFileSystem) mainFileSystem->SaveApplicationSettings();
 }

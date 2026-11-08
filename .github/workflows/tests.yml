@@ -110,6 +110,16 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/camera_resolution_test.cpp -o camera_resolution_test
           ./camera_resolution_test
+      - name: Settings file name (and moving the old v..._lr10k.ini)
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/settings_file_test.cpp -o settings_file_test
+          ./settings_file_test
+      - name: Default window layout (the real Dear ImGui, headless)
+        run: |
+          g++ -std=c++17 -O1 -I . -I main/LloydLR10KTensile tests/default_layout_check.cpp \
+            imgui.cpp imgui_draw.cpp imgui_tables.cpp imgui_widgets.cpp -o default_layout_check
+          ./default_layout_check
       - name: Autosave (file names, when to write, writer thread; ThreadSanitizer)
         run: |
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread \

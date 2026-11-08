@@ -48,7 +48,9 @@ Rules learned the hard way:
 
 ## Conventions
 
-- **Settings file:** JSON in `%AppData%`, named `v<LR10KSettingsFileVersion>_lr10k.ini` (FileSystem.cpp). A missing *required* key resets all settings, so new keys must be read as optional with a default. Change `LR10KSettingsFileVersion` only when the old file cannot be used any more.
+- **Settings file:** JSON in `%LOCALAPPDATA%\LR10K\lr10k_settings.ini` (FileSystem.cpp, SettingsFile.h). It used to be named after a version (`v1.1.2 [26.02.2026]_lr10k.ini`); the newest old file is copied to the new name once. A missing *required* key resets all settings, so new keys must be read as optional with a default.
+- **Window layout:** ImGui keeps it in `%LOCALAPPDATA%\LR10K\imgui.ini`. The default layout is built in code (DefaultLayout.h) when that file is missing, from *Defaults & Resets*, and once on every PC when `AppLayout::kVersion` (common.h) is raised. Raise it when the default layout or a docked window's name changes. A new window that should be docked by default goes in `DefaultLayout::Build()`.
+- **Style:** each theme in styles.h sets all sizes for a 100 % screen; `ImGuiCustomThemeLoadCorrectTheme()` then adds the rounded corners (*GUI Settings* > *Rounded corners*) and scales everything for the screen's DPI.
 - **Version:** `LR10KAppVersion` in common.h. It is shown in *About* and on this page. Also change `vcpkg.json`, and the installer's *ProductVersion* in Visual Studio (answer *Yes* to a new ProductCode; see BUILDING.md, section 5).
 - **ImGui IDs:** use `"Visible text###StableId"` when a label changes (language, unit, state), so the window, tab or table keeps its position and settings.
 - **Comments:** Doxygen style (`@brief`, `@param`, `@details`, `//!<`). The *Docs* workflow lists the warnings in its run summary; a wrong `@param` name shows up there.

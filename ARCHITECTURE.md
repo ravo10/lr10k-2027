@@ -41,6 +41,8 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `appstructs.h/.cpp` | Docking windows, menus, settings, .lr10k JSON save/load | everything |
 | | `TabSystem.cpp` | Test tabs: live plot data, limits, unit conversion (one `ScaleTabUnits()` for all data of a test), crucial points (through `TestData.h`) | globals, `TestData.h` |
 | | `FileSystem.cpp` | File dialogs, saving/loading tests and application settings | globals |
+| | `DefaultLayout.h` | The default window layout (side panel, graph, console, settings/calculator), built with ImGui's DockBuilder on a first start, a reset or a new `AppLayout::kVersion` | ImGui (tested headless) |
+| | `SettingsFile.h` | The settings file's fixed name (`lr10k_settings.ini`) and copying the old `v..._lr10k.ini` to it once | nothing (portable, tested) |
 | | `Console.cpp` | The in-app log window; also keeps the last 200 lines for a crash report | ImGui, `CrashReport.h` |
 | **Autosave** | `Autosave.h` | File names per session, when each tab is written or its file deleted (`Scheduler`), writing through a .tmp file and a rename, and the writer thread | nothing (portable, tested) |
 | | `AutosaveApp.cpp` | Which tabs need an autosave, the .lr10k copy (finished, in mm/N), offering the files of a crashed session at start, opening them as unsaved tabs | GUI, `Autosave.h` |
@@ -77,6 +79,8 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `extensometer_centroid_test.cpp` | Drawn dots at sub-pixel positions: centre within 0.02 px (old outline centre 0.135 px), uneven light, camera noise (3x less), rectangle and mask |
 | `camera_resolution_test.cpp` | The resolution list, working scale, raw video size, rectangles and positions between the working copy and the full frame |
 | `extensometer_pipeline_check.cpp` | The camera thread's OpenCV steps with the real OpenCV (CI job *extensometer-opencv*), the same scene at 800x600, 1920x1080 and 4K while a marker moves: the new centres are several times more exact than the old ones, 4K is finer than 800x600 and takes ~14 ms per frame (the old whole-frame processing ~80 ms) |
+| `settings_file_test.cpp` | Old/new settings file names, the newest old file is copied once and never over a newer one |
+| `default_layout_check.cpp` | The default layout with the real Dear ImGui (headless) at 1366x768 .. 4K and 100-200 % scale: every window docked, side panel left, settings and calculator tabbed right, console under the graph |
 | `serial_reader_test.cpp` | Reader thread against a fake port: byte order, connection loss after 3 failed reads, tolerated glitches, stopping (also with a full buffer), restarting |
 
 ## Still to do

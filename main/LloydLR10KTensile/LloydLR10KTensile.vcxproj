@@ -138,7 +138,6 @@ xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
 xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"
 if exist "$(OpenCVDir)\x64\vc16\bin\opencv_world4120d.dll" (xcopy /y /d "$(OpenCVDir)\x64\vc16\bin\opencv_world4120d.dll" "$(OutDir)") else (echo OpenCV DLL not found: $(OpenCVDir)\x64\vc16\bin\opencv_world4120d.dll)
 if exist "$(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll" (xcopy /y /d "$(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll" "$(OutDir)") else (echo OpenCV DLL not found: $(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll)
-xcopy /y /d "$(ProjectDir)imgui_original.ini" "$(OutDir)"
 if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos") else (echo Tutorial videos not found, skipping. Run scripts\fetch-videos.ps1 to download them.)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -197,7 +196,6 @@ xcopy /y /d /i "$(ProjectDir)icons" "$(OutDir)icons"
 xcopy /y /d /i "$(ProjectDir)effects" "$(OutDir)effects"
 if exist "$(OpenCVDir)\x64\vc16\bin\opencv_world4120.dll" (xcopy /y /d "$(OpenCVDir)\x64\vc16\bin\opencv_world4120.dll" "$(OutDir)") else (echo OpenCV DLL not found: $(OpenCVDir)\x64\vc16\bin\opencv_world4120.dll)
 if exist "$(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll" (xcopy /y /d "$(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll" "$(OutDir)") else (echo OpenCV DLL not found: $(OpenCVDir)\x64\vc16\bin\opencv_videoio_ffmpeg4120_64.dll)
-xcopy /y /d "$(ProjectDir)imgui_original.ini" "$(OutDir)"
 if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(OutDir)videos") else (echo Tutorial videos not found, skipping. Run scripts\fetch-videos.ps1 to download them.)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -305,6 +303,8 @@ if exist "$(ProjectDir)videos\*.mp4" (xcopy /y /d /i "$(ProjectDir)videos" "$(Ou
     <ClInclude Include="ExtensometerTracking.h" />
     <ClInclude Include="ExtensometerCentroid.h" />
     <ClInclude Include="CameraResolution.h" />
+    <ClInclude Include="SettingsFile.h" />
+    <ClInclude Include="DefaultLayout.h" />
     <ClInclude Include="CrashReport.h" />
     <ClInclude Include="TestData.h" />
     <ClInclude Include="AutoPoints.h" />

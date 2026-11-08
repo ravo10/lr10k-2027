@@ -17,6 +17,7 @@
 #include "ExtensometerTracking.h"
 #include "ExtensometerCentroid.h"
 #include "CameraResolution.h"
+#include "DefaultLayout.h"   // The default window layout (DockBuilder)
 #include "CrashHandler.h"
 AppWindowStates g_WindowStates; //!< Create the variable in memory.
 AppExtensiometer g_Extensiometer; //!< Create the variable in memory.
@@ -1133,6 +1134,10 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                 if (ImGui::MenuItem("Hotkey Tips", nullptr, &LR10KAppGlobals::showHotkeyTips))
                     DockingApps::mainFileSystem.SaveApplicationSettings();
 
+                if (ImGui::MenuItem("Rounded corners", nullptr, &mainGUIGlobals::roundedCorners))
+                    ImGuiCustomThemeLoadCorrectTheme(&DockingApps::mainFileSystem); // Applies it on top of the theme, and saves
+                ImGui::SetItemTooltip("Rounded buttons, fields, tabs, menus and panels, with any theme.");
+
                 if (ImGui::BeginMenu("Theme"))
                 {
                     AppMainFileSystem* mainFileSystem = &DockingApps::mainFileSystem;
@@ -1184,6 +1189,12 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                         else
                             DockingApps::console.AddLog("[error] Could not successfully reset dialog boxes...");
                     }
+                    if (ImGui::Selectable("Reset window layout"))
+                    {
+                        AppLayout::rebuildRequested = true; // Built in the next frame
+                        DockingApps::console.AddLog("* The window layout is reset to the default.");
+                    }
+                    ImGui::SetItemTooltip("Puts the windows back in their default places (the other settings stay).");
                     if (ImGui::Selectable("Default settings & setup"))
                     {
                         // (Reset the docking...) Reset the imgui config file and default values.
@@ -1200,16 +1211,9 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
                         else
                             DockingApps::console.AddLog("[error] Could not successfully reset to default settings...");
 
-                        // Reset docking
-                        std::pair<bool, std::string> appData = GetLocalAppDataFolderLR10K();
-                        if (appData.first)
-                        {
-                            if (!DockingApps::mainFileSystem.CreateImguiConfigurationFile(appData.second, true))
-                                DockingApps::console.AddLog("[error] Reset ImGui Docking file: Error creating the ImGui configuration file...");
-                            else
-                                DockingApps::console.AddLog("* Reset of ImGui Docking file successful! Copied new ImGui init.-file to\n AppData folder");
-                        }
-                        else DockingApps::console.AddLog("[error] Reset ImGui Docking file: Error getting \"AppData\" path for settings storage...");
+                        // Reset the window layout (built in the next frame)
+                        AppLayout::rebuildRequested = true;
+                        DockingApps::console.AddLog("* The window layout is reset to the default.");
 
                         // Reset theme
                         ImGuiCustomThemeLoadCorrectTheme(&DockingApps::mainFileSystem);
@@ -1360,6 +1364,13 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
 
     // Create a dockspace within this window
     ImGuiID dockspace_id = ImGui::GetID("Tabulate");
+    if (AppLayout::rebuildRequested)
+    {
+        // First start, "Default settings & setup", or a new default layout (AppLayout::kVersion)
+        DefaultLayout::Build(dockspace_id, ImGui::GetContentRegionAvail(), main_scale);
+        AppLayout::rebuildRequested = false;
+        DockingApps::mainFileSystem.SaveApplicationSettings(); // Remembers the layout version
+    }
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_AutoHideTabBar);
 
     // Wait to draw until tabData is made

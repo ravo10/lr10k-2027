@@ -44,7 +44,6 @@ foreach ($folder in 'fonts', 'images', 'icons', 'effects', 'videos') {
     $src = Join-Path $project $folder
     if (Test-Path $src) { Copy-Item $src (Join-Path $dist $folder) -Recurse }
 }
-Copy-Item (Join-Path $project 'imgui_original.ini') $dist
 
 $videos = Join-Path $dist 'videos'
 if (-not (Test-Path $videos) -or -not (Get-ChildItem $videos -Filter '*.mp4')) {

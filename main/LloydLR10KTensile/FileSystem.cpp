@@ -12,6 +12,7 @@
 #include "common.h"
 #include "MaterialCalc.h"
 #include "CameraResolution.h"
+#include "SettingsFile.h"
 
 #include "LR10KController.h"
 
@@ -161,32 +162,6 @@ void AppMainFileSystem::PreSaveVideoRecordingExtBrowserLogic(TabControl::TabTest
 // ------------------------ File Configuration Settings ------------------------
 // -----------------------------------------------------------------------------
 
-bool AppMainFileSystem::CreateImguiConfigurationFile(std::string targetFolderPath, bool overwrite)
-{
-    const char* configFileFrom  = "imgui_original.ini";
-    const char* configFileTo    = "imgui.ini";
-
-    std::filesystem::path imguiConfigFileFrom = std::filesystem::current_path();
-    imguiConfigFileFrom.append(configFileFrom);
-
-    std::filesystem::path imguiConfigFileTo = targetFolderPath;
-    imguiConfigFileTo.append(configFileTo);
-
-    if (!overwrite)
-    {
-        // Only copy if it doesn't exist
-        if (!std::filesystem::exists(imguiConfigFileTo))
-            return std::filesystem::copy_file(imguiConfigFileFrom, imguiConfigFileTo);
-    }
-    else
-    {
-        // Set new changes
-        ImGui::LoadIniSettingsFromDisk(imguiConfigFileFrom.string().c_str());
-    }
-
-    return true; // If file exsits, it will not be created again
-}
-
 // -----------------------------------------------------------------------------
 
 json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
@@ -219,6 +194,8 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
 		// The HSV ranges the camera uses (only the colour was saved: the ranges started as the green defaults,
 		// and the colour was then overwritten from them, so a chosen colour was lost after a restart)
 		settings["ext_resolution"]          = g_Extensiometer.resolution_index.load(); // Optional when loading (added in 2.0.0)
+		settings["gui_roundedCorners"]      = mainGUIGlobals::roundedCorners;          // Optional when loading (added in 2.0.0)
+		settings["gui_layoutVersion"]       = AppLayout::kVersion;                     // Optional when loading (added in 2.0.0)
 		settings["ext_hsv"] = { g_Extensiometer.settings.h_min, g_Extensiometer.settings.h_max,
 		                        g_Extensiometer.settings.s_min, g_Extensiometer.settings.s_max,
 		                        g_Extensiometer.settings.v_min, g_Extensiometer.settings.v_max };
@@ -296,6 +273,8 @@ json AppMainFileSystem::ProduceJSONSettingsFromGUISettings(bool defaultSettings)
         settings["ext_targetColor"]			= { 0.286442f, 0.598039f, 0.228662f }; // Green color
         settings["ext_hsv"]					= { 25, 85, 60, 255, 50, 255 };       // Green markers (AppExtensiometer defaults)
 		settings["ext_cameraActive"]		= false;
+		settings["gui_roundedCorners"]      = true;
+		settings["gui_layoutVersion"]       = AppLayout::kVersion; // (The layout is built when imgui.ini is missing, see main.cpp)
 		settings["ext_useOpticalExt"]		= false;
 
         settings["fullScreen"]          = false;
@@ -469,7 +448,7 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
 
             // Set the global configuration settings file name
             LR10KAppGlobals::configSettingPathFile = LR10KAppGlobals::LocalFolderPath;
-            std::string fileName = "v"; fileName.append(LR10KSettingsFileVersion).append("_lr10k.ini");
+            const std::string fileName = SettingsFile::kFileName;
             LR10KAppGlobals::configSettingPathFile.append(fileName);
 
             // Delete
@@ -506,6 +485,13 @@ void AppMainFileSystem::InsertJSONSettingsToGUISettings(json settings)
 		LR10KAppGlobals::opticalSourceExtensiometerTargetColor[2]	= settings["ext_targetColor"][2];
 		// HSV ranges. Optional (not in the key check), so settings files without it stay valid: those get the
 		// default range widths centred on the saved colour.
+		// Rounded corners (optional, default on), and the window layout: an older layout (or none) gets the default once
+		if (settings.contains("gui_roundedCorners") && settings["gui_roundedCorners"].is_boolean())
+			mainGUIGlobals::roundedCorners = settings["gui_roundedCorners"].get<bool>();
+		if (!settings.contains("gui_layoutVersion") || !settings["gui_layoutVersion"].is_number_integer()
+			|| settings["gui_layoutVersion"].get<int>() < AppLayout::kVersion)
+			AppLayout::rebuildRequested = true;
+
 		// The camera resolution (optional: older settings files do not have it, then 800 x 600 as before)
 		if (settings.contains("ext_resolution") && settings["ext_resolution"].is_number_integer())
 			g_Extensiometer.resolution_index = CameraResolution::ClampIndex(settings["ext_resolution"].get<int>());
@@ -707,9 +693,14 @@ void AppMainFileSystem::LR10KGUISettingsInitialization(const std::string folderP
     // Save the path globally
     LR10KAppGlobals::LocalFolderPath = folderPath;
 
+    // The settings file has a fixed name now ("lr10k_settings.ini"); the first time, take over the old one
+    std::filesystem::path oldSettings;
+    if (SettingsFile::MoveOldSettings(LR10KAppGlobals::LocalFolderPath, oldSettings))
+        DockingApps::console.AddLog("Settings: copied %s to %s (the old file is no longer used).", oldSettings.filename().string().c_str(), SettingsFile::kFileName);
+
     // Set the global configuration settings file name
     LR10KAppGlobals::configSettingPathFile = LR10KAppGlobals::LocalFolderPath;
-    std::string fileName = "v"; fileName.append(LR10KSettingsFileVersion).append("_lr10k.ini");
+    const std::string fileName = SettingsFile::kFileName;
     LR10KAppGlobals::configSettingPathFile.append(fileName); // If big changes occur, it will always access succeed...
 
     if (!std::filesystem::exists(LR10KAppGlobals::configSettingPathFile))
