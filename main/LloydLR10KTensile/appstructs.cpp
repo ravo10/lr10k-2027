@@ -3447,6 +3447,30 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
 
     // -------------------------------------
 
+    // Settings, at the right end of this row (opposite "Toggle Graph Type"): shows the Settings window and brings it
+    // to the front (also when it is a tab behind the Calculator). On the next row if the window is too narrow.
+    {
+        static bool focusSettingsNextFrame = false; // A hidden window exists only from the next frame
+        if (focusSettingsNextFrame && g_WindowStates.show_settings)
+        {
+            ImGui::SetWindowFocus(DefaultLayout::kSettings);
+            focusSettingsNextFrame = false;
+        }
+        const ImVec2 settingsSize(140.0f, 45.0f);
+        ImGui::SameLine();
+        const float free = ImGui::GetContentRegionAvail().x;
+        if (free >= settingsSize.x)
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + free - settingsSize.x);
+        else
+            ImGui::NewLine();
+        if (Extra::widgets.widgetCreate_ButtonType1("Settings###OpenSettings", settingsSize))
+        {
+            g_WindowStates.show_settings = true;
+            focusSettingsNextFrame = true;
+            PlaySoundEffect("buttonClick0");
+        }
+        ImGui::SetItemTooltip("Show the settings for the LR 10K and the test (speeds, test type, specimen, limits).\nAlso: View > Settings.");
+    }
 
     ImGui::Spacing();
     ImGui::Text("Testing Graph");
@@ -4606,7 +4630,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         ImGui::SeparatorText("Windows and look");
         Item("Move a window by dragging its tab; hold Shift while dragging to dock it. GUI Settings > Defaults & Resets > Reset window layout puts every window back.");
         Item("GUI Settings > Theme: USN, NITO, Light or Dark. Text size: 90 % to 150 %. Rounded corners on or off.");
-        Item("View shows or hides the Calculator, Extensometer and Console windows.");
+        Item("View shows or hides the Calculator, Extensometer and Console windows. The Settings button at the top right of the graph opens the Settings.");
         ImGui::SeparatorText("Tests and results");
         Item("Each test has its own tab and its own dimensions. Open .lr10k files from File > Open; they open in a new tab.");
         Item("\"Auto-place E-Modulus and Yield\" (Crucial Points) places the E-modulus limits and the yield points again.");
