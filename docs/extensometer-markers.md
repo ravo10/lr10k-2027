@@ -19,20 +19,20 @@ All the files are attached to the **[extensometer-tracking-marker release](https
 | **Shape** | A round dot | The software finds the centre of each dot to a fraction of a pixel; a clean circle gives the most exact centre. |
 | **Size** | **Ø5 mm** | Large enough to cover many pixels in the camera image, small enough that the centre is well defined. |
 | **Colour** | **Bright green, #00FF00** | The software's default marker colour (*Color Segmentation (HSV)* > *Default* in the extensometer window). Green stands out from metal, grey and black specimens, and from the machine. |
-| **Surface** | Matt paper (0.2 mm A4) | No reflections, and thin enough to follow the specimen without stiffening it. |
+| **Surface** | Matt paper (0.1 mm A4) | No reflections, and thin enough to follow the specimen without stiffening it. |
 | **Gauge length L0** | **60 mm** between the centres | Set by the placement guide. A longer L0 gives finer strain; it must fit on the specimen's parallel length and in the camera image. |
 
 Use only two dots of the marker colour in the camera image: other green objects (tape, labels, clothing) can be mistaken for markers. *Region of Interest* in the extensometer window hides the sides of the image if needed.
 
 ## Making the markers (laser cutter)
 
-1. **Print** an A4 sheet of 0.2 mm paper completely in green #00FF00 (a full-page rectangle in any program). Matt paper is best.
+1. **Print** an A4 sheet of 0.1 mm paper completely in green #00FF00 (a full-page rectangle in any program). Matt paper is best.
 2. **Cut** the circles with a laser cutter, from `ekstensometer-tracking-markers-A4.fs` (FlexiDESIGNER 12) or `ekstensometer-tracking-markers-A4.dxf`. The circles in the files are **Ø6 mm**: the laser burns away about 1 mm, so the markers come out **Ø5 mm**. With another laser or other settings, measure one marker and adjust the circle size if needed.
 3. Settings used on an **Epilog Laser Fusion M2 32 / 40 (Model 13000 / 14000)** for paper:
 
    ![Epilog Laser Fusion M2 settings for cutting the paper markers](extensometer/epilog-fusion-m2-paper-settings.png)
 
-   In short: 600 DPI, CO2, Auto Focus, job type *Combined*, piece size 210 × 297 mm (A4), thickness 0.300. The circles are cut with the **vector** settings: speed 90 %, power 20 %, frequency 100, *Power Comp.* on (raster: speed 50 %, power 50 %). Other laser cutters: start with a low power and test one circle first, so the paper is cut through without burning the edges.
+   In short: 600 DPI, CO2, Auto Focus, job type *Combined*, piece size 210 × 297 mm (A4), **Thickness 0.100** (the paper; the picture shows 0.300, use 0.100). The circles are cut with the **vector** settings: speed 90 %, power 20 %, frequency 100, *Power Comp.* on (raster: speed 50 %, power 50 %). Other laser cutters: start with a low power and test one circle first, so the paper is cut through without burning the edges.
 
 Without a laser cutter, a Ø5 mm hole punch through the green paper, or round green stickers of about that size, also work. The edges must be clean and round.
 
