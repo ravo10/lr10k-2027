@@ -7,7 +7,7 @@
 
                While a tab has data that is not saved (a test running or paused, or a finished test not saved
                yet), a copy is written to %LOCALAPPDATA%\\LR10K\\Autosave every few seconds:
-               - autosave_<session>_tab<id>.lr10k, <session> = start time and process id of this run;
+               - autosave_\<session\>_tab\<id\>.lr10k, \<session\> = start time and process id of this run;
                - the file of a tab is deleted when the tab is saved or closed, and all of this session's files
                  at a normal exit;
                - so files of another session left in the folder mean that run did not end normally (a crash,

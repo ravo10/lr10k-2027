@@ -16,7 +16,7 @@
 
 namespace
 {
-    std::filesystem::path g_folder;               //!< %LOCALAPPDATA%\LR10K\Autosave
+    std::filesystem::path g_folder;               //!< %LOCALAPPDATA%\\LR10K\\Autosave
     std::string g_session;                        //!< This run's part of the file names
     std::unique_ptr<Autosave::Writer> g_writer;
     Autosave::Scheduler g_scheduler;
