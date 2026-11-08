@@ -14,6 +14,7 @@
 #include "LR10KController.h"
 #include "MaterialCalc.h"
 #include "ExtensometerFilter.h"
+#include "MarkerColourPick.h"  // The marker colour from a click on the camera image
 #include "ExtensometerTracking.h"
 #include "ExtensometerCentroid.h"
 #include "CameraResolution.h"
@@ -1415,6 +1416,7 @@ void ExtensiometerWorkerThread()
     cv::Mat frame, frame_display, frame_recorded;
     ExtensometerFilter filter; // Distance smoothing in seconds, not per frame (ExtensometerFilter.h)
     NoiseMeter noiseMeter;     // Pixel noise of the raw distance, shown next to the dead-band slider
+    double wholePixelShare = 0.0; // Share of frames with a whole-pixel (fallback) marker centre
     ExtensometerTracking::Markers lastMarkers;  // Markers in the last good frame (to follow them past extra blobs)
     ExtensometerTracking::JumpGate jumpGate;    // Ignores single-frame jumps of the distance (bad lighting)
     double lastAcceptedPx = 0.0;                // Distance in the last accepted frame
@@ -1485,6 +1487,24 @@ void ExtensiometerWorkerThread()
         {
             measuredFps = measuredFps > 0.0 ? 0.9 * measuredFps + 0.1 / dtS : 1.0 / dtS;
             g_Extensiometer.actual_fps = (float)measuredFps;
+        }
+
+        // --- Eyedropper: the colour around the clicked point, from the full-resolution frame (no overlay) ---
+        if (g_Extensiometer.pick_requested.exchange(false) && !frame.empty())
+        {
+            const int radius = MarkerColourPick::SampleRadius(frame.cols);
+            const int cx = std::clamp((int)std::lround(g_Extensiometer.pick_x.load() * frame.cols), 0, frame.cols - 1);
+            const int cy = std::clamp((int)std::lround(g_Extensiometer.pick_y.load() * frame.rows), 0, frame.rows - 1);
+            const cv::Rect area = cv::Rect(cx - radius, cy - radius, 2 * radius + 1, 2 * radius + 1) & cv::Rect(0, 0, frame.cols, frame.rows);
+            cv::Mat patchHsv;
+            cv::cvtColor(frame(area), patchHsv, cv::COLOR_BGR2HSV);
+            if (!patchHsv.isContinuous()) patchHsv = patchHsv.clone();
+            const MarkerColourPick::Result picked = MarkerColourPick::FromPixels(patchHsv.data, patchHsv.rows * patchHsv.cols);
+            g_Extensiometer.pick_h = picked.h;
+            g_Extensiometer.pick_s = picked.s;
+            g_Extensiometer.pick_v = picked.v;
+            g_Extensiometer.pick_ok = picked.ok;
+            g_Extensiometer.pick_ready = true;
         }
 
         // --- 1. RECORDING: open/close the files, raw video ---
@@ -1575,6 +1595,7 @@ void ExtensiometerWorkerThread()
         // =========================================================
         cv::Mat full_mask = cv::Mat::zeros(work.size(), CV_8UC1); // Black mask for the UI (working size)
         std::vector<cv::Point2f> centers; // Full-resolution pixels
+        int wholePixelCentres = 0;        // Blobs whose sub-pixel centre failed (the whole-pixel fallback was used)
 
         if (margin < work.cols / 2)
         {
@@ -1641,6 +1662,7 @@ void ExtensiometerWorkerThread()
                         }
                     }
                     cv::Moments m = cv::moments(c);
+                    ++wholePixelCentres;
                     if (m.m00 != 0)
                         centers.push_back(cv::Point2f((float)CameraResolution::WorkToFull(m.m10 / m.m00 + margin, scale),
                                                       (float)CameraResolution::WorkToFull(m.m01 / m.m00, scale)));
@@ -1677,6 +1699,10 @@ void ExtensiometerWorkerThread()
             filter.SetDeadband(g_Extensiometer.deadband_px.load());
             noiseMeter.Add(currentRawDist);
             g_Extensiometer.noise_px = noiseMeter.Ready() ? (float)noiseMeter.NoisePx() : 0.0f;
+            // Share of frames where a centre fell back to whole pixels (~2 s average): switching between the two
+            // methods makes the distance jump by pixels, which shows as a high measured noise
+            wholePixelShare += 0.05 * ((wholePixelCentres > 0 ? 1.0 : 0.0) - wholePixelShare);
+            g_Extensiometer.whole_pixel_share = (float)wholePixelShare;
             if (!g_Extensiometer.initialized || g_Extensiometer.reset_requested) {
                 filter.Reset(currentRawDist);
                 jumpGate.Reset();
@@ -1747,6 +1773,9 @@ void ExtensiometerWorkerThread()
     if (g_Extensiometer.video_writer_overlay.isOpened()) g_Extensiometer.video_writer_overlay.release();
     cap.release();
 }
+
+//! The eyedropper is on: the next click on the camera image picks the marker colour (GUI thread only)
+static bool g_PickingMarkerColour = false;
 
 void SetExtensiometerTargetColor(float* color, bool reset = false)
 {
@@ -2047,7 +2076,8 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 }
                 ImGui::EndMenuBar();
 
-                // Draws a camera texture as large as fits in the given size, keeping the aspect ratio
+                // Draws a camera texture as large as fits in the given size, keeping the aspect ratio. While the
+                // eyedropper is on ("Pick from image"), a click asks the camera thread for the colour at that point.
                 auto drawFitted = [aspect](ImTextureID texture, ImVec2 availSize) {
                     float w = availSize.x;
                     float h = w / aspect;
@@ -2057,8 +2087,26 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                         w = h * aspect;
                     }
                     if (w > 0.0f && h > 0.0f)
+                    {
                         ImGui::Image(texture, ImVec2(w, h));
+                        if (g_PickingMarkerColour && ImGui::IsItemHovered())
+                        {
+                            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                            ImGui::SetTooltip("Click the middle of a marker to use its colour.\n(Right-click or Esc: cancel)");
+                            const ImVec2 min = ImGui::GetItemRectMin();
+                            const ImVec2 mouse = ImGui::GetMousePos();
+                            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                            {
+                                g_Extensiometer.pick_x = std::clamp((mouse.x - min.x) / w, 0.0f, 1.0f);
+                                g_Extensiometer.pick_y = std::clamp((mouse.y - min.y) / h, 0.0f, 1.0f);
+                                g_Extensiometer.pick_requested = true;
+                                g_PickingMarkerColour = false;
+                            }
+                        }
+                    }
                 };
+                if (g_PickingMarkerColour && (ImGui::IsKeyPressed(ImGuiKey_Escape) || ImGui::IsMouseClicked(ImGuiMouseButton_Right)))
+                    g_PickingMarkerColour = false;
 
                 // Left Panel: TRACKING information. (It used to share a 400 px column with the binary mask, which is
                 // now a tab next to the camera image.)
@@ -2213,6 +2261,15 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                                 ImGui::TextDisabled("Measured noise: %.3f px (%.4f %% strain)", noise, l0Px > 0.0 ? 100.0 * noise / l0Px : 0.0);
                             else
                                 ImGui::TextDisabled("Measured noise: waiting for 2 markers");
+                            const float wholePixel = g_Extensiometer.whole_pixel_share.load();
+                            if (noise > 0.0f && wholePixel > 0.02f)
+                            {
+                                ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textWarning), "Whole-pixel centres in %.0f %% of frames", wholePixel * 100.0f);
+                                ImGui::SetItemTooltip("The sub-pixel centre failed for a marker, and the rougher whole-pixel centre was used.\n"
+                                    "Switching between the two makes the distance jump. Usual causes: a marker partly hidden\n"
+                                    "(by a grip or its shadow), touching the edge of the region of interest, or a colour range\n"
+                                    "that also takes in the background next to it.");
+                            }
                             ImGui::SetItemTooltip("How much the distance between the markers jumps from frame to frame (1 standard deviation),\n"
                                 "measured over the last ~2 s. A steady stretch does not count, shaking and pixel noise do.");
                         }
@@ -2375,6 +2432,45 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             SetExtensiometerTargetColor(color, true);
                         }
                         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Reset to default Green markers.");
+
+                        // Eyedropper: click a marker in the camera image (MarkerColourPick.h)
+                        {
+                            const int pickColors = ThemeApply::PushButtonColors(CurrentThemePalette(),
+                                g_PickingMarkerColour ? ThemeApply::ButtonRole::Primary : ThemeApply::ButtonRole::Normal);
+                            if (ImGui::Button(g_PickingMarkerColour ? "Click a marker...###PickColour" : "Pick from image###PickColour"))
+                                g_PickingMarkerColour = !g_PickingMarkerColour;
+                            ImGui::PopStyleColor(pickColors);
+                            ImGui::SetItemTooltip("Click this, then click the middle of a marker in the camera image:\n"
+                                "the marker's own colour (under this light) is used, with room for shading.\n"
+                                "Check the result in the \"Mask (binary)\" or \"Side by side\" tab.");
+                        }
+                        if (g_Extensiometer.pick_ready.exchange(false))
+                        {
+                            const int h = g_Extensiometer.pick_h, sat = g_Extensiometer.pick_s, val = g_Extensiometer.pick_v;
+                            if (g_Extensiometer.pick_ok)
+                            {
+                                const MarkerColourPick::Result picked = [&] {
+                                    // The ranges from the median colour (the same rule as for the pixels)
+                                    const unsigned char one[3] = { (unsigned char)h, (unsigned char)sat, (unsigned char)val };
+                                    return MarkerColourPick::FromPixels(one, 1);
+                                }();
+                                g_Extensiometer.settings.h_min = picked.range.hMin;
+                                g_Extensiometer.settings.h_max = picked.range.hMax;
+                                g_Extensiometer.settings.s_min = picked.range.sMin;
+                                g_Extensiometer.settings.s_max = picked.range.sMax;
+                                g_Extensiometer.settings.v_min = picked.range.vMin;
+                                g_Extensiometer.settings.v_max = picked.range.vMax;
+                                SetExtensiometerTargetColor(color); // Updates the colour box and saves the settings
+                                DockingApps::mainFileSystem.SaveApplicationSettings();
+                                DockingApps::console.AddLog("Extensometer: marker colour picked (H %d, S %d, V %d); hue %d-%d, saturation %d-255, brightness %d-255.",
+                                    h, sat, val, picked.range.hMin, picked.range.hMax, picked.range.sMin, picked.range.vMin);
+                            }
+                            else
+                            {
+                                DockingApps::console.AddLog("[warning] Extensometer: the clicked point is not a marker colour (H %d, S %d, V %d: grey, white or too dark). Click the middle of a marker.",
+                                    h, sat, val);
+                            }
+                        }
                         // ---------------------------
 
                         ImGui::Spacing();
@@ -4494,6 +4590,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
              "The laser-cut sheet (FlexiDESIGNER .fs / .dxf, Ø6 mm circles on printed A4), the laser settings, a 3D-printed placement guide "
              "and 3D-printable specimens are in the \"extensometer-tracking-marker\" release on GitHub; see docs/extensometer-markers.md.");
         Item("Even light without reflections matters most. The Mask (binary) and Side by side tabs show what is found as a marker.");
+        Item("Marker colour: \"Pick from image\" (Color Segmentation), then click the middle of a marker in the camera image.");
         Item("Higher resolution gives finer strain; if the frames per second drop a lot, choose a lower one.");
         Item("Smoothing (default 0.25 s): more is calmer but lags the load. Dead-band (default 0.05 px): keep it about 1-2 times the measured noise shown under it.");
         Item("If the markers are lost for half a second during a test, the test is paused.");

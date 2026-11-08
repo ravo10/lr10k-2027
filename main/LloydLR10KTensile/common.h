@@ -402,6 +402,15 @@ struct AppExtensiometer
     std::atomic<float> smoothing_time_s{ 0.25f }; //!< Time constant of the distance smoothing (see ExtensometerFilter.h)
     std::atomic<float> deadband_px{ 0.05f };      //!< Dead-band of the distance smoothing (ExtensometerFilter::kDefaultDeadbandPx)
     std::atomic<float> noise_px{ 0.0f };          //!< Measured noise of the raw marker distance (NoiseMeter), 0 = not known yet
+    std::atomic<float> whole_pixel_share{ 0.0f }; //!< Share of frames (0..1) where a marker centre fell back to whole pixels
+
+    // Eyedropper (MarkerColourPick.h): the GUI asks for the colour at a point of the camera image, the camera thread
+    // samples the full-resolution frame and answers with the median HSV and whether it is a marker colour
+    std::atomic<bool> pick_requested{ false };
+    std::atomic<float> pick_x{ 0.0f }, pick_y{ 0.0f }; //!< The clicked point, 0..1 of the image's width and height
+    std::atomic<bool> pick_ready{ false };             //!< An answer is waiting for the GUI
+    std::atomic<bool> pick_ok{ false };                //!< The answer is a marker colour (else grey/white/black)
+    std::atomic<int> pick_h{ 0 }, pick_s{ 0 }, pick_v{ 0 };
 
     //! \note Internal state for logic (Initial Length logic)
     std::atomic<bool> reset_requested{ false };

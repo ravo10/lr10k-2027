@@ -55,7 +55,7 @@ Without a laser cutter, a Ø5 mm hole punch through the green paper, or round gr
 ## In the software
 
 1. *View* > *Extensometer*, switch the camera on.
-2. Under *Color Segmentation (HSV)*, press *Default* (green), or pick the colour of your markers with *Target Color*. The *Mask (binary)* or *Side by side* tab must show the two dots as white, round blobs, and nothing else.
+2. Under *Color Segmentation (HSV)*, press **Pick from image** and click the middle of one marker in the camera image: the software takes the marker's real colour under this light (from the full-resolution camera frame) and sets the colour ranges from it, with room for shading at the marker's edges. *Default* (green) and the *Target Color* box also work. The *Mask (binary)* or *Side by side* tab must show the two dots as white, round blobs, and nothing else.
 3. Type L0 (60 mm with the placement guide). *Tracking* must show **2 markers**.
 4. *Set zero point* (F6) also zeroes the optical extension.
 
@@ -65,7 +65,7 @@ More about the extensometer (resolution, smoothing, dead-band, recording) is in 
 
 | Problem | Try |
 |---|---|
-| Only 1 marker found, or the markers are lost now and then | More even light; check that both dots are in the image and not in shadow; pick the colour again with *Target Color* while the specimen is in place. |
+| Only 1 marker found, or the markers are lost now and then | Use *Pick from image* on a marker, with the specimen in place and the lab light on. More even light; check that both dots are in the image and not in shadow; pick the colour again with *Target Color* while the specimen is in place. |
 | More than 2 markers found | Remove other green objects from the image, or narrow the *Region of Interest*. Look at the *Mask (binary)* tab to see what is found. |
-| The strain jumps or drifts at rest | Reflections or a dot that is not flat. Use matt paper, glue the dots flat, and check *Measured noise* under *Dead-band* (should be about 0.01-0.04 px). |
+| The strain jumps or drifts at rest | Reflections or a dot that is not flat. Use matt paper, glue the dots flat, and check *Measured noise* under *Dead-band* (should be about 0.01-0.04 px). If it also says *Whole-pixel centres in ... % of frames*, a marker is partly hidden (a grip or its shadow) or touches the edge of the region of interest: move the markers or the camera. |
 | The dots look oval or ragged in the mask | The laser burnt the edges (lower the power), or the camera is not square to the specimen. |
