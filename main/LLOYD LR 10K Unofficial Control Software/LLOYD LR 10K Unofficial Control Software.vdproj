@@ -461,8 +461,8 @@
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_3F5B2E64C3C44D3CAC6563576EC498A3"
             {
-            "SourcePath" = "8:..\\LloydLR10KTensile\\Release\\zlib1.dll"
-            "TargetName" = "8:zlib1.dll"
+            "SourcePath" = "8:..\\LloydLR10KTensile\\Release\\z.dll"
+            "TargetName" = "8:z.dll"
             "Tag" = "8:"
             "Folder" = "8:_C387EA1C89A84B26B587226D84BB2BE1"
             "Condition" = "8:"

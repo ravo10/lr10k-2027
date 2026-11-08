@@ -76,7 +76,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 zlib License
 
-(C) 1995-2026 Jean-loup Gailly and Mark Adler (zlib; installed by vcpkg, shipped as zlib1.dll)
+(C) 1995-2026 Jean-loup Gailly and Mark Adler (zlib; installed by vcpkg, shipped as z.dll)
 Copyright (C) 1998-2026 Gilles Vollant, (C) 2009-2010 Mathias Svensson (minizip;
 installed by vcpkg, shipped as minizip.dll)
 

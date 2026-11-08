@@ -65,7 +65,7 @@ The output goes to `main\LloydLR10KTensile\Debug\` or `...\Release\`. After each
 
 - `fonts`, `images`, `icons`, `effects` and `videos` (if downloaded)
 - the OpenCV DLLs (`opencv_world4120[d].dll`, `opencv_videoio_ffmpeg4120_64.dll`)
-- the vcpkg DLLs (`xlsxwriter.dll`, `zlib1.dll`, `minizip.dll`), done by vcpkg
+- the vcpkg DLLs (`xlsxwriter.dll`, `z.dll` (zlib; called `zlib1.dll` before zlib 1.3.2), `minizip.dll`), done by vcpkg
 
 ## 4. Run it on another PC (lab PC)
 
