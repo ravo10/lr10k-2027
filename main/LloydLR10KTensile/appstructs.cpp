@@ -1911,9 +1911,16 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
         // Set default size/pos only first time
         ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(1300, 715), ImGuiCond_Once);
+        {
+            // Large enough for the settings column without scrolling (it was 1300 x 715), but never larger than
+            // the screen. FirstUseEver: a size the user chose is kept (Once reset it at every start).
+            const ImVec2 work = ImGui::GetMainViewport()->WorkSize;
+            ImGui::SetNextWindowSize(ImVec2((std::min)(1360.0f, work.x * 0.95f), (std::min)(1000.0f, work.y * 0.92f)), ImGuiCond_FirstUseEver);
+        }
 
-        if (ImGui::Begin("Computer Vision Extensometer###Computer Vision Extensiometer", p_open, window_flags))
+        // New ID (was "###Computer Vision Extensiometer"): imgui.ini kept the old 1300 x 715 size, so the larger default
+        // above would never be used on a PC that had opened the window before
+        if (ImGui::Begin("Computer Vision Extensometer###Computer Vision Extensometer", p_open, window_flags))
         {
             ImGui::BeginDisabled(DockingApps::mainTabSystem.ThisTabIsNotRunningATest());
 
@@ -2137,7 +2144,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             const double l0px = g_Extensiometer.initial_dist_px.load();
                             const double l0mm = g_Extensiometer.gauge_length_mm.load();
                             if (l0px > 0.0 && l0mm > 0.0)
-                                ImGui::TextDisabled("L0: %.1f px = %.2f mm (%.4f mm/px)", l0px, l0mm, l0mm / l0px);
+                                ImGui::TextDisabled("L0: %.1f px = %.2f mm\n(%.4f mm per pixel)", l0px, l0mm, l0mm / l0px); // Two lines: it was cut off
 
                             ImGui::Spacing();
                             ImGui::TextWrapped("Set zero point (or Start Test) also sets L0, so the extension starts at 0. After fracture the values may jump.");
@@ -2258,7 +2265,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                             const float noise = g_Extensiometer.noise_px.load();
                             const double l0Px = g_Extensiometer.initial_dist_px.load();
                             if (noise > 0.0f)
-                                ImGui::TextDisabled("Measured noise: %.3f px (%.4f %% strain)", noise, l0Px > 0.0 ? 100.0 * noise / l0Px : 0.0);
+                                ImGui::TextDisabled("Measured noise: %.3f px\n(%.4f %% strain)", noise, l0Px > 0.0 ? 100.0 * noise / l0Px : 0.0); // Two lines: it was cut off
                             else
                                 ImGui::TextDisabled("Measured noise: waiting for 2 markers");
                             const float wholePixel = g_Extensiometer.whole_pixel_share.load();
@@ -4502,7 +4509,7 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         Step(3, "Clamp the specimen.", "Move the crosshead with Up/Down (F2/F3, hold F4 for fast) until the specimen sits in the grips "
             "without load. Press \"Set zero point\" (F6). Choose where results are saved: File > Specify Storage Folder.");
         Step(4, "Optical extensometer (optional).", "Put two round Ø5 mm green (#00FF00) markers 60 mm apart on the specimen (see Extensometer markers in Tips). "
-            "View > Extensometer, switch the camera on, pick the marker colour, choose the resolution, "
+            "View > Extensometer, switch the camera on, press \"Pick from image\" and click the middle of a marker, choose the resolution, "
             "type the measured distance between the markers as L0, and check that Tracking shows 2 markers. "
             "\"Set zero point\" also zeroes the optical extension. Record > Record tests saves a video of each test.");
         Step(5, "Run the test.", "\"Start Test\" (F7). Pause (F9) and continue (F7) if needed; \"End Test\" (F8) after fracture. "
@@ -4593,6 +4600,10 @@ void AppMainWidgets::DocumentationWindowDraw(bool* p_open)
         Item("Marker colour: \"Pick from image\" (Color Segmentation), then click the middle of a marker in the camera image.");
         Item("Higher resolution gives finer strain; if the frames per second drop a lot, choose a lower one.");
         Item("Smoothing (default 0.25 s): more is calmer but lags the load. Dead-band (default 0.05 px): keep it about 1-2 times the measured noise shown under it.");
+        Item("Measured noise (under Dead-band): how much the marker distance jumps from frame to frame while nothing moves. "
+             "Below 0.05 px is good. Higher: move the camera closer so L0 spans more pixels, use more light (less image noise), "
+             "or a lower resolution with a higher frame rate. \"Whole-pixel centres in N % of frames\" means a marker is partly hidden "
+             "(by a grip or its shadow) or touches the edge of the region of interest.");
         Item("If the markers are lost for half a second during a test, the test is paused.");
         ImGui::Spacing();
     }

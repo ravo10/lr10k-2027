@@ -95,7 +95,7 @@ The extension is measured between two markers on the specimen, so only the speci
 Do steps 1-3 above, then:
 
 - **4a. Prepare.** Put two round markers on the specimen, across the part that will stretch: Ø5 mm dots of bright green (#00FF00) paper, 60 mm apart. The [marker guide](docs/extensometer-markers.md) shows how to make them with a laser cutter and place them with a 3D-printed guide (files in the [extensometer-tracking-marker release](https://github.com/ravo10/lr10k-2027/releases/tag/extensometer-tracking-marker-1.0)). Point a webcam at them (even light, no reflections, camera not moving).
-- **4b. Open the extensometer.** *View* > *Extensometer*, switch the camera on and pick the marker colour (*Color Segmentation*; the *Mask (binary)* or *Side by side* tab shows what is found). Choose the camera's resolution under *Camera Properties* (older cameras: 800 x 600 or 1280 x 720; 4K cameras: up to 3840 x 2160).
+- **4b. Open the extensometer.** *View* > *Extensometer*, switch the camera on, press **Pick from image** (*Color Segmentation*) and click the middle of a marker in the camera image; the *Mask (binary)* or *Side by side* tab shows what is found. Choose the camera's resolution under *Camera Properties* (older cameras: 800 x 600 or 1280 x 720; 4K cameras: up to 3840 x 2160).
 - **4c. Gauge length.** Measure the distance between the two markers as exactly as you can and type it as **L0**. *Tracking* must show **2 markers**.
 - **4d. Zero.** *Set zero point* (F6) also sets the optical zero (*Start Test* does it by default too). Turn on *Record* > *Record tests* in the extensometer window if you want a video of the test.
 

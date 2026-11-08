@@ -16,6 +16,7 @@ The four parts and their main files:
 | Calculations | TestCalc.h (`CalculateTensile`, `CalculateBending3Point`) | TestData.h (curve and points), MaterialCalc.h, LR10KMeasurement.h, LoadSafety.h |
 | GUI | appstructs.cpp (windows), main.cpp (main loop, DirectX 12) | TabSystem.cpp (tabs and test data), Calculator.cpp, styles.h |
 | Excel export | ExcelReport.h (what goes in the book, no I/O) | ExcelWriter (libxlsxwriter), ExcelExport.cpp (from a tab) |
+| Optical extensometer | `ExtensiometerWorkerThread` in appstructs.cpp (camera thread) and `ExtensiometerWindowDraw` (window) | ExtensometerCentroid.h (sub-pixel centres), ExtensometerTracking.h (which blobs are the markers), ExtensometerFilter.h (smoothing, dead-band, NoiseMeter), MarkerColourPick.h (eyedropper), CameraResolution.h |
 
 Files whose header says *Portable ... and unit tested* contain no Windows, ImGui or OpenCV code. Each has a test in `tests/`, which runs on every push (*Actions* > *Tests*). New logic should go in a header like that whenever possible, so it can be tested without the machine.
 
@@ -37,7 +38,7 @@ Files whose header says *Portable ... and unit tested* contain no Windows, ImGui
 | Serial reader | SerialReader | The ring buffer only |
 | Interpreter | LR10KMachine | Readings and status, through callbacks and LR10KStatus |
 | Connect / send setup / reconnect | `LR10KDataDeEncryptionSystem` (one at a time) | The machine and LR10KStatus |
-| Extensometer camera | `ExtensiometerWorkerThread` in appstructs.cpp | Atomics in `AppExtensiometer`; the recording paths under `recording_mutex` |
+| Extensometer camera | `ExtensiometerWorkerThread` in appstructs.cpp | Atomics in `AppExtensiometer` (also the eyedropper: the GUI sets `pick_requested` and the point, the thread answers with `pick_ready` and the colour; the measured noise and the whole-pixel share); the recording paths under `recording_mutex` |
 | Autosave writer | `Autosave::Writer` (AutosaveApp.cpp) | Only the copies of the data it is given (the JSON is made on the GUI thread, turned into text and written on this one) |
 
 Rules learned the hard way:
