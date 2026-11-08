@@ -87,10 +87,13 @@ struct Extra_Widgets {
         bool unSavedChanges = false;
 
         // Styling
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, (ImVec4)ImColor::HSV(r_color, 0.5f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, (ImVec4)ImColor::HSV(r_color, 0.6f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, (ImVec4)ImColor::HSV(r_color, 0.7f, 0.5f));
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, (ImVec4)ImColor::HSV(r_color, 0.9f, 0.9f));
+        // The theme's colours (r_color, a fixed hue per slider, is no longer used: unreadable on light themes)
+        (void)r_color;
+        const ThemePalette::Palette& sliderPalette = CurrentThemePalette();
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ThemeApply::Col(sliderPalette.button));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ThemeApply::Col(sliderPalette.headerHover));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ThemeApply::Col(sliderPalette.frameActive));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ThemeApply::Col(sliderPalette.accent));
         ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, sizeWidth);
 
         ImGui::BeginChild("##childAdjuster", ImVec2(sizeChildWidth, sizeChildHeight), false, ImGuiWindowFlags_NoBackground);
@@ -124,7 +127,7 @@ struct Extra_Widgets {
             float btnWidth = (sizeWidth / 2.0f) - (spacing / 2.0f);
 
             ImGui::PushButtonRepeat(true);
-            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(r_color, 0.5f, 0.5f));
+            ImGui::PushStyleColor(ImGuiCol_Button, ThemeApply::Col(sliderPalette.button));
 
             if (ImGui::Button("-", ImVec2(btnWidth, 30)) && LR10KAppGlobals::testing_speedAndPlotActual[settingIndex] > sliderMin)
             {
@@ -205,69 +208,19 @@ struct Extra_Widgets {
     }
 
     /**
-        @brief  Creates a button type 1 with color.
-        @param  labelText        -
-        @param  size             -
-        @param  hsv_redColorComp -
-        @param  blackTextColor   -
-        @retval                  -
+        @brief  A button in the theme's colours (they were fixed colours per button, unreadable on light themes).
+        @param  labelText - The label.
+        @param  size      - The size.
+        @param  role      - Normal; Primary for the main action of a panel (Start Test); Danger for one that stops
+                            something (Stop, End Test), red in every theme.
+        @retval           - True when pressed.
     **/
-    bool widgetCreate_ButtonType1(const char* labelText, const ImVec2 size, float hsv_redColorComp = -1, bool blackTextColor = false)
+    bool widgetCreate_ButtonType1(const char* labelText, const ImVec2 size, ThemeApply::ButtonRole role = ThemeApply::ButtonRole::Normal)
     {
-        if (hsv_redColorComp >= 0)
-        {
-            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(hsv_redColorComp, 0.72f, 0.57f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(hsv_redColorComp, 0.8f, 0.7f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(hsv_redColorComp, 0.9f, 0.8f));
-
-            if (blackTextColor)
-                ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::HSV(0, 0, 0));
-            else
-                ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::HSV(0, 0, 1));
-        }
-
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2);
-
-        bool imgButton = ImGui::Button(labelText, size);
-
-        ImGui::PopStyleVar();
-
-        if (hsv_redColorComp >= 0) ImGui::PopStyleColor(4);
-
-        return imgButton;
-    }
-
-    /**
-        @brief  Creates a button type 2 with color.
-        @param  labelText        -
-        @param  size             -
-        @param  hsv_redColorComp -
-        @param  blackTextColor   -
-        @retval                  -
-    **/
-    bool widgetCreate_ButtonType2(const char* labelText, const ImVec2 size, float hsv_redColorComp = -1, bool blackTextColor = false)
-    {
-        if (hsv_redColorComp >= 0)
-        {
-            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(hsv_redColorComp, 0.06f, 0.8f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(hsv_redColorComp, 0.07f, 0.9f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(hsv_redColorComp, 0.08f, 1.0f));
-
-            if (blackTextColor)
-                ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::HSV(0, 0, 0));
-            else
-                ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)ImColor::HSV(0, 0, 1));
-        }
-
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2);
-
-        bool imgButton = ImGui::Button(labelText, size);
-
-        ImGui::PopStyleVar();
-
-        if (hsv_redColorComp >= 0) ImGui::PopStyleColor(4);
-
-        return imgButton;
+        const int pushed = ThemeApply::PushButtonColors(CurrentThemePalette(), role);
+        const bool pressed = ImGui::Button(labelText, size);
+        ImGui::PopStyleColor(pushed);
+        return pressed;
     }
 };
 
@@ -830,15 +783,13 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
         if (ImGui::BeginMainMenuBar()) {
             // Documentation/help
             ImGui::PushID("##Menu Buttons");
-            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.05f, 0.92f, 0.95f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.05f, 1.1f, 0.95f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.05f, 0.7f, 0.95f));
+            const int helpColors = ThemeApply::PushButtonColors(CurrentThemePalette(), ThemeApply::ButtonRole::Primary);
             if (ImGui::Button("Help"))
             {
                 // Open a documentation/help window
                 g_WindowStates.show_docs = !g_WindowStates.show_docs;
             }
-            ImGui::PopStyleColor(3);
+            ImGui::PopStyleColor(helpColors);
             ImGui::PopID();
 
             ImGui::Separator();
@@ -1373,6 +1324,10 @@ void AppMain::Draw(TabControl::TabTestDataClass* tabData, bool* enableSound, boo
     {
         // First start, "Default settings & setup", or a new default layout (AppLayout::kVersion)
         DefaultLayout::Build(dockspace_id, ImGui::GetContentRegionAvail(), main_scale);
+        // The default layout has Settings (with the Calculator as a tab) on the right and the Console at the bottom:
+        // show them, otherwise their places stay empty and the graph and side panel fill the window
+        g_WindowStates.show_settings = true;
+        g_WindowStates.show_console = true;
         AppLayout::rebuildRequested = false;
         DockingApps::mainFileSystem.SaveApplicationSettings(); // Remembers the layout version
     }
@@ -1964,9 +1919,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 || tabData->test_finished
                 || tabData->test_unfinished_test_started
                 || tabData->test_running_test);
-            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.11f, 0.72f, 0.57f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.11f, 0.8f, 0.7f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.11f, 0.9f, 0.8f));
+            const int zeroColors = ThemeApply::PushButtonColors(CurrentThemePalette(), ThemeApply::ButtonRole::Normal); // Was a fixed colour
 
             if (ImGui::Button("Set zero point"))
             {
@@ -1976,7 +1929,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 }
             }
             ImGui::SetItemTooltip("Hotkey: F6\nAlso sets the optical L0, so the extension starts at 0.");
-            ImGui::PopStyleColor(3);
+            ImGui::PopStyleColor(zeroColors);
             ImGui::EndDisabled();
 
             ImGui::SameLine();
@@ -1990,9 +1943,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
                 || tabData->test_unfinished_test_started
                 || tabData->test_running_test
                 || (!LR10KAppGlobals::MachineStatus().IsZeroPointSet() && !mainGUIGlobals::useDemoMode));
-            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.23f, 0.72f, 0.57f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.23f, 0.8f, 0.7f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.23f, 0.9f, 0.8f));
+            const int folderColors = ThemeApply::PushButtonColors(CurrentThemePalette(), ThemeApply::ButtonRole::Primary); // Was a fixed colour
 
             if (ImGui::Button(buttonType1Text.c_str()))
             {
@@ -2001,7 +1952,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
             ImGui::SetItemTooltip(tabData->current_temp_preSaveLocation.empty()
                 ? "Choose the folder where the test is saved automatically first."
                 : "Start the test. Hotkey: F7");
-            ImGui::PopStyleColor(3);
+            ImGui::PopStyleColor(folderColors);
             ImGui::EndDisabled();
 
             // Recording status (Record menu)
@@ -2169,7 +2120,7 @@ void AppMainWidgets::ExtensiometerWindowDraw(TabControl::TabTestDataClass* tabDa
 
                         if (g_pResourceCamera != nullptr && g_hGpuDescCamera.ptr != 0) {
                             ImGui::Text("Gauge length L0 = distance between the two markers:");
-                            Extra::tools.TextWithWhiteBackground(ImVec4(0.894f, 0.102f, 0.110f, 1.0f), "Measure it as accurately as possible (e.g. with a caliper)!");
+                            ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textError), "Measure it as accurately as possible (e.g. with a caliper)!");
                             ImGui::TextWrapped("The strain comes from the markers alone; extension = strain x L0. "
                                 "Check: move e.g. 5 mm and compare with the machine's extension.");
                             ImGui::InputFloat("##Gauge length 2", &LR10KAppGlobals::calc_length, LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_float(LR10KAppGlobals::calc_length), (0.1f), LR10KDataDeEncryptionSystem::figureOutHowManyDecimalPlacesToShowAccuracy_char(LR10KAppGlobals::calc_length), ImGuiInputTextFlags_CharsScientific); ImGui::SameLine(); ImGui::Text(LR10KAppGlobals::GetUnitOption<const char*>(0));
@@ -2511,9 +2462,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
     ImGui::Spacing();
     ImGui::BeginDisabled(disableTestSettingsAdjustments || !LR10KAppGlobals::MachineStatus().IsMachineConnected() || LR10KDataDeEncryptionSystem::m_pThreadLR10KIsLoading_isLoading.load());
     ImGui::PushID("##Apply to LR 10K");
-    ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(0.447f, 0.5f, 0.6f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.447f, 0.6f, 0.7f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(0.447f, 0.7f, 0.8f));
+    const int applyColors = ThemeApply::PushButtonColors(CurrentThemePalette(), ThemeApply::ButtonRole::Primary); // Was a fixed colour
 
     if (ImGui::Button("Apply to LR 10K", { 234, 50 }) && !tabData->test_unfinished_test_started)
     {
@@ -2532,7 +2481,7 @@ void AppMainWidgets::SettingsWindowDraw(TabControl::TabTestDataClass* tabData, b
     ImGui::SameLine();
     ImGui::SetItemTooltip("Only needed for Jog Speed change; all changes will be applied when a new test is started.");
 
-    ImGui::PopStyleColor(3);
+    ImGui::PopStyleColor(applyColors);
     ImGui::PopID();
     ImGui::EndDisabled();
 
@@ -3000,7 +2949,7 @@ void realtimeDataPlot(TabControl::TabTestDataClass* tabData, bool hideLR10KSetti
     ImVec2 plot_max = ImVec2(plot_min.x + plot_size.x, plot_min.y + plot_size.y);
 
     //ImU32 lineColor = ImGui::GetColorU32(ImGuiCol_CheckMark);
-    ImU32 lineColor = ImColor::HSV(12.0f / 360.0f, 0.762f, 0.975f, 1.0f);
+    ImU32 lineColor = ImGui::ColorConvertFloat4ToU32(ThemeApply::Col(CurrentThemePalette().accent)); // Was a fixed orange
     ImU32 labelBgColor = ImGui::GetColorU32(ImGuiCol_PopupBg, 0.85f);
     ImU32 labelTextColor = ImGui::GetColorU32(ImGuiCol_Text);
 
@@ -3319,7 +3268,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
 
     // Graph buttons in their own colours (violet / slate blue), apart from the machine buttons
     // (green start, red stop/end, orange up/down, beige zero point, teal pause)
-    if (Extra::widgets.widgetCreate_ButtonType1("Toggle Graph Type", { 180, 45 }, 0.77f)) // Violet
+    if (Extra::widgets.widgetCreate_ButtonType1("Toggle Graph Type", { 180, 45 }))
     {
         LR10KAppGlobals::showStressStrain = !LR10KAppGlobals::showStressStrain;
         tabData->request_graph_autofit = true;
@@ -3331,7 +3280,7 @@ void AppMainWidgets::PlotWindowDraw(TabControl::TabTestDataClass* tabData)
         : "Showing load-extension. Click to show stress-strain.");
 
     ImGui::SameLine();
-    if (Extra::widgets.widgetCreate_ButtonType1("Reset Graph View", { 180, 45 }, 0.60f)) // Slate blue
+    if (Extra::widgets.widgetCreate_ButtonType1("Reset Graph View", { 180, 45 }))
         tabData->request_graph_autofit = true;
     ImGui::SetItemTooltip("Fit the axes to all of the data again (after zooming or panning).");
 
@@ -4050,7 +3999,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
             || (nextSpecimen.crossSection == MaterialCalc::Circular ? nextSpecimen.diameter < 0.1
                                                                     : (nextSpecimen.thickness < 0.1 || nextSpecimen.width < 0.1)));
 
-    if (Extra::widgets.widgetCreate_ButtonType1(buttonType1Text.c_str(), {sizeWidth, sizeHeight}, 0.23f)) // Green
+    if (Extra::widgets.widgetCreate_ButtonType1(buttonType1Text.c_str(), {sizeWidth, sizeHeight}, ThemeApply::ButtonRole::Primary))
     {
         // (This used to check the tab's own thickness/width, which are 0.01 placeholders on a new tab: the
         // warning showed every time the global dimensions were used, and circular specimens were not checked.)
@@ -4118,7 +4067,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::BeginDisabled(
         !tabData->test_unfinished_test_started
         || tabData->test_finished);
-    if (Extra::widgets.widgetCreate_ButtonType1("End Test", { sizeWidth, sizeHeight }, 0.00f)) // Red
+    if (Extra::widgets.widgetCreate_ButtonType1("End Test", { sizeWidth, sizeHeight }, ThemeApply::ButtonRole::Danger))
         DockingApps::console.ExecCommand(tabData, "end");
     ImGui::SetItemTooltip("Hotkey: F8");
     ImGui::EndDisabled();
@@ -4130,7 +4079,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::BeginDisabled(
         !tabData->test_running_test
         || !tabData->test_unfinished_test_started);
-    if (Extra::widgets.widgetCreate_ButtonType1("Pause Test", { sizeWidth, sizeHeight }, 1.47f)) // Light blue
+    if (Extra::widgets.widgetCreate_ButtonType1("Pause Test", { sizeWidth, sizeHeight }))
         DockingApps::console.ExecCommand(tabData, "pause");
     ImGui::SetItemTooltip("Hotkey: F9");
     ImGui::EndDisabled();
@@ -4140,7 +4089,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::BeginDisabled(
         tabData->test_running_test
         || !tabData->test_unfinished_test_started);
-    if (Extra::widgets.widgetCreate_ButtonType2("Continue Test", { sizeWidth, sizeHeight }, 1.93f, true)) // Light gray
+    if (Extra::widgets.widgetCreate_ButtonType1("Continue Test", { sizeWidth, sizeHeight }))
         DockingApps::console.ExecCommand(tabData, "continue");
     if (TabControl::CheckIfDistanceTravelControlActivated() && TabControl::LR10KTravelDistanceActionAfter == 1)
         ImGui::SetItemTooltip("Hotkey: F7\nTest will only be able to continue, if the distance travelled is less than the distance set.");
@@ -4154,7 +4103,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
     ImGui::PopStyleVar();
 
     ImGui::BeginDisabled(!LR10KAppGlobals::MachineStatus().IsMachineConnected() || tabData->test_finished);
-    if (Extra::widgets.widgetCreate_ButtonType1("Set zero point", { sizeWidth, sizeHeight }, 0.11f)) // Beige
+    if (Extra::widgets.widgetCreate_ButtonType1("Set zero point", { sizeWidth, sizeHeight }))
     {
         if (LR10KControlSystem::SetZeroPoint(tabData))
         {
@@ -4166,7 +4115,7 @@ void AppMainWidgets::ControlTestingCycleWindowDraw(TabControl::TabTestDataClass*
 
     ImGui::SameLine();
     ImGui::BeginDisabled(mainGUIGlobals::useDemoMode || !LR10KAppGlobals::MachineStatus().IsMachineConnected() || tabData->test_running_test);
-    if (Extra::widgets.widgetCreate_ButtonType2("Return to zero point", { sizeWidth, sizeHeight }, 0.6f)) // Light gray
+    if (Extra::widgets.widgetCreate_ButtonType1("Return to zero point", { sizeWidth, sizeHeight }))
         DockingApps::console.ExecCommand(tabData, "rezero");
     ImGui::SetItemTooltip("Move back to the zero point. Hotkey: F5");
     ImGui::EndDisabled();
@@ -4323,7 +4272,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
     );
 
     // Stop
-    if (Extra::widgets.widgetCreate_ButtonType1("Stop", { sizeWidth1 + 15, sizeHeight1 }, 0.00f)) // Red
+    if (Extra::widgets.widgetCreate_ButtonType1("Stop", { sizeWidth1 + 15, sizeHeight1 }, ThemeApply::ButtonRole::Danger))
     {
         DockingApps::console.ExecCommand(tabData, "stop");
         disableAllControls();
@@ -4333,7 +4282,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
     // Up
     ImGui::SameLine();
     ImGui::BeginDisabled(disableControl[0]);
-    if (Extra::widgets.widgetCreate_ButtonType1("Up", { sizeWidth1, sizeHeight1 }, 0.04f)) // Orange
+    if (Extra::widgets.widgetCreate_ButtonType1("Up", { sizeWidth1, sizeHeight1 }))
     {
         DockingApps::console.ExecCommand(tabData, "up");
 
@@ -4349,7 +4298,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
     // Down
     ImGui::SameLine();
     ImGui::BeginDisabled(disableControl[1]);
-    if (Extra::widgets.widgetCreate_ButtonType1("Down", { sizeWidth1, sizeHeight1 }, 0.04f)) // Orange
+    if (Extra::widgets.widgetCreate_ButtonType1("Down", { sizeWidth1, sizeHeight1 }))
     {
         DockingApps::console.ExecCommand(tabData, "down");
 
@@ -4367,7 +4316,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
     ImGui::Spacing();
     ImGui::PopStyleVar();
     // ImGui::BeginDisabled(disableControl[2]);
-    if (Extra::widgets.widgetCreate_ButtonType1("Fast up", { sizeWidth2, sizeHeight2 }, 0.04f)) // Orange
+    if (Extra::widgets.widgetCreate_ButtonType1("Fast up", { sizeWidth2, sizeHeight2 }))
     {
         DockingApps::console.ExecCommand(tabData, "fup");
 
@@ -4384,7 +4333,7 @@ void AppMainWidgets::ControlNavigationWindowDraw(TabControl::TabTestDataClass* t
     // Fast down
     ImGui::SameLine();
     // ImGui::BeginDisabled(disableControl[3]);
-    if (Extra::widgets.widgetCreate_ButtonType1("Fast down", { sizeWidth2, sizeHeight2 }, 0.04f)) // Orange
+    if (Extra::widgets.widgetCreate_ButtonType1("Fast down", { sizeWidth2, sizeHeight2 }))
     {
         DockingApps::console.ExecCommand(tabData, "fdown");
 

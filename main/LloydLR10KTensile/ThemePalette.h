@@ -71,6 +71,9 @@ namespace ThemePalette
         float curveFillAlpha;
         Rgb series[7];           //!< Other lines (engineering / true stress, ...), in order
         Rgb point, pointValid, pointError; //!< Crucial points; E-modulus limits valid / crossed
+
+        // Buttons that stop something (Stop, End Test): red in every theme, text in `text` on them
+        Rgb danger, dangerHover, dangerActive;
     };
 
     // -------------------------------------------------------------------------
@@ -89,6 +92,7 @@ namespace ThemePalette
         /* curve */ 0xceb9fc, /* curveFill */ 0x7800f0, 0.28f,
         /* series */ { 0xceb9fc, 0xff8a3d, 0x9595f9, 0xe4ff7d, 0xdadaff, 0xff6202, 0x7d6bd6 },
         /* point */ 0xffffff, /* pointValid */ 0xe4ff7d, /* pointError */ 0xff6b6b,
+        /* danger */ 0x8a1c3c, 0xa8264c, 0x6e1530,
     };
 
     inline const Palette kNito = {
@@ -105,6 +109,7 @@ namespace ThemePalette
         /* curve */ 0x00734e, /* curveFill */ 0x2ec78f, 0.30f,
         /* series */ { 0x00734e, 0x2ec78f, 0x6d5de3, 0xc3eddf, 0xff85c5, 0x003b00, 0xf4e6b5 },
         /* point */ 0x212427, /* pointValid */ 0x00734e, /* pointError */ 0xd32f2f,
+        /* danger */ 0xf7cccc, 0xf2b0b0, 0xea9494,
     };
 
     inline const Palette kLight = {
@@ -121,6 +126,7 @@ namespace ThemePalette
         /* curve */ 0x2563eb, /* curveFill */ 0x2563eb, 0.15f,
         /* series */ { 0x2563eb, 0xe4572e, 0x16a34a, 0x9333ea, 0xd97706, 0x0891b2, 0x4b5563 },
         /* point */ 0x1b1f24, /* pointValid */ 0x16a34a, /* pointError */ 0xdc2626,
+        /* danger */ 0xf8d2d2, 0xf3b6b6, 0xec9c9c,
     };
 
     inline const Palette kDark = {
@@ -137,6 +143,7 @@ namespace ThemePalette
         /* curve */ 0x6aa6ff, /* curveFill */ 0x4c8df6, 0.25f,
         /* series */ { 0x6aa6ff, 0xff8a65, 0x4cd6a0, 0xc792ea, 0xffd166, 0x4dd0e1, 0xb0bec5 },
         /* point */ 0xffffff, /* pointValid */ 0x4cd6a0, /* pointError */ 0xff6b6b,
+        /* danger */ 0x7c2630, 0x96303c, 0x5f1d25,
     };
 
     inline const Palette* const kAll[] = { &kUsn, &kNito, &kLight, &kDark };

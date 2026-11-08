@@ -36,9 +36,10 @@ static void Frame(bool build, float scale)
     ImGui::SetNextWindowSize(ImVec2(398, 836), ImGuiCond_FirstUseEver);
     ImGui::Begin(DefaultLayout::kSidePanel, nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse); ImGui::Text("Live"); ImGui::End();
     ImGui::Begin(DefaultLayout::kGraph); ImGui::Text("plot"); ImGui::End();
-    ImGui::Begin(DefaultLayout::kSettings); ImGui::Text("settings"); ImGui::End();
-    ImGui::Begin(DefaultLayout::kCalculator); ImGui::Text("calculator"); ImGui::End();
-    ImGui::Begin(DefaultLayout::kConsole); ImGui::Text("log"); ImGui::End();
+    // With the same flags as the app (main.cpp): NoDocking there kept them from docking, and this test did not see it
+    ImGui::Begin(DefaultLayout::kSettings, nullptr, DefaultLayout::kPanelWindowFlags); ImGui::Text("settings"); ImGui::End();
+    ImGui::Begin(DefaultLayout::kCalculator, nullptr, DefaultLayout::kPanelWindowFlags); ImGui::Text("calculator"); ImGui::End();
+    ImGui::Begin(DefaultLayout::kConsole, nullptr, DefaultLayout::kPanelWindowFlags); ImGui::Text("log"); ImGui::End();
     ImGui::Render();
 }
 

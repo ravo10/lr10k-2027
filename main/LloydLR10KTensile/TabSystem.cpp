@@ -303,7 +303,7 @@ void AppMainTabSystem::CreateTabMenuSystem(TabControl::TabTestDataClass* tabData
 
                 if (loopedTabData->test_finished)
                 {
-                    Extra::tools.TextWithWhiteBackground(ImVec4(0.894f, 0.102f, 0.110f, 1.0f), "Finished!");
+                    ImGui::TextColored(ThemeApply::Col(CurrentThemePalette().textSuccess), "Finished!");
                     ImGui::Text("This test is finished. It was completed: %s", loopedTabData->date.c_str());
                     if (!loopedTabData->loadedFromFileName.empty())
                         ImGui::Text("(Represents same data as in file: %s).", loopedTabData->loadedFromFileName.c_str());

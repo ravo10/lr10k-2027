@@ -27,6 +27,7 @@
 
 #include "resource.h"
 #include "appstructs.h"
+#include "DefaultLayout.h"
 #include "CrashHandler.h"
 
 #ifdef _DEBUG
@@ -743,9 +744,7 @@ int main(int argc, char** argv)
 
 					// View Options
                     // Common window flags
-                    ImGuiWindowFlags viewOptions_window_flags = 0;
-                    viewOptions_window_flags |= ImGuiWindowFlags_NoCollapse;
-                    viewOptions_window_flags |= ImGuiWindowFlags_NoDocking;
+                    const ImGuiWindowFlags viewOptions_window_flags = DefaultLayout::kPanelWindowFlags; // Dockable (DefaultLayout.h)
                     
                     // Settings for LR 10K
 					if (g_WindowStates.show_settings)

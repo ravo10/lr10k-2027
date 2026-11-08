@@ -46,11 +46,12 @@ static void test_themes()
         // Text on everything it is drawn on (WCAG AA 4.5:1)
         const Rgb surfaces[] = { p.windowBg, p.panelBg, p.menuBarBg, p.frameBg, p.frameHover, p.frameActive,
                                  p.button, p.buttonHover, p.buttonActive, p.header, p.headerHover, p.headerActive,
-                                 p.tab, p.tabHover, p.tabSelected, p.plotBg };
+                                 p.tab, p.tabHover, p.tabSelected, p.plotBg, p.danger, p.dangerHover, p.dangerActive };
         const char* names[] = { "text on window", "text on panel", "text on menu bar", "text on field", "text on hovered field",
                                 "text on active field", "text on button", "text on hovered button", "text on pressed button",
                                 "text on header", "text on hovered header", "text on active header", "text on tab",
-                                "text on hovered tab", "text on selected tab", "text on plot" };
+                                "text on hovered tab", "text on selected tab", "text on plot",
+                                "text on stop button", "text on hovered stop button", "text on pressed stop button" };
         for (int i = 0; i < (int)(sizeof(surfaces) / sizeof(surfaces[0])); ++i)
             Need(p, names[i], p.text, surfaces[i], 4.5);
 
@@ -75,6 +76,12 @@ static void test_themes()
         Need(p, "crossed E-limit on plot", p.pointError, p.plotBg, 3.0);
         Need(p, "curve on its fill", p.curve, Blend(p.curveFill, p.plotBg, p.curveFillAlpha), 3.0);
         Need(p, "point on the fill", p.point, Blend(p.curveFill, p.plotBg, p.curveFillAlpha), 3.0);
+
+        // Stop / End Test are red in every theme (red channel clearly the largest)
+        for (Rgb d : { p.danger, p.dangerHover, p.dangerActive })
+            CHECK(((d >> 16) & 0xff) > ((d >> 8) & 0xff) + 30 && ((d >> 16) & 0xff) > (d & 0xff) + 30);
+        // A stop button must not look like a normal one
+        CHECK(p.danger != p.button);
 
         // The two stress lines (engineering, true) must be told apart
         CHECK(p.series[0] != p.series[1]);

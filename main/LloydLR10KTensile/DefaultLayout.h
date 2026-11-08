@@ -25,6 +25,10 @@ namespace DefaultLayout
     inline constexpr const char* kCalculator = "Calculator";
     inline constexpr const char* kConsole = "LR 10K Console";
 
+    //! Flags for Settings, Calculator and Console. They must not include ImGuiWindowFlags_NoDocking: they had it,
+    //! so the layout could not dock them and they floated as separate windows.
+    inline constexpr ImGuiWindowFlags kPanelWindowFlags = ImGuiWindowFlags_NoCollapse;
+
     /**
         @brief  Builds the layout in the dock space `dockspaceId` (call before ImGui::DockSpace(), and before the
                 windows are begun in this frame).
@@ -41,7 +45,7 @@ namespace DefaultLayout
         ImGuiID centre = dockspaceId;
         const float leftFraction = fraction(410.0f, size.x);
         const ImGuiID left = ImGui::DockBuilderSplitNode(centre, ImGuiDir_Left, leftFraction, nullptr, &centre);
-        const ImGuiID right = ImGui::DockBuilderSplitNode(centre, ImGuiDir_Right, fraction(340.0f, size.x * (1.0f - leftFraction)), nullptr, &centre);
+        const ImGuiID right = ImGui::DockBuilderSplitNode(centre, ImGuiDir_Right, fraction(500.0f, size.x * (1.0f - leftFraction)), nullptr, &centre);
         const ImGuiID bottom = ImGui::DockBuilderSplitNode(centre, ImGuiDir_Down, 0.24f, nullptr, &centre);
 
         ImGui::DockBuilderDockWindow(kSidePanel, left);

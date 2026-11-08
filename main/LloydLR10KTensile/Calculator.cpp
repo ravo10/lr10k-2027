@@ -451,14 +451,12 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
         // The theme's colours (they were fixed colours for dark themes: white or yellow text was unreadable on light ones)
         const ThemePalette::Palette& themePalette = CurrentThemePalette();
         const ImVec4 colorNormal = ImGui::GetStyle().Colors[ImGuiCol_Text];
-        const ImVec4 colorNormal2 = ImVec4(0.695f, 1.000f, 0.442f, 0.784f); // On its own dark box (TextWithBackground)
+        const ImVec4 colorNormal2 = ThemeApply::Col(themePalette.accent); // The bar beside the E-modulus (TextWithBackground)
         const ImVec4 colorWarning = ThemeApply::Col(themePalette.textWarning);
 
         // Used for local (green) or global colors (orange): separators, and a tint behind the button text
         const ImVec4 greenColor = ThemeApply::Col(themePalette.textSuccess);
-        const ImVec4 greenColor2 = ThemeApply::Col(themePalette.textSuccess, 0.30f);
         const ImVec4 orangeColor = ThemeApply::Col(themePalette.textWarning);
-        const ImVec4 orangeColor2 = ThemeApply::Col(themePalette.textWarning, 0.30f);
 
         // The colours of the engineering and true stress lines in the graph
         const ImVec4 IMPLOT_RED = ThemeApply::Col(themePalette.series[0]);
@@ -485,7 +483,6 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             {
                 ImGui::Text("Load global material\nproperties into local\nvalues.");
 
-                ImGui::PushStyleColor(ImGuiCol_Button, greenColor2);
                 if (ImGui::Button("Set local values"))
                 {
                     // Update the local material properties from the global values
@@ -493,7 +490,6 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
                     tabData->NeedsRecalculation.markAsUnsaved = true;
                     tabData->NeedsRecalculation.recalculate = true;
                 }
-                ImGui::PopStyleColor();
                 ImGui::SetItemTooltip("Load global material properties into\nthe local values (this test).");
             }
             ImGui::EndChild();
@@ -504,13 +500,11 @@ void AppCalculator::Draw(TabControl::TabTestDataClass* tabData, bool* showCalcul
             {
                 ImGui::Text("Set global material\nproperties from local\nvalues.");
 
-                ImGui::PushStyleColor(ImGuiCol_Button, orangeColor2);
                 if (ImGui::Button("Set global values"))
                 {
                     // Update the global material properties from the local values
                     DockingApps::calculator.SetGlobalMaterialProperties(tabData, LR10KAppGlobals::areaOptionPicked, tabData->thickness, tabData->width, tabData->length, tabData->diameter);
                 }
-                ImGui::PopStyleColor();
                 ImGui::SetItemTooltip("Insert and save global material\nproperties from the local values (this test).");
             }
             ImGui::EndChild();

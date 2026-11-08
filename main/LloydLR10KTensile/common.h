@@ -237,12 +237,17 @@ struct Extra_Tools {
         // Calculate Box Size
         ImVec2 rect_max = ImVec2(pos.x + textSize.x + padding.x * 2.0f, pos.y + textSize.y + padding.y * 2.0f);
 
-        // Draw White Box
-        draw_list->AddRectFilled(pos, rect_max, bcolor, 4.0f);
+        // The box in the theme's field colour, with a bar in the given colour on its left; the text in the theme's
+        // text colour. (It was a white box with coloured text: light series colours on white were unreadable.)
+        (void)bcolor;
+        const float bar = 3.0f;
+        rect_max.x += bar;
+        draw_list->AddRectFilled(pos, rect_max, ImGui::GetColorU32(ImGuiCol_FrameBg), ImGui::GetStyle().FrameRounding);
+        draw_list->AddRectFilled(pos, ImVec2(pos.x + bar, rect_max.y), ImGui::ColorConvertFloat4ToU32(textColor));
 
         // Draw Text (Shifted by padding)
-        ImGui::SetCursorScreenPos(ImVec2(pos.x + padding.x, pos.y + padding.y));
-        ImGui::TextColored(textColor, "%s", buf);
+        ImGui::SetCursorScreenPos(ImVec2(pos.x + bar + padding.x, pos.y + padding.y));
+        ImGui::TextUnformatted(buf);
 
         // Reset Cursor for the next UI element
         ImGui::SetCursorScreenPos(ImVec2(pos.x, rect_max.y + ImGui::GetStyle().ItemSpacing.y));
@@ -1153,7 +1158,7 @@ struct AppMainExcel
 namespace AppLayout
 {
     //! Raise when the default layout changes: every PC gets the new one once (saved as "gui_layoutVersion").
-    constexpr int kVersion = 1;
+    constexpr int kVersion = 2; // 2: Settings and Console shown in the default layout
     inline bool rebuildRequested = false; //!< Build the default layout in the next frame (first start, reset, new version)
 }
 

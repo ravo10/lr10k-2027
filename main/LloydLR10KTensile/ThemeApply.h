@@ -186,6 +186,25 @@ namespace ThemeApply
         style.WindowRounding = viewports ? 0.0f : 6.0f;
     }
 
+    //! What a button does, for its colour: a normal button, the main action of a panel, or one that stops something.
+    enum class ButtonRole { Normal, Primary, Danger };
+
+    /**
+        @brief  Pushes the theme's colours for a button with this role (Button, ButtonHovered, ButtonActive, Text).
+        @return The number of colours pushed: pass it to ImGui::PopStyleColor().
+    **/
+    inline int PushButtonColors(const ThemePalette::Palette& p, ButtonRole role)
+    {
+        ThemePalette::Rgb normal = p.button, hovered = p.buttonHover, active = p.buttonActive;
+        if (role == ButtonRole::Primary) { normal = p.buttonHover; hovered = p.buttonActive; active = p.buttonActive; }
+        if (role == ButtonRole::Danger) { normal = p.danger; hovered = p.dangerHover; active = p.dangerActive; }
+        ImGui::PushStyleColor(ImGuiCol_Button, Col(normal));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Col(hovered));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, Col(active));
+        ImGui::PushStyleColor(ImGuiCol_Text, Col(p.text));
+        return 4;
+    }
+
     //! Everything for one theme (before the rounded corners and the DPI scale).
     inline void Apply(const ThemePalette::Palette& p)
     {
