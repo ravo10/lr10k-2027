@@ -97,6 +97,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | File | What it does |
 |---|---|
 | `tools/theme_preview.cpp` | Draws a mock-up of the main window in each theme with the real Dear ImGui, ImPlot, fonts and `ThemeApply.h`, in software (no Windows, no GPU), and writes one picture per theme. Run it after changing a colour; CI builds and runs it on every push. The pictures in `docs/themes/` (used by the README) come from it. Build command at the top of the file |
+| `tools/ui-sounds/make_sounds.py` | Synthesises the six UI sounds in `effects/` (click, confirm, start/end test, saved, error) and other options for them; which option is in use: `tools/ui-sounds/README.md` |
 | `tools/sysml-check/CheckSysml.java` | Compiles SysML v2 files with the SysML v2 Pilot Implementation (the reference compiler) and prints each problem with its line; used by the *sysml-model* CI job. Build and run commands at the top of the file |
 | `tools/architecture-vsdx/` | Makes `docs/architecture/lr10k-architecture.vsdx` (Visio, one page per diagram) from the Mermaid diagrams in `docs/architecture/README.md`: `extract.js` draws them with Mermaid in headless Chromium and reads out the shapes, `mermaid_to_vsdx.py` writes the Visio file (standard library only) |
 | `tools/annotate_layout.py` | Draws `docs/themes/layout_annotated.png`: `theme_USN.png` with the parts of the main window outlined and numbered (README, *The main window*) |

@@ -121,6 +121,12 @@ Full license texts next to the fonts: main/LloydLR10KTensile/fonts/LICENSE-Inter
 and main/LloydLR10KTensile/fonts/LICENSE-JetBrainsMono.txt.
 
 
+Sounds
+
+The sounds in main/LloydLR10KTensile/effects/ were synthesised for this project
+(tools/ui-sounds/make_sounds.py) and are covered by the MIT License above.
+
+
 Trademarks
 
 The USN name and logo (images/ and icons/) belong to the University of South-Eastern
