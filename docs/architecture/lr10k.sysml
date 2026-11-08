@@ -10,7 +10,9 @@
  *
  * Names follow the source files (see ARCHITECTURE.md). Open it in a SysML v2 tool such as SysON or the
  * SysML v2 Pilot Implementation (Jupyter / Eclipse) to see the diagrams the tool draws from it.
- * Written by hand and not yet checked with a SysML v2 parser.
+ * Validated with the SysML v2 Pilot Implementation 0.59.0 and its standard library (SysML v2 Co-Pilot plugin):
+ * no errors or warnings. Note: connection, connect, frame, filter and start are reserved words or built-in
+ * names in SysML v2, so the parts and actions here are named link, connectPc, cameraFrame, strainFilter, beginTest.
  */
 package LR10K {
 
@@ -100,7 +102,7 @@ package LR10K {
         part def SerialTrafficLog  { doc /* Optional log of every byte sent and received (SerialTrafficLog.h). */ }
 
         part def HardwareIO {
-            part connection : MachineConnection;
+            part link : MachineConnection;
             part measurement : Measurement;
             part status : MachineStatus;
             part safety : LoadSafety;
@@ -123,7 +125,7 @@ package LR10K {
 
         // ---- Optical extensometer ---------------------------------------------------------------------------
         part def CameraThread       { doc /* Thread: marker detection, recording, images for the window (ExtensiometerWorkerThread). */
-            in item frame : CameraFrame;  out item distance : MarkerDistance; }
+            in item cameraFrame : CameraFrame;  out item distance : MarkerDistance; }
         part def CameraResolution   { doc /* Resolutions 800 x 600 .. 4K, working copy, raw video size (CameraResolution.h). */ }
         part def MarkerCentroid     { doc /* Sub-pixel marker centre (ExtensometerCentroid.h). */ }
         part def MarkerTracking     { doc /* Which blobs are the markers, jump gate (ExtensometerTracking.h). */ }
@@ -135,7 +137,7 @@ package LR10K {
             part resolution : CameraResolution;
             part centroid : MarkerCentroid;
             part tracking : MarkerTracking;
-            part filter : ExtensometerFilter;
+            part strainFilter : ExtensometerFilter;
             part colourPick : MarkerColourPick;
         }
 
@@ -215,21 +217,21 @@ package LR10K {
 
             // Machine -> PC: bytes through the reader thread, the ring buffer and the interpreter thread
             flow of SerialBytes from machine.serial.toPc to software.serial.toPc;
-            flow of SerialBytes from software.serial.toPc to software.hardwareIO.connection.reader.bytesIn;
-            flow of SerialBytes from software.hardwareIO.connection.reader.bytesOut to software.hardwareIO.connection.buffer.bytesIn;
-            flow of SerialBytes from software.hardwareIO.connection.buffer.bytesOut to software.hardwareIO.connection.interpreter.bytesIn;
+            flow of SerialBytes from software.serial.toPc to software.hardwareIO.link.reader.bytesIn;
+            flow of SerialBytes from software.hardwareIO.link.reader.bytesOut to software.hardwareIO.link.buffer.bytesIn;
+            flow of SerialBytes from software.hardwareIO.link.buffer.bytesOut to software.hardwareIO.link.interpreter.bytesIn;
             // ... decoded into readings, load and extension, the status texts, the test's data
-            flow of Readings from software.hardwareIO.connection.interpreter.readings to software.hardwareIO.measurement.readings;
-            flow of Readings from software.hardwareIO.connection.interpreter.readings to software.hardwareIO.status.readings;
+            flow of Readings from software.hardwareIO.link.interpreter.readings to software.hardwareIO.measurement.readings;
+            flow of Readings from software.hardwareIO.link.interpreter.readings to software.hardwareIO.status.readings;
             flow of LoadExtension from software.hardwareIO.measurement.loadExtension to software.gui.tabs.loadExtension;
             flow of LoadExtension from software.hardwareIO.measurement.loadExtension to software.hardwareIO.safety.loadExtension;
 
             // Camera -> PC: frames, marker distance, optical strain (used instead of the crosshead extension
             // when "Use Optical Ext." is on)
             flow of CameraFrame from camera.video.frames to software.video.frames;
-            flow of CameraFrame from software.video.frames to software.extensometer.thread.frame;
-            flow of MarkerDistance from software.extensometer.thread.distance to software.extensometer.filter.distance;
-            flow of OpticalStrain from software.extensometer.filter.strain to software.gui.tabs.opticalStrain;
+            flow of CameraFrame from software.video.frames to software.extensometer.thread.cameraFrame;
+            flow of MarkerDistance from software.extensometer.thread.distance to software.extensometer.strainFilter.distance;
+            flow of OpticalStrain from software.extensometer.strainFilter.strain to software.gui.tabs.opticalStrain;
 
             // PC -> machine: commands from the GUI, and stops from the load safety, through the controller
             flow of Command from software.gui.mainWindow.command to software.hardwareIO.controller.request;
@@ -286,7 +288,7 @@ package LR10K {
                 transition editAfterSave first saved accept EditPoints then unsaved;
             }
 
-            transition start          first noTest  accept StartTest     then running;
+            transition beginTest      first noTest  accept StartTest     then running;
             transition pause          first running accept PauseTest     then paused;
             transition lostMarkers    first running accept MarkersLost   then paused;
             transition travelPause    first running accept TravelReached then paused;
@@ -302,7 +304,7 @@ package LR10K {
         action def RunTest {
             in attribute useExtensometer : ScalarValues::Boolean;
 
-            action connect          { doc /* PC Config. > COM port, then "Connect PC" (handshake, setup #1). */ }
+            action connectPc        { doc /* PC Config. > COM port, then "Connect PC" (handshake, setup #1). */ }
             action setUpTest        { doc /* Settings: test type, speeds, specimen, units, load limit; "Apply to LR 10K". */ }
             action clampAndZero     { doc /* Up/Down (F2/F3) to the grips without load; "Set zero point" (F6); storage folder. */ }
             action prepareMarkers   { doc /* Two Ø5 mm #00FF00 markers 60 mm apart (placement guide); camera on the specimen. */ }
@@ -313,7 +315,7 @@ package LR10K {
             action finish           { doc /* "Return to zero point" (F5), take out the specimen, "+ New Test". */ }
 
             first start;
-            then connect;
+            then connectPc;
             then setUpTest;
             then clampAndZero;
             then decide cameraOrNot;
@@ -322,9 +324,9 @@ package LR10K {
             first prepareMarkers then setUpCamera;
             first setUpCamera then runTest;
             first runTest then checkResults;
-            then save;
-            then finish;
-            then done;
+            first checkResults then save;
+            first save then finish;
+            first finish then done;
         }
     }
 
@@ -375,7 +377,7 @@ package LR10K {
                 event occurrence sendsZero;
                 event occurrence sendsSendData;
             }
-            part connection : ConnectionParts {
+            part machineLink : ConnectionParts {
                 event occurrence opensPort;
                 event occurrence framesData;
             }
@@ -393,8 +395,8 @@ package LR10K {
             }
 
             message selectPort  of OpenComPort  from operator.clicksComPort   to gui.portRequested;
-            message openPort    of OpenComPort  from gui.portRequested        to connection.opensPort;
-            message connect     of ConnectPc    from operator.clicksConnect   to gui.connectRequested;
+            message openPort    of OpenComPort  from gui.portRequested        to machineLink.opensPort;
+            message connectPc   of ConnectPc    from operator.clicksConnect   to gui.connectRequested;
             message startWorker of ConnectPc    from gui.connectRequested     to worker.started;
             message ready       of ReadyRequest from worker.asksReady         to lr10k.getsReadyRequest;
             message readyBack   of ReadyAnswer  from lr10k.answersReady       to worker.gotReady;
@@ -406,11 +408,11 @@ package LR10K {
             message setup2      of Setup2       from worker.sendsSetup2       to lr10k.getsSetup2;
             message zero        of SetZero      from worker.sendsZero         to lr10k.getsZero;
             message sendData    of SendData     from worker.sendsSendData     to lr10k.getsSendData;
-            message data        of DataPackages from lr10k.streamsData        to connection.framesData;
+            message data        of DataPackages from lr10k.streamsData        to machineLink.framesData;
 
             first selectPort then openPort;
-            first openPort then connect;
-            first connect then startWorker;
+            first openPort then connectPc;
+            first connectPc then startWorker;
             first startWorker then ready;
             first ready then readyBack;
             first readyBack then setup1a;

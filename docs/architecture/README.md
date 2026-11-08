@@ -334,4 +334,4 @@ sequenceDiagram
 
 ## Keeping the diagrams up to date
 
-When a part is added, moved or renamed (a new header in ARCHITECTURE.md, a new thread, a new state of a test), change both the `.sysml` model and the diagram here. To check the model, open `lr10k.sysml` in SysON or the SysML v2 Pilot Implementation; the *SysML v2 Co-Pilot* plugin for Claude can validate it with the official SysML v2 compiler.
+When a part is added, moved or renamed (a new header in ARCHITECTURE.md, a new thread, a new state of a test), change both the `.sysml` model and the diagram here. The model validates without errors or warnings with the SysML v2 Pilot Implementation 0.59.0 (checked with the *SysML v2 Co-Pilot* plugin for Claude, which runs the official compiler). Check it again after a change, or open it in SysON or the Pilot's Jupyter kernel. Avoid SysML v2 keywords as names (`connection`, `connect`, `frame`, `filter`, `state`, `action`, ...) and built-in names such as `start` and `done`.
