@@ -42,6 +42,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `TabSystem.cpp` | Test tabs: live plot data, limits, unit conversion (one `ScaleTabUnits()` for all data of a test), crucial points (through `TestData.h`) | globals, `TestData.h` |
 | | `FileSystem.cpp` | File dialogs, saving/loading tests and application settings | globals |
 | | `ThemePalette.h` | The four themes (USN, NITO, Light, Dark) as colour palettes, WCAG contrast, old theme names to new | nothing (portable, tested) |
+| | `styles.h` | The theme ids (`mainGUIThemes`: USN, NITO, Light, Dark; USN is the default) and the theme menu; was 16 hand-made themes (1 759 lines) before 2.0.0 | `ThemePalette.h`, `ThemeApply.h` |
 | | `ThemeApply.h` | A palette to the ImGui and ImPlot style (sizes, colours, the graph's colormap), rounded corners | ImGui, ImPlot |
 | | `DefaultLayout.h` | The default window layout (side panel, graph, console, settings/calculator), built with ImGui's DockBuilder on a first start, a reset or a new `AppLayout::kVersion` | ImGui (tested headless) |
 | | `SettingsFile.h` | The settings file's fixed name (`lr10k_settings.ini`) and copying the old `v..._lr10k.ini` to it once | nothing (portable, tested) |
@@ -50,7 +51,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | | `AutosaveApp.cpp` | Which tabs need an autosave, the .lr10k copy (finished, in mm/N), offering the files of a crashed session at start, opening them as unsaved tabs | GUI, `Autosave.h` |
 | **Crash reports** | `CrashReport.h` | The text of a crash report (exception names, call stack, last console lines) and the thread-safe copy of the last console lines | nothing (portable, tested) |
 | | `CrashHandler.h/.cpp` | Catches crashes in any thread (Windows exceptions, uncaught C++ exceptions, abort/terminate, pure virtual calls) and writes `.dmp` + `.txt` to *Documents\\LR10K crash reports*; the next start tells the user | Windows API, DbgHelp |
-| **Shared** | `common.h` | Declarations and global state used by all of the above | |
+| **Shared** | `common.h` | Declarations and global state used by all of the above; also `ImGuiCustomThemeLoadCorrectTheme()` (theme + rounded corners + DPI scale + text size), `CurrentThemePalette()`, `AppLayout::kVersion` and the app version (`LR10KAppVersion`) | |
 
 `common.cpp` used to contain everything from the calculator to the console (5 500 lines). It was split along its existing sections into the `.cpp` files above with the code unchanged.
 
@@ -86,6 +87,24 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | `implot_smoke_check.cpp` | The graph's ImPlot calls (load-extension with shading and stride, stress-strain getters, vertical label, drag point, annotation) headless with the real ImPlot 1.x and Dear ImGui under AddressSanitizer: items, colours, the fit to the data. Run it after an ImPlot update |
 | `theme_palette_test.cpp` | Every theme: text on every background it is drawn on, dim and coloured text, the graph's curve and points (WCAG AA); the contrast formula against the NITO manual's values; old theme names |
 | `serial_reader_test.cpp` | Reader thread against a fake port: byte order, connection loss after 3 failed reads, tolerated glitches, stopping (also with a full buffer), restarting |
+
+## Tools and pictures
+
+| File | What it does |
+|---|---|
+| `tools/theme_preview.cpp` | Draws a mock-up of the main window in each theme with the real Dear ImGui, ImPlot, fonts and `ThemeApply.h`, in software (no Windows, no GPU), and writes one picture per theme. Run it after changing a colour; CI builds and runs it on every push. The pictures in `docs/themes/` (used by the README) come from it. Build command at the top of the file |
+| `tools/annotate_layout.py` | Draws `docs/themes/layout_annotated.png`: `theme_USN.png` with the parts of the main window outlined and numbered (README, *The main window*) |
+| `docs/Doxyfile`, `docs/build-docs.bat` | The developer documentation (Doxygen): `build-docs.bat` builds it on Windows and opens it; `.github/workflows/docs.yml` builds it on every push (artifact *docs-html*) and lists the warnings |
+| `scripts/package-release.ps1`, `scripts/fetch-videos.ps1` | The release folder/.zip for a lab PC, and downloading the tutorial videos (BUILDING.md) |
+
+## CI (GitHub Actions)
+
+| Workflow | Jobs |
+|---|---|
+| `tests.yml` | *unit-tests*: every test in the table above with g++ and AddressSanitizer/UBSan or ThreadSanitizer (most with `-Werror`), the headless ImGui/ImPlot checks and building and running the theme preview tool; *extensometer-opencv*: `extensometer_pipeline_check.cpp` with the real OpenCV; *excel-files*: sample Excel books checked with openpyxl (artifact *excel-sample-reports*) |
+| `docs.yml` | The Doxygen documentation (artifact *docs-html*) and a summary of its warnings |
+
+The Windows app itself is built in Visual Studio (BUILDING.md), not in CI.
 
 ## Still to do
 

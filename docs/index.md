@@ -5,17 +5,20 @@ ___
 
 The software is tested on version 5.0 of the built in LR 10K Tensile Machine software.
 
+## Quick start
+The [README](../README.md#quick-start) has the whole workflow on one page, with and without the optical extensometer, and a picture of the main window with its parts numbered. *Help* in the software has tutorial videos and a step-by-step *Get Started* guide. To practise without the machine: *GUI Settings* > *LR 10K Simulation* > *Activate*.
+
 ## Configuration setup between the PC and LR 10K Tensile Machine
-Start by going to the *Menu* > *Configuration*. Select the COM port the LR 10K is connected to. After a successful connection, try the *Connect PC* option. If it fails, restart the software and try again.
+Connect the LR 10K to the PC with its serial cable (a USB-to-serial adapter works) and switch the machine on. In the software, open *PC Config.* and pick the COM port the LR 10K is on, then *Connect PC* in the same menu. The console shows the progress and says when the machine is connected; the machine's state is shown on the right of the menu bar. If it does not connect, check the cable and the COM port, and try *Disconnect COM* and connect again. For a closer look, turn on *Log serial traffic to file* before *Connect PC* (see [BUILDING.md](../BUILDING.md#troubleshooting)).
 
-## Sending a setup to LR 10K before a starting a new test
-To set up the LR 10K for a future test you want to carry out, you need to send a setup after adjust the settings. Do this from the *Menu* ... This functionality might change.
+## Sending a setup to LR 10K before starting a new test
+In the *Settings* window, choose tension or compression, the crosshead (test) speed and the jog speed, the load error correction, the specimen's dimensions (thickness and width, or diameter, and the gauge length L0) and the units. Under *Limits inside LR 10K* set the load limit. Then press **Apply to LR 10K**: the setup is sent to the machine. A load error correction changed after a test can be applied to that finished test with *Update finished test*.
 
-## (Testing the newly sent setup)
-In the *Navigation* window, you can control the head of the LR 10K. Try going *Up*/*Down* to test how the newly set settings perform. ... (this is how it should work or ??) You can from here adjust the head to the position you would like to start the test from. You can set and save a starting position by clicking the *Set zero point* button in the *Live* window.
+## Testing the newly sent setup
+Move the crosshead with *Up* and *Down* (F2/F3; hold F4 to go faster, F1 stops) to check the speeds and to bring the crosshead to where the test should start. Clamp the specimen without loading it, then press **Set zero point** (F6): load and extension start from 0 there, and *Return to zero point* (F5) brings the crosshead back to it later. While no test runs, the crosshead stops if the load rises above 50 N (see *Load safety*).
 
 ## Starting a new test on the LR 10K
-When you have your correct settings setup and sent to the LR 10K, you can go to the *Testing* window and click on *Start Test*. **But**, before you start a new test, you might want to add some material properties in the *Calculator* window. This window can be enabled by going to *Menu* > *Options*. Now you are able to *Pause*, *Continue* and *End Test* as you wish. Remember to *Return to zero point* when the test is complete, to reset the position of the LR 10K head to its zero point position.
+Choose a storage folder first (*File* > *Specify Storage Folder*); tests and Excel books are saved there. Check the specimen dimensions (the software warns about dimensions that look wrong). Then press **Start Test** (F7). You can *Pause* (F9), continue (F7) and *End Test* (F8); the test also ends at the load limit. If *Start Test* is greyed out, its tooltip says what is missing. When the test is done, *Return to zero point* (F5) so there is no load on the specimen before you take it out. *+ New Test* opens a new tab for the next test.
 
 ## After completing a test
 You can now edit and manipulate the crucial points with *Ctrl+Click*. Like yielding, ultimate tensile strength or break point. The software will automatically add some of these points.
@@ -45,7 +48,7 @@ The yield points need the gauge length (L0) of the specimen, and are not placed 
 Ctrl+S saves (.lr10k and .xlsx), Ctrl+Alt+S saves as, Ctrl+Alt+E saves an Excel book, Ctrl+O opens a test and Ctrl+Z removes the last crucial point. The buttons show their hotkey as a tooltip.
 
 ## Themes and text size
-*GUI Settings* > *Theme* has four themes: **USN** (dark, USN purple), **NITO** (light, the NITO greens from NITO's design manual), **Light** and **Dark**. The graph follows the theme. *GUI Settings* > *Text size* makes all text smaller or larger (90 % to 150 %), and *Rounded corners* turns the rounded look on or off. Pictures of the themes are in [docs/themes](themes/). A theme chosen in an older version is replaced by the nearest of the four.
+*GUI Settings* > *Theme* has four themes: **USN** (dark, USN purple), **NITO** (light, the NITO greens from NITO's design manual), **Light** and **Dark**. The graph follows the theme. *GUI Settings* > *Text size* makes all text smaller or larger (90 % to 150 %), and *Rounded corners* turns the rounded look on or off. Pictures of the themes are in the [README](../README.md#themes). A theme chosen in an older version is replaced by the nearest of the four.
 
 ## Optical extensometer
 

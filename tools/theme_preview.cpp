@@ -232,7 +232,7 @@ static void DrawApp(const ThemePalette::Palette& p, const std::vector<ImVec2>& d
     ImGui::InputFloat("Thickness", &t, 0, 0, "%.2f mm"); ImGui::InputFloat("Width", &w, 0, 0, "%.2f mm"); ImGui::InputFloat("Length", &l, 0, 0, "%.2f mm");
     static int unit = 0; const char* units[] = { "SI (mm, N)", "Imperial (in, lbf)" }; ImGui::Combo("Units", &unit, units, 2);
     ImGui::Spacing();
-    ImGui::Button("Send setup to LR 10K", ImVec2(-1, 0));
+    ImGui::Button("Apply to LR 10K", ImVec2(-1, 0));
     ImGui::BeginDisabled(); ImGui::Button("Update finished test", ImVec2(-1, 0)); ImGui::EndDisabled();
     static bool open = true; ImGui::SetNextItemOpen(open);
     if (ImGui::CollapsingHeader("Limits inside LR 10K")) { static float lim = 50; ImGui::DragFloat("Load limit", &lim, 1, 0, 10000, "%.0f N"); }

@@ -12,6 +12,9 @@ How to build the app from source on a new Windows PC, and how to package it for 
 | **Git** | Clone the repository, and vcpkg needs it | |
 | *Optional:* **Microsoft Visual Studio Installer Projects 2022** extension, version **3.0.0 or newer** (also for Visual Studio 2026) | Only needed to build the `.msi` installer (`.vdproj`) | Without it, or with an older version, that project shows as *incompatible* or *unloaded*; the app still builds. See section 5. |
 | *Optional:* **GitHub CLI** (`gh`) | Download the tutorial videos from the private repository | Run `gh auth login` once. |
+| *Optional:* **Doxygen** (and **Graphviz** for diagrams) | Build the developer documentation on your own PC | `winget install DimitriVanHeesch.Doxygen` and `winget install Graphviz.Graphviz`. See section 6. |
+
+Dear ImGui (1.92.5, docking), ImPlot (1.1), nlohmann/json and stb_image are in the repository; they need no installing.
 
 ### vcpkg (separate clone)
 
@@ -100,16 +103,34 @@ To build it:
 
 The project lists each file it installs. If the app gets a new DLL or asset, add it in the installer's *File System* view too (right-click the project > *View* > *File System*), or the installed app will miss it.
 
+## 6. Developer documentation (Doxygen)
+
+Double-click `docs\build-docs.bat` (or run it from the repository folder). It builds the documentation into `docs\html\` (not in git) and opens it in the browser; the start page is `docs/developer.md`. It needs Doxygen, and Graphviz for the diagrams (table in section 1).
+
+Without installing anything: on GitHub, *Actions* > *Docs* > the latest run > download *docs-html*, unzip it and open `index.html`. The run's summary lists Doxygen's warnings, such as a `@param` whose name does not match the function.
+
+## 7. Unit tests and the theme pictures (optional)
+
+The tests in `tests/` run on GitHub on every push (*Actions* > *Tests*), so this is only needed while changing the code. Each file has its build command at the top (g++ or clang++ on Linux/WSL; most also build with MSVC). For example, from the repository folder:
+
+```bash
+g++ -std=c++17 -O1 -g -fsanitize=address,undefined -I main/LloydLR10KTensile tests/theme_palette_test.cpp -o theme_palette_test && ./theme_palette_test
+```
+
+After changing a theme colour, `tools/theme_preview.cpp` draws the main window in every theme without building the app (see the command at the top of the file); the pictures in `docs/themes/` come from it.
+
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| `Cannot open include file: 'xlsxwriter.h'` | vcpkg is not hooked into Visual Studio. Run `C:\vcpkg\vcpkg integrate install` (or install the vcpkg component in the Visual Studio Installer) and restart Visual Studio. |
+| C1083 *Cannot open include file* for `xlsxwriter.h` | vcpkg is not hooked into Visual Studio. Run `C:\vcpkg\vcpkg integrate install` (or install the vcpkg component in the Visual Studio Installer) and restart Visual Studio. |
 | vcpkg error about the `builtin-baseline` / `versions` | Update vcpkg: `git -C C:\vcpkg pull`. If it was cloned with `--depth 1`, clone it again without it. |
-| `Cannot open include file: 'opencv2/opencv.hpp'` or `cannot open file 'opencv_world4120d.lib'` | OpenCV is not in `C:\opencv\build`. Install it there, or set `OpenCVDir` (see above). |
+| C1083 *Cannot open include file* for `opencv2/opencv.hpp`, or LNK1104 for `opencv_world4120d.lib` | OpenCV is not in `C:\opencv\build`. Install it there, or set `OpenCVDir` (see above). |
 | `opencv_world4120.dll was not found` when starting the app | The DLL is not next to the `.exe`. Rebuild (the build copies it), or check the `OpenCV DLL not found` line in the build output. |
 | `VCRUNTIME140.dll` / `MSVCP140.dll` / `VCRUNTIME140D.dll` was not found (lab PC) | Ship the Release build made with `package-release.ps1`, not the Debug folder. |
 | `UpgradeLog.htm` says the `.vdproj` project type "was not found" | Install the *Microsoft Visual Studio Installer Projects* extension, or ignore it: only the installer project is affected. |
 | Connection problems you want to look into (or send to someone) | In the app: menu *Log serial traffic to file*, then *Connect PC*. Every byte sent and received is written with timestamps to `Documents\LR10K serial logs`. Windows lets only one program open a COM port, so a separate terminal/sniffer program cannot listen while the app is connected. |
 | The app crashed on the lab PC | Look in *Documents\\LR10K crash reports* on that PC. The `.txt` shows where it crashed; open the `.dmp` in Visual Studio with the `.pdb` from the same build (`package-release.ps1` copies it next to the `.exe`). |
 | Help buttons open a web page instead of a video | The videos are not downloaded; run `scripts\fetch-videos.ps1`. |
+| The windows are in odd places, or a window is missing | *GUI Settings* > *Defaults & Resets* > *Reset window layout*, or delete `%LOCALAPPDATA%\LR10K\imgui.ini`. |
+| Text too small or too large | *GUI Settings* > *Text size*; *High DPI* scales everything with the Windows display scale. |
