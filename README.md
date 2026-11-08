@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/banner.png" alt="LR 10K Tensile Machine Control Software" width="100%"></p>
+
 LR 10K Control Software
 =======================
 
