@@ -24,7 +24,9 @@ public class CheckSysml {
             System.exit(2);
         }
         SysMLInteractive sysml = SysMLInteractive.getInstance();
-        sysml.loadLibrary(args[0]);
+        // Absolute: with a relative path the Pilot builds file URIs that keep "%20" for the spaces in the library's
+        // folder names ("Kernel Libraries"), and loading fails with FileNotFoundException
+        sysml.loadLibrary(Paths.get(args[0]).toAbsolutePath().normalize().toString());
 
         int errors = 0, warnings = 0;
         for (int i = 1; i < args.length; i++) {
