@@ -10,13 +10,13 @@
                contrast somewhere (e.g. white text on light buttons) and the graph looked the same in all of them.
 
                Colours:
-               - NITO: the NITO profile manual (Profilmanual, "Farger"): NITO Grønn Dyp #003b00, Grønn Mørk #00734e,
-                 Grønn Klar #2ec78f, Grønn Myk #c3eddf, Grønn Lys #e7f8f2, Grå Myk #cfd6cf, Grå Lys #e5e7e2,
-                 Grå Ekstra Lys #f9f9f8, Lilla #6d5de3, Rosa #ff85c5, Gul Myk #f4e6b5, NITO Svart #212427 (text).
+               - NITO: the NITO profile manual (Profilmanual, "Farger"): NITO Grønn Dyp \#003b00, Grønn Mørk \#00734e,
+                 Grønn Klar \#2ec78f, Grønn Myk \#c3eddf, Grønn Lys \#e7f8f2, Grå Myk \#cfd6cf, Grå Lys \#e5e7e2,
+                 Grå Ekstra Lys \#f9f9f8, Lilla \#6d5de3, Rosa \#ff85c5, Gul Myk \#f4e6b5, NITO Svart \#212427 (text).
                  Black is not a background (the manual), so the NITO theme is light. Graph colours in the manual's
                  order: Grønn Mørk, Grønn Klar, Lilla, Grønn Myk, Rosa, Grønn Dyp, Gul Myk.
-               - USN: USN purple #7800f0 (the logo, images/USN-symbol_lilla.png), the light purples #ceb9fc, #9595f9,
-                 #dadaff (the USN backgrounds in images/), and the orange #ff6202 and lime #e4ff7d of the old USN theme.
+               - USN: USN purple \#7800f0 (the logo, images/USN-symbol_lilla.png), the light purples \#ceb9fc, \#9595f9,
+                 \#dadaff (the USN backgrounds in images/), and the orange \#ff6202 and lime \#e4ff7d of the old USN theme.
                  Dark, with the purple as the main colour.
                - Light and Dark: neutral greys with one blue accent.
 
