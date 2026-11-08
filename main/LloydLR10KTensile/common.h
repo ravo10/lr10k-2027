@@ -1086,6 +1086,14 @@ struct AppCalculator
     **/
     void AddEmoduleBounds(TabControl::TabTestDataClass* tabData);
     /**
+        @brief  Places the E-modulus limits, the yield strength (Rp0.2) and the proportional limit (Rp0.01) on the
+                drawn curve (AutoPoints.h).
+        @param  replace      - true: replace those points; false: only add the ones that are missing.
+        @param  includeYield - false: only the E-modulus limits.
+        @retval true if a point was placed.
+    **/
+    bool AutoPlacePoints(TabControl::TabTestDataClass* tabData, bool replace, bool includeYield = true);
+    /**
         @brief Calculates stress points. Converting to crucial points to plot for nominal stress. This has to be executed before "CalculateStresses".
         @param tabData          -
         @param playSound        -

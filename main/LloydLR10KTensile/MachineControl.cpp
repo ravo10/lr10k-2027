@@ -670,6 +670,9 @@ bool LR10KControlSystem::EndTest(TabControl::TabTestDataClass* tabData)
         if (!tabData->CheckIfCrucialPointExsists(2)) // Will also be assigned at automatic break point detection to get this point first... (just for visuals)
             tabData->AssignPoint_UltimateTensileStrength(tabData);
 
+        // E-modulus limits, yield strength (Rp0.2) and proportional limit, where not placed by hand already
+        DockingApps::calculator.AutoPlacePoints(tabData, false);
+
         LR10KDataDeEncryptionSystem::warnErrorStatus_Reset();
 
         return true;

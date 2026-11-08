@@ -70,6 +70,11 @@ jobs:
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
             -I main/LloydLR10KTensile tests/test_data_test.cpp -o test_data_test
           ./test_data_test
+      - name: Automatic E-modulus limits, Rp0.2 and proportional limit
+        run: |
+          g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \
+            -I main/LloydLR10KTensile tests/auto_points_test.cpp -o auto_points_test
+          ./auto_points_test
       - name: Excel export numbers (same as the old export)
         run: |
           g++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined \

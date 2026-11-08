@@ -3669,6 +3669,17 @@ void AppMainWidgets::CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabDa
     // Add the button to spawn E-Modulus bounds
     if (ImGui::Button("Add custom E-Modulus Bounds"))
         DockingApps::calculator.AddEmoduleBounds(tabData);
+    ImGui::SetItemTooltip("Adds the lower and upper E-modulus limits (if there are none yet) at the ends of\nthe straight part of the curve. Move them with Ctrl+click.");
+
+    if (ImGui::Button("Auto-place E-Modulus and Yield"))
+        DockingApps::calculator.AutoPlacePoints(tabData, true);
+    ImGui::SetItemTooltip("Replaces the E-modulus limits, the yield strength and the proportional limit:\n"
+        "- E-modulus limits: the ends of the steepest straight part between 10 %% and 50 %% of the maximum load\n"
+        "  (skips the slack at the start);\n"
+        "- Yield strength: Rp0.2, where the curve falls below the elastic line moved by 0.2 %% strain;\n"
+        "- Proportional limit: the same at 0.01 %% (Rp0.01).\n"
+        "The yield points need the gauge length (L0). Done automatically at the end of a test for points\n"
+        "that are not placed yet. UTS and fracture are not changed.");
 
     ImGui::EndDisabled();
 

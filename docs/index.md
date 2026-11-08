@@ -18,7 +18,16 @@ In the *Navigation* window, you can control the head of the LR 10K. Try going *U
 When you have your correct settings setup and sent to the LR 10K, you can go to the *Testing* window and click on *Start Test*. **But**, before you start a new test, you might want to add some material properties in the *Calculator* window. This window can be enabled by going to *Menu* > *Options*. Now you are able to *Pause*, *Continue* and *End Test* as you wish. Remember to *Return to zero point* when the test is complete, to reset the position of the LR 10K head to its zero point position.
 
 ## After completing a test
-You can now edit and manipulate the crucial points with *Ctrl+Click*. Like yielding, ultimate tensile strength or break point. The software will automatically add some of these points. You can also toggle the graph type shown - here it is possible to also see the true stress graph compared to the nominal/engineering stress. **But**, before it is possible to toggle to this type of graph, you must calculate the material property from the *Calculator* window. This window can be enabled by going to *Menu* > *Options*.
+You can now edit and manipulate the crucial points with *Ctrl+Click*. Like yielding, ultimate tensile strength or break point. The software will automatically add some of these points.
+
+At the end of a test the software places, where you have not placed them yourself:
+
+- the **ultimate tensile strength** (the maximum load);
+- the **E-modulus limits** at the ends of the steepest straight part of the curve between 10 % and 50 % of the maximum load, so the slack at the start of a test is not used;
+- the **yield strength** as Rp0.2: the straight line moved 0.2 % strain to the right, where the curve falls below it (for steel with a yield plateau this is on the plateau);
+- the **proportional limit** as Rp0.01, the same with 0.01 %.
+
+The yield points need the gauge length (L0) of the specimen, and are not placed for 3-point bending. *Auto-place E-Modulus and Yield* in the *Crucial Points* window places them again (replacing these four, not the UTS or fracture). Always look at them: the method is the one the tensile test standards describe, but an odd curve can fool it. The E-modulus from the crosshead travel is lower than the material's, because the machine and the grips stretch too; use the optical extensometer for the specimen alone. You can also toggle the graph type shown - here it is possible to also see the true stress graph compared to the nominal/engineering stress. **But**, before it is possible to toggle to this type of graph, you must calculate the material property from the *Calculator* window. This window can be enabled by going to *Menu* > *Options*.
 
 ## Hotkeys
 

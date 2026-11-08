@@ -191,6 +191,7 @@
     <ClInclude Include="ExtensometerTracking.h" />
     <ClInclude Include="CrashReport.h" />
     <ClInclude Include="TestData.h" />
+    <ClInclude Include="AutoPoints.h" />
     <ClInclude Include="Autosave.h" />
     <ClInclude Include="CrashHandler.h" />
     <ClInclude Include="..\..\stb_image.h" />

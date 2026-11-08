@@ -13,6 +13,7 @@
 #include "MaterialCalc.h"
 #include "TestCalc.h"
 #include "TestData.h"
+#include "AutoPoints.h"
 
 #include "LR10KController.h"
 
@@ -308,12 +309,16 @@ void AppCalculator::SetGlobalMaterialProperties(TabControl::TabTestDataClass* /*
 
 void AppCalculator::AddEmoduleBounds(TabControl::TabTestDataClass* tabData)
 {
-    // Only if they do not exist yet, and there is enough data: start at points 10 and 50 as a first guess
-    int lower = 0, upper = 0;
-    if (TestData::HasId(tabData->plot_dataPoints, 5) || TestData::HasId(tabData->plot_dataPoints, 6)
-        || !TestData::DefaultEModulusBounds(tabData->LR10KTensileData.Data.Size, lower, upper))
+    // Only if they do not exist yet. Placed at the ends of the straight elastic part (AutoPoints.h); if it cannot
+    // be found (very little data), at points 10 and 50 as before.
+    if (TestData::HasId(tabData->plot_dataPoints, 5) || TestData::HasId(tabData->plot_dataPoints, 6))
+        return;
+    if (AutoPlacePoints(tabData, false, false))
         return;
 
+    int lower = 0, upper = 0;
+    if (!TestData::DefaultEModulusBounds(tabData->LR10KTensileData.Data.Size, lower, upper))
+        return;
     const ImVec2 p1 = tabData->LR10KTensileData.Data[lower];
     const ImVec2 p2 = tabData->LR10KTensileData.Data[upper];
     tabData->plot_dataPoints.push_back({ ImPlotPoint(p1.x, p1.y), 5 }); // ID 5
@@ -321,6 +326,57 @@ void AppCalculator::AddEmoduleBounds(TabControl::TabTestDataClass* tabData)
 
     tabData->NeedsRecalculation.markAsUnsaved = true;
     tabData->NeedsRecalculation.recalculate = true;
+}
+
+bool AppCalculator::AutoPlacePoints(TabControl::TabTestDataClass* tabData, bool replace, bool includeYield)
+{
+    if (tabData == nullptr)
+        return false;
+
+    // The drawn curve (the points sit on it): the smoothed data when it exists
+    const bool useSmoothed = tabData->LR10KTensileData.SmoothedData.Size > 0 && tabData->LR10KTensileData.SmoothedData.Size == tabData->LR10KTensileData.Data.Size;
+    const ImVector<ImVec2>& curve = useSmoothed ? tabData->LR10KTensileData.SmoothedData : tabData->LR10KTensileData.Data;
+
+    // The 0.2 % offset needs the gauge length; it does not apply to 3-point bending
+    const TestCalc::Specimen specimen = SpecimenOf(tabData);
+    const bool knownLength = specimen.length > 0.0 && !TestCalc::IsPlaceholder(specimen);
+    const bool bending = !tabData->tension && tabData->compressionOptionPicked == 1;
+    const AutoPoints::Placement placement = AutoPoints::Place(curve, knownLength ? specimen.length : 0.0, includeYield && !bending);
+    if (!placement.elastic.ok)
+    {
+        DockingApps::console.AddLog("[warning] Could not find the straight (elastic) part of the curve: too little data. Place the points by hand.");
+        return false;
+    }
+
+    auto& points = tabData->plot_dataPoints;
+    auto place = [&](int id, double x, double y) {
+        if (replace)
+            TestData::RemoveId(points, id);
+        else if (TestData::HasId(points, id))
+            return false; // Keep the user's point
+        const int index = TestData::ClosestIndexByX(curve, x); // On the drawn curve, like a clicked point
+        points.push_back({ index >= 0 ? ImPlotPoint(curve[index].x, curve[index].y) : ImPlotPoint(x, y), id });
+        return true;
+    };
+
+    int placed = 0;
+    placed += place(5, curve[placement.elastic.first].x, curve[placement.elastic.first].y);
+    placed += place(6, curve[placement.elastic.last].x, curve[placement.elastic.last].y);
+    if (placement.yield.found)
+        placed += place(1, placement.yield.x, placement.yield.y);
+    if (placement.proportionalLimit.found)
+        placed += place(0, placement.proportionalLimit.x, placement.proportionalLimit.y);
+
+    if (placed > 0)
+    {
+        DockingApps::console.AddLog("Placed %d point(s) automatically: the E-modulus limits on the straight part of the curve (R^2 = %.4f)%s. Check them: Ctrl+click moves a point.",
+            placed, placement.elastic.r2,
+            placement.yield.found ? ", the yield strength at 0.2 % offset (Rp0.2) and the proportional limit at 0.01 % (Rp0.01)" // (an argument, not part of the format: one % sign)
+            : (includeYield && !bending && !knownLength ? "; no yield point: enter the gauge length first" : ""));
+        tabData->NeedsRecalculation.markAsUnsaved = true;
+        tabData->NeedsRecalculation.recalculate = true;
+    }
+    return placed > 0;
 }
 
 void CreateInputDoubleElement(TabControl::TabTestDataClass* tabData, const char *label, double *v, double min_val, double max_val)
