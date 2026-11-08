@@ -2,7 +2,7 @@
 
 How the source code in `main/LloydLR10KTensile/` is organised, and where it is heading.
 
-**Diagrams:** [docs/architecture/](docs/architecture/README.md) has the architecture as five SysML diagrams (block definition, internal block, the states of a test, running a test, connecting to the LR 10K), drawn on GitHub, and the same model in SysML v2 textual notation ([lr10k.sysml](docs/architecture/lr10k.sysml)).
+**Diagrams:** [docs/architecture/](docs/architecture/README.md) has the architecture as five SysML diagrams (block definition, internal block, the states of a test, running a test, connecting to the LR 10K), drawn on GitHub, the same model in SysML v2 textual notation ([lr10k.sysml](docs/architecture/lr10k.sysml)), and as a Visio file ([lr10k-architecture.vsdx](docs/architecture/lr10k-architecture.vsdx)).
 
 The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **calculations**, **GUI** and **Excel export**. The independent parts can be unit tested without the machine, and are the parts a later Rust port starts with.
 
@@ -97,6 +97,7 @@ The goal (step 3 of the roadmap) is four independent parts: **hardware I/O**, **
 | File | What it does |
 |---|---|
 | `tools/theme_preview.cpp` | Draws a mock-up of the main window in each theme with the real Dear ImGui, ImPlot, fonts and `ThemeApply.h`, in software (no Windows, no GPU), and writes one picture per theme. Run it after changing a colour; CI builds and runs it on every push. The pictures in `docs/themes/` (used by the README) come from it. Build command at the top of the file |
+| `tools/architecture-vsdx/` | Makes `docs/architecture/lr10k-architecture.vsdx` (Visio, one page per diagram) from the Mermaid diagrams in `docs/architecture/README.md`: `extract.js` draws them with Mermaid in headless Chromium and reads out the shapes, `mermaid_to_vsdx.py` writes the Visio file (standard library only) |
 | `tools/annotate_layout.py` | Draws `docs/themes/layout_annotated.png`: `theme_USN.png` with the parts of the main window outlined and numbered (README, *The main window*) |
 | `docs/Doxyfile`, `docs/build-docs.bat` | The developer documentation (Doxygen): `build-docs.bat` builds it on Windows and opens it; `.github/workflows/docs.yml` builds it on every push (artifact *docs-html*) and lists the warnings |
 | `scripts/package-release.ps1`, `scripts/fetch-videos.ps1` | The release folder/.zip for a lab PC, and downloading the tutorial videos (BUILDING.md) |
