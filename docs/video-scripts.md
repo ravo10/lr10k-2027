@@ -38,6 +38,8 @@ Tips for one camera angle:
 
 ## 1. GUI: Find your way around (about 75 s)
 
+This one can be made from screenshots only, without filming: see the HyperFrames plan in [video-plan-gui.md](video-plan-gui.md).
+
 Goal: a new user knows where everything is and which three windows matter.
 
 | Time | Picture | Say | On screen |
