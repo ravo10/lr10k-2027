@@ -1,6 +1,6 @@
 # Video 3, Completing a test: the plan for HyperFrames
 
-The edit plan for **Video 3 (Completing a test: From specimen to saved results)** in [video-scripts.md](video-scripts.md). About 90 s, 1920 × 1080, 30 fps.
+The edit plan for **Video 3 (Completing a test: From specimen to saved results)** in [video-scripts.md](video-scripts.md). About 100 s, 1920 × 1080, 30 fps.
 
 Filmed shots for the specimen and the machine; screenshots for every click in the software, with a zoom and a drawn pointer, so viewers see where each button is.
 
@@ -38,6 +38,24 @@ Tip: do one real test and take the screenshots and the film clips **during the s
 
 Optional: a 6 s screen recording `test_clip_graph.mp4` of the curve being drawn. It makes shot 6 much livelier than a still.
 
+### The clips as recorded
+
+The clips were recorded with the screen parts in them, and named after the shots they cover. A film name followed by a shot number means the clip has the filmed part first and then that screen part.
+
+| Clip | Has | Used in shots |
+|---|---|---|
+| `test_cam_intro.mp4` | The intro | 1 |
+| `test_close_clamp.mp4` | Clamping | 2 |
+| `test_01_02.mp4` | Set zero point, before and after | 3 |
+| `test_03_04.mp4` | *File* > *Specify Storage Folder*, the folder dialog | 4 |
+| `test_05.mp4` | The *Start Test* tooltip | 5 |
+| `test_06_07.mp4` | Start Test and the test running (also stands in for `test_close_running`) | 6 |
+| `test_close_break_test_08.mp4` | The break, then *End Test* | 7 |
+| `test_09_10.mp4` | The crucial points, and moving one | 8 |
+| `test_11_12.mp4` | Description and Ctrl+S | 9 |
+| `test_cam_viewing_editing_a_test_14.mp4` | **New:** a saved `.lr10k` opened in the software, and the Excel book opened | 10 |
+| `test_cam_end_test_13.mp4` | Return to zero, specimen out, then *+ New Test* | 11 |
+
 ## 3. Shot by shot
 
 | # | Time | Picture | Camera (zoom to) | Pointer | Overlays | Say |
@@ -51,7 +69,8 @@ Optional: a 6 s screen recording `test_clip_graph.mp4` of the curve being drawn.
 | 7 | 0:52–0:58 | `test_close_break` → `test_08` | Film, then the side panel: zoom 2.5 on *End Test* | Click *End Test* at 0:55 | `key` F8 | "After the break, 'End Test'. It also ends by itself at the load limit." |
 | 8 | 0:58–1:10 | `test_09` → `test_10` | The graph and the points: x 0.45, y 0.4, zoom 1.6; zoom 3 on one point when it is dragged | Click the *Crucial Points* tab at 0:59; at 1:05 drags one point; cross-fade to `test_10` | `step` "4 · Check points"; small labels at the points: "UTS", "E limits", "Rp0.2" | "The UTS, the E-modulus limits and the yield points are placed automatically. Check them, and drag a point if it's wrong." |
 | 9 | 1:10–1:18 | `test_11` → `test_12` | The side panel (Description): zoom 2.2; then the console: x 0.5, y 0.85, zoom 2 | Click the *Description* tab at 1:11; a typing effect is not needed | `step` "5 · Save", `key` Ctrl+S, `box` around the console line "saved" | "Write a short description, then Ctrl+S saves the test and the Excel book." |
-| 10 | 1:18–1:28 | `test_cam_end`, with `test_13` as a picture in the corner at 1:23 | Film full frame; corner picture zoomed on the tabs | In the corner picture: click *+ New Test* | `key` F5, then `check` "Zero · Start · End · Check · Save" | "Return to zero point, take the specimen out, and '+ New Test' for the next one." |
+| 10 | 1:18–1:30 | `test_cam_viewing_editing_a_test_14` | The parts that show the file opening, then the Excel report (cut to about 12 s of the 35 s clip; speed up waiting) | The real pointer | `step` "6 · Open it again", `key` Ctrl+O, `box` ".lr10k" and `box` "Excel book" | "Later, File, Open brings the test back to look at or change. The Excel book has the report and the charts for your lab report." |
+| 11 | 1:30–1:40 | `test_cam_end`, with `test_13` as a picture in the corner at 1:35 | Film full frame; corner picture zoomed on the tabs | In the corner picture: click *+ New Test* | `key` F5, then `check` "Zero · Start · End · Check · Save" | "Return to zero point, take the specimen out, and '+ New Test' for the next one." |
 
 ## 4. Checklist
 

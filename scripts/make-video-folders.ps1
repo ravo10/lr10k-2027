@@ -25,7 +25,7 @@ $videos = @(
     @{ Folder = '03_CompletingATest'; Plan = 'video-plan-test.md'; Export = 'LR10K_COMPLETEATEST.mp4'; Voice = 'voice_test.wav'
        Film = @('test_cam_intro.mp4', 'test_close_clamp.mp4', 'test_close_running.mp4', 'test_close_break.mp4', 'test_cam_end.mp4')
        Screen = @('test_01_zero_point.png', 'test_02_zeroed.png', 'test_03_file_menu.png', 'test_04_folder_dialog.png', 'test_05_start_tooltip.png', 'test_06_start.png', 'test_07_running.png', 'test_08_ended.png', 'test_09_points.png', 'test_10_point_moved.png', 'test_11_description.png', 'test_12_saved.png', 'test_13_new_tab.png')
-       Optional = @('test_clip_graph.mp4') },
+       Optional = @('test_clip_graph.mp4', 'test_cam_viewing_editing_a_test_14.mp4') },
     @{ Folder = '04_UsingAnExtensometer'; Plan = 'video-plan-extensometer.md'; Export = 'LR10K_USINGANEXTENSIOMETER.mp4'; Voice = 'voice_ext.wav'
        Film = @('ext_close_dots.mp4', 'ext_close_guide.mp4', 'ext_cam_camera.mp4', 'ext_cam_end.mp4')
        Screen = @('ext_01_view_menu.png', 'ext_02_hardware_menu.png', 'ext_03_camera.png', 'ext_04_pick.png', 'ext_05_mask.png', 'ext_06_l0_tracking.png', 'ext_07_noise.png', 'ext_08_record_menu.png', 'ext_09_zero_point.png')
@@ -68,20 +68,42 @@ function Get-Missing($folder, $names) {
     @($names | Where-Object { -not (Test-Path (Join-Path $folder $_)) })
 }
 
-# A screen shot can also be a screen recording (or a picture) named by its shot numbers, in film\ or screen\:
-# setup_05.mp4 stands for setup_05_settings_speed.png, and setup_01_02_03_04.mp4 for shots 01 to 04.
-$combined = '^{0}(_\d\d)+\.(mp4|mov|png)$'
+# Names can be combined, so one file can hold several things:
+#   setup_05.mp4, setup_01_02_03_04.mp4      a screen recording (or picture) of shots 05, or 01 to 04
+#   test_close_break_test_08.mp4             the film clip test_close_break, followed by screen shot 08
+#   test_cam_end_test_13.mp4                 the film clip test_cam_end, followed by screen shot 13
+# Files can be in film\ or screen\.
+function Get-MediaFiles($root) {
+    foreach ($s in 'film', 'screen') {
+        $dir = Join-Path $root $s
+        if (Test-Path $dir) { Get-ChildItem -File $dir | Where-Object { $_.Extension -match '^\.(mp4|mov|png)$' } }
+    }
+}
+
+function Test-FilmCovered($root, $name) {
+    $base = [IO.Path]::GetFileNameWithoutExtension($name)
+    foreach ($f in Get-MediaFiles $root) {
+        if ($f.Name -eq $name -or $f.BaseName.StartsWith($base + '_')) { return $true }
+    }
+    return $false
+}
 
 function Test-ShotCovered($root, $prefix, $name) {
     if (Test-Path (Join-Path (Join-Path $root 'screen') $name)) { return $true }
     if ($name -notmatch '^[a-z]+_(\d\d)_') { return $false }
-    $num = $Matches[1]
-    foreach ($s in 'film', 'screen') {
-        $dir = Join-Path $root $s
-        if (-not (Test-Path $dir)) { continue }
-        foreach ($f in Get-ChildItem -File $dir) {
-            if ($f.Name -match ($combined -f $prefix) -and (($f.BaseName -split '_') -contains $num)) { return $true }
-        }
+    $pattern = '(^|_)' + $prefix + '(_\d\d)*_' + $Matches[1] + '(_\d\d)*$'
+    foreach ($f in Get-MediaFiles $root) {
+        if ($f.BaseName -match $pattern) { return $true }
+    }
+    return $false
+}
+
+function Test-KnownName($file, $v, $prefix) {
+    $known = @($v.Film + $v.Screen + $v.Optional + $v.Voice + $v.Export)
+    if ($known -contains $file.Name) { return $true }
+    if ($file.BaseName -match ('(^|_)' + $prefix + '(_\d\d)+$')) { return $true }
+    foreach ($n in @($v.Film + $v.Optional)) {
+        if ($file.BaseName.StartsWith([IO.Path]::GetFileNameWithoutExtension($n) + '_')) { return $true }
     }
     return $false
 }
@@ -102,7 +124,7 @@ foreach ($v in $videos) {
         foreach ($s in $sub.Keys) { $list += ("  {0,-12} {1}" -f $s, $sub[$s]) }
         $list += ''
         if ($v.Film.Count)     { $list += 'film\';     $v.Film     | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
-        if ($v.Screen.Count)   { $list += 'screen\  (or screen recordings named by shot number in film\ or screen\, e.g. ' + $prefix + '_01_02_03.mp4 for shots 01 to 03)';   $v.Screen   | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
+        if ($v.Screen.Count)   { $list += 'screen\  (or recordings named by shot number in film\ or screen\: ' + $prefix + '_01_02_03.mp4 for shots 01 to 03, or a film name followed by a shot, e.g. ' + $prefix + '_cam_end_' + $prefix + '_13.mp4)';   $v.Screen   | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
         if ($v.Optional.Count) { $list += 'Optional (film\ or screen\):'; $v.Optional | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
         $list += 'voice\  (optional: only for a voice-over; not needed when you talk in the clips)';  $list += "  [ ] $($v.Voice)"; $list += ''
         $list += 'export\'; $list += "  [ ] $($v.Export)   (upload to the demo-videos-1.0 release when done)"
@@ -111,16 +133,15 @@ foreach ($v in $videos) {
     }
     else {
         $missing = @()
-        $missing += Get-Missing (Join-Path $root 'film')   $v.Film   | ForEach-Object { "film\$_" }
+        $missing += @($v.Film | Where-Object { -not (Test-FilmCovered $root $_) }) | ForEach-Object { "film\$_" }
         $missing += @($v.Screen | Where-Object { -not (Test-ShotCovered $root $prefix $_) }) | ForEach-Object { "screen\$_" }
         $missing += Get-Missing (Join-Path $root 'export') @($v.Export) | ForEach-Object { "export\$_" }
 
-        $known = @($v.Film + $v.Screen + $v.Optional + $v.Voice + $v.Export)
         $unknown = @()
         foreach ($s in 'film', 'screen', 'voice', 'export') {
             $dir = Join-Path $root $s
             if (Test-Path $dir) {
-                Get-ChildItem -File $dir | Where-Object { $known -notcontains $_.Name -and $_.Name -notmatch ($combined -f $prefix) } | ForEach-Object { $unknown += "$s\$($_.Name)" }
+                Get-ChildItem -File $dir | Where-Object { -not (Test-KnownName $_ $v $prefix) } | ForEach-Object { $unknown += "$s\$($_.Name)" }
             }
         }
 
