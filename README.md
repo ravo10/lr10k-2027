@@ -131,7 +131,7 @@ Then continue with step 5. If the markers are lost for more than half a second d
 ## Getting and building the software
 
 - **Download:** the ready-to-run program (a `.zip` to unpack, or the `.msi` installer) is attached to each version on the [Releases](https://github.com/ravo10/lr10k-2027/releases) page. At USN, ask the lab staff. Windows 10 or 11 (64-bit); nothing else needs installing. Settings and the window layout are kept in `%LOCALAPPDATA%\LR10K`.
-- **What you need:** the LR 10K connected to a serial (COM) port, directly or with a USB-to-serial adapter (at USN: a StarTech.com 1 Port FTDI USB to Serial RS232 DB9; see [Cable and adapter](docs/index.md#cable-and-adapter)). For the optical extensometer, any USB webcam Windows recognises (a 1080p or 4K camera gives finer strain), and two markers in a bright colour.
+- **What you need:** the LR 10K connected to a serial (COM) port, directly or with a USB-to-serial adapter (at USN: a StarTech.com 1 Port FTDI USB to Serial RS232 DB9 and a DB25 to DB9 adapter; see [Cable and adapter](docs/index.md#cable-and-adapter)). For the optical extensometer, any USB webcam Windows recognises (a 1080p or 4K camera gives finer strain), and two markers in a bright colour.
 - **Build from source:** Visual Studio 2026 (C++), vcpkg and OpenCV 4.12; step by step in [BUILDING.md](BUILDING.md).
 - **Tutorial videos:** too large for git, so they are assets of the [`demo-videos-1.0` release](https://github.com/ravo10/lr10k-2027/releases/tag/demo-videos-1.0). After cloning, download them into `main/LloydLR10KTensile/videos/` with the script below (while the repository is private it needs the [GitHub CLI](https://cli.github.com), `gh auth login` first):
 
