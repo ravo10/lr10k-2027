@@ -35,6 +35,22 @@ With the specimen clamped and the lab light as in a real test.
 
 Optional: a 5 s screen recording `ext_clip_tracking.mp4` of the camera tab during a test, the dots moving apart. It is the best picture for the end of the video.
 
+### The clips as recorded
+
+| Clip | Has | Used in shots |
+|---|---|---|
+| `ext_close_dots.mp4` | The specimen with the two dots | 1 |
+| `ext_close_guide.mp4` | Placing the dots with the guide (44 s: cut to the best 10 s) | 2 |
+| `ext_cam_camera.mp4` | The camera on the tripod | 3 |
+| `ext_01_02_03.mp4` | *View* > *Extensometer*, *Hardware* and the camera, the camera picture | 4 |
+| `ext_03_04.mp4` | The camera picture, *Pick from image* and clicking a dot | 5 |
+| `ext_05.mp4` | The *Mask (binary)* tab | 6 |
+| `ext_06.mp4` | L0 and *Tracking: 2 markers* | 7 |
+| `ext_07.mp4` | *Dead-band* and *Measured noise* | 8 |
+| `ext_09_08.mp4` | *Set zero point*, then *Record* > *Record tests* | 9 |
+| `ext_clip_tracking.mp4` | The camera tab during a test (58 s: use a few seconds, or speed it up) | 10 |
+| `ext_cam_end.mp4` | The end | 10 |
+
 ## 3. Shot by shot
 
 | # | Time | Picture | Camera (zoom to) | Pointer | Overlays | Say |
