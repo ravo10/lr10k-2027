@@ -129,4 +129,16 @@ In order of how much they would help students:
 5. **Compression and 3-point bending** (75 s): what changes in Settings, the support span, the results.
 6. **Making extensometer markers** (60 s): laser cutting the dots, the placement guide, 3D-printed specimens. Short and practical; it could also live on the documentation page only.
 
+## Folders for the clips and screenshots
+
+`scripts/make-video-folders.ps1` makes one folder per video (`01_GUI` to `10_MakingMarkers`), each with `film`, `screen`, `voice`, `hyperframes` and `export`, and a `_checklist.txt` with the file names from the plans. Rename each clip to its name in the checklist and drop it in. `-Check` lists what is still missing and any file with a name the plans don't know:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\make-video-folders.ps1 -Path "C:\...\LR10K-Prosjekt\Video\Instructional videos"
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\make-video-folders.ps1 -Path "C:\...\LR10K-Prosjekt\Video\Instructional videos" -Check
+```
+
 New videos can be added to the Help window the same way as the four above: one button and one file in `videos/`, also added to `scripts/fetch-videos.ps1`.
