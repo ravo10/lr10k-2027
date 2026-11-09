@@ -12,7 +12,7 @@ The [README](../README.md#quick-start) has the whole workflow on one page, with 
 Connect the LR 10K to the PC with its serial cable (a USB-to-serial adapter works) and switch the machine on. In the software, open *PC Config.* and pick the COM port the LR 10K is on, then *Connect PC* in the same menu. The console shows the progress and says when the machine is connected; the machine's state is shown on the right of the menu bar. If it does not connect, check the cable and the COM port, and try *Disconnect COM* and connect again. For a closer look, turn on *Log serial traffic to file* before *Connect PC* (see [BUILDING.md](../BUILDING.md#troubleshooting)).
 
 ### Cable and adapter
-Most PCs today have no serial (COM) port, so the LR 10K is connected through a USB-to-serial adapter. The one used at USN is a **StarTech.com 1 Port FTDI USB to Serial RS232 Adapter (DB9)**. The LR 10K's serial port is a 25-pin DB25, so a **DB25 male to DB9 female** adapter sits between the machine and the USB adapter:
+Most PCs today have no serial (COM) port, so the LR 10K is connected through a USB-to-serial adapter. The one used at USN is a **StarTech.com 1 Port USB to Serial RS232 Adapter with COM Retention**, part number **ICUSB2321F**. The LR 10K's serial port is a 25-pin DB25, so a **DB25 male to DB9 female** adapter sits between the machine and the USB adapter:
 
 **LR 10K (DB25)** → DB25 male / DB9 female adapter → StarTech USB to RS232 (DB9) → USB port on the PC
 
@@ -20,10 +20,10 @@ To Windows and the software, this works like a normal COM port.
 
 | | |
 |---|---|
-| **Adapter** | StarTech.com 1 Port FTDI USB to Serial RS232 DB9. Other RS232 adapters should also work; adapters with an FTDI chip have the most reliable drivers. |
-| **DB25 to DB9** | A plain DB25 male to DB9 female adapter, which connects the matching RS232 signals (TX, RX, ground, CTS, DSR and so on). If you buy a new one, get the same kind: a *null-modem* one swaps TX and RX, and the LR 10K would not answer. |
+| **Adapter** | StarTech.com ICUSB2321F: FTDI FT232R chip, USB 2.0, one DB9 male RS232 port (standard PC pinout: 2 RXD, 3 TXD, 5 GND, 6 DSR, 8 CTS), 1.83 m cable. *COM retention* means Windows keeps the same COM number for it. Other RS232 adapters should also work; adapters with an FTDI chip have the most reliable drivers. |
+| **DB25 to DB9** | A DB25 male to DB9 female adapter. It isn't marked as straight-through or *null-modem* (which swaps TX and RX), but it works with this machine, so **keep it with the machine**. If it is ever replaced and the LR 10K does not answer (*No data at all from COMx* in the console), try the other kind. |
 | **Driver** | Windows 10 and 11 install the FTDI driver by themselves the first time the adapter is plugged in (Windows Update). Otherwise get the *VCP driver* from ftdichip.com or StarTech's product page. |
-| **COM port** | Windows gives the adapter a COM number, shown in *Device Manager* > *Ports (COM & LPT)* as *USB Serial Port (COMx)*, and in the software's *PC Config.* list. Use the same USB socket each time and it keeps its number. To change it: *Device Manager* > the port > *Properties* > *Port Settings* > *Advanced* > *COM Port Number*. |
+| **COM port** | Windows gives the adapter a COM number, shown in *Device Manager* > *Ports (COM & LPT)* as *USB Serial Port (COMx)*, and in the software's *PC Config.* list. The ICUSB2321F keeps its number (COM retention); with other adapters, use the same USB socket each time. To change it: *Device Manager* > the port > *Properties* > *Port Settings* > *Advanced* > *COM Port Number*. |
 | **Settings** | Nothing to set in Windows: the software sets the port itself, to 9600 baud, 8 data bits, no parity, 1 stop bit (8N1), with CTS/DSR hardware handshake. |
 | **Unplugged?** | If the adapter is pulled out or its driver restarts, the software says *Connection lost*. Plug it back in and press *Reconnect*. |
 
