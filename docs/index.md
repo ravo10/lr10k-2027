@@ -11,6 +11,19 @@ The [README](../README.md#quick-start) has the whole workflow on one page, with 
 ## Configuration setup between the PC and LR 10K Tensile Machine
 Connect the LR 10K to the PC with its serial cable (a USB-to-serial adapter works) and switch the machine on. In the software, open *PC Config.* and pick the COM port the LR 10K is on, then *Connect PC* in the same menu. The console shows the progress and says when the machine is connected; the machine's state is shown on the right of the menu bar. If it does not connect, check the cable and the COM port, and try *Disconnect COM* and connect again. For a closer look, turn on *Log serial traffic to file* before *Connect PC* (see [BUILDING.md](../BUILDING.md#troubleshooting)).
 
+### Cable and adapter
+Most PCs today have no serial (COM) port, so the LR 10K is connected through a USB-to-serial adapter. The one used at USN is a **StarTech.com 1 Port FTDI USB to Serial RS232 Adapter (DB9)**. It plugs into the LR 10K's serial cable like a normal COM port.
+
+| | |
+|---|---|
+| **Adapter** | StarTech.com 1 Port FTDI USB to Serial RS232 DB9. Other RS232 adapters should also work; adapters with an FTDI chip have the most reliable drivers. |
+| **Driver** | Windows 10 and 11 install the FTDI driver by themselves the first time the adapter is plugged in (Windows Update). Otherwise get the *VCP driver* from ftdichip.com or StarTech's product page. |
+| **COM port** | Windows gives the adapter a COM number, shown in *Device Manager* > *Ports (COM & LPT)* as *USB Serial Port (COMx)*, and in the software's *PC Config.* list. Use the same USB socket each time and it keeps its number. To change it: *Device Manager* > the port > *Properties* > *Port Settings* > *Advanced* > *COM Port Number*. |
+| **Settings** | Nothing to set in Windows: the software sets the port itself, to 9600 baud, 8 data bits, no parity, 1 stop bit (8N1), with CTS/DSR hardware handshake. |
+| **Unplugged?** | If the adapter is pulled out or its driver restarts, the software says *Connection lost*. Plug it back in and press *Reconnect*. |
+
+Keep the cable away from the machine's motor and power cables where you can, and don't use a long USB extension: a loose or noisy connection shows up as the LR 10K "not answering". If connecting fails, *Log serial traffic to file* (see above) shows whether any bytes arrive at all.
+
 ## Sending a setup to LR 10K before starting a new test
 In the *Settings* window (the *Settings* button at the top right of the graph, or *View* > *Settings*), choose tension or compression, the crosshead (test) speed and the jog speed, the load error correction, the specimen's dimensions (thickness and width, or diameter, and the gauge length L0) and the units. Under *Limits inside LR 10K* set the load limit. Then press **Apply to LR 10K**: the setup is sent to the machine. A load error correction changed after a test can be applied to that finished test with *Update finished test*.
 
