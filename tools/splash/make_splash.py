@@ -129,7 +129,7 @@ for t, col in ((0.12, (217, 119, 6)), (0.62, (8, 145, 178)), (0.97, (220, 38, 38
 
 # Text, left aligned
 x = 230
-d.text((x, 380), 'USN KONGSBERG  ·  MACHINE ENGINEERING', font=font('Inter-SemiBold.otf', 52), fill=(147, 197, 253, 255))
+d.text((x, 380), 'USN KONGSBERG  ·  MECHANICAL ENGINEERING', font=font('Inter-SemiBold.otf', 52), fill=(147, 197, 253, 255))
 d.rectangle((x, 480, x + 150, 492), fill=(59, 130, 246, 255))
 d.text((x, 545), 'LR 10K Tensile Machine', font=font('InterDisplay-Bold.otf', 196), fill=(255, 255, 255, 255))
 d.text((x, 775), 'Control Software', font=font('InterDisplay-Light.otf', 196), fill=(226, 232, 240, 255))

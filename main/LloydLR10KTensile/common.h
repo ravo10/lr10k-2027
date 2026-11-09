@@ -42,7 +42,7 @@ static const char* LR10KAppRepository = "lr10k-2027";       //!< GitHub reposito
 
 // ###############################################--------------------------------------------------------------------------------------------------------------
 // 
-// GUI Code created by: Rasmus Ullestad Relling machine engineering student as a (first time C++) summer project for USN Kongsberg (Norway). ravo10 on GitHub.
+// GUI Code created by: Rasmus Ullestad Relling mechanical engineering student as a (first time C++) summer project for USN Kongsberg (Norway). ravo10 on GitHub.
 // Implemented logic (and made easier to understand) for handling and decrypting the LR10K input/output discovered and made by USN Kongsberg teachers.
 // All contributors are listed in the application's "Help" menu.
 // --------------------------------------------------------------------------------------------------------------###############################################
