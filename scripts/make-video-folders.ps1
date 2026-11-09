@@ -68,9 +68,28 @@ function Get-Missing($folder, $names) {
     @($names | Where-Object { -not (Test-Path (Join-Path $folder $_)) })
 }
 
+# A screen shot can also be a screen recording (or a picture) named by its shot numbers, in film\ or screen\:
+# setup_05.mp4 stands for setup_05_settings_speed.png, and setup_01_02_03_04.mp4 for shots 01 to 04.
+$combined = '^{0}(_\d\d)+\.(mp4|mov|png)$'
+
+function Test-ShotCovered($root, $prefix, $name) {
+    if (Test-Path (Join-Path (Join-Path $root 'screen') $name)) { return $true }
+    if ($name -notmatch '^[a-z]+_(\d\d)_') { return $false }
+    $num = $Matches[1]
+    foreach ($s in 'film', 'screen') {
+        $dir = Join-Path $root $s
+        if (-not (Test-Path $dir)) { continue }
+        foreach ($f in Get-ChildItem -File $dir) {
+            if ($f.Name -match ($combined -f $prefix) -and (($f.BaseName -split '_') -contains $num)) { return $true }
+        }
+    }
+    return $false
+}
+
 $totalMissing = 0
 foreach ($v in $videos) {
     $root = Join-Path $Path $v.Folder
+    $prefix = $v.Voice -replace '^voice_', '' -replace '\.wav$', ''
     if (-not $Check) {
         foreach ($s in $sub.Keys) { New-Item -ItemType Directory -Force -Path (Join-Path $root $s) | Out-Null }
 
@@ -83,7 +102,7 @@ foreach ($v in $videos) {
         foreach ($s in $sub.Keys) { $list += ("  {0,-12} {1}" -f $s, $sub[$s]) }
         $list += ''
         if ($v.Film.Count)     { $list += 'film\';     $v.Film     | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
-        if ($v.Screen.Count)   { $list += 'screen\';   $v.Screen   | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
+        if ($v.Screen.Count)   { $list += 'screen\  (or screen recordings named by shot number in film\ or screen\, e.g. ' + $prefix + '_01_02_03.mp4 for shots 01 to 03)';   $v.Screen   | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
         if ($v.Optional.Count) { $list += 'Optional (film\ or screen\):'; $v.Optional | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
         $list += 'voice\';  $list += "  [ ] $($v.Voice)"; $list += ''
         $list += 'export\'; $list += "  [ ] $($v.Export)   (upload to the demo-videos-1.0 release when done)"
@@ -93,7 +112,7 @@ foreach ($v in $videos) {
     else {
         $missing = @()
         $missing += Get-Missing (Join-Path $root 'film')   $v.Film   | ForEach-Object { "film\$_" }
-        $missing += Get-Missing (Join-Path $root 'screen') $v.Screen | ForEach-Object { "screen\$_" }
+        $missing += @($v.Screen | Where-Object { -not (Test-ShotCovered $root $prefix $_) }) | ForEach-Object { "screen\$_" }
         $missing += Get-Missing (Join-Path $root 'voice')  @($v.Voice) | ForEach-Object { "voice\$_" }
         $missing += Get-Missing (Join-Path $root 'export') @($v.Export) | ForEach-Object { "export\$_" }
 
@@ -102,7 +121,7 @@ foreach ($v in $videos) {
         foreach ($s in 'film', 'screen', 'voice', 'export') {
             $dir = Join-Path $root $s
             if (Test-Path $dir) {
-                Get-ChildItem -File $dir | Where-Object { $known -notcontains $_.Name } | ForEach-Object { $unknown += "$s\$($_.Name)" }
+                Get-ChildItem -File $dir | Where-Object { $known -notcontains $_.Name -and $_.Name -notmatch ($combined -f $prefix) } | ForEach-Object { $unknown += "$s\$($_.Name)" }
             }
         }
 

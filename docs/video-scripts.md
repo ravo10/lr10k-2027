@@ -131,7 +131,7 @@ In order of how much they would help students:
 
 ## Folders for the clips and screenshots
 
-`scripts/make-video-folders.ps1` makes one folder per video (`01_GUI` to `10_MakingMarkers`), each with `film`, `screen`, `voice`, `hyperframes` and `export`, and a `_checklist.txt` with the file names from the plans. Rename each clip to its name in the checklist and drop it in. `-Check` lists what is still missing and any file with a name the plans don't know:
+`scripts/make-video-folders.ps1` makes one folder per video (`01_GUI` to `10_MakingMarkers`), each with `film`, `screen`, `voice`, `hyperframes` and `export`, and a `_checklist.txt` with the file names from the plans. Rename each clip to its name in the checklist and drop it in. Screen recordings can stand in for screenshots: name them by the shot numbers they cover, e.g. `setup_01_02_03_04.mp4` for `setup_01` to `setup_04`, in `film` or `screen`. `-Check` lists what is still missing and any file with a name the plans don't know:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\make-video-folders.ps1 -Path "C:\...\LR10K-Prosjekt\Video\Instructional videos"

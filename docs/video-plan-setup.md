@@ -33,6 +33,22 @@ Start with the software open, **not connected**, and a fresh tab. Settings and t
 | `setup_10_navigation.png` | The side panel's navigation buttons: *Up (F2)*, *Down (F3)*, *Stop* | Scroll the side panel if needed |
 | `setup_11_safety_tooltip.png` | *Settings* > *Zero Point & Safety*, with the tooltip of the 50 N blocker showing | Hover over the blocker's checkbox, PrtScn |
 
+### Screen recordings instead of screenshots
+
+Screen recordings work as well as the screenshots, and look livelier: the real pointer and menus move. Name each recording after the screenshot numbers it covers, so the plan and `-Check` still know what is in it:
+
+| Recording | Replaces | Used in shots |
+|---|---|---|
+| `setup_01_02_03_04.mp4` | `setup_01` to `setup_04` (PC Config., COM port, Connect PC, connected) | 3–4 |
+| `setup_05.mp4` | `setup_05_settings_speed` | 5 |
+| `setup_06.mp4` | `setup_06_settings_limits` | 6 |
+| `setup_07.mp4` | `setup_07_calculator_dimensions` | 7 |
+| `setup_08_09.mp4` | `setup_08_apply`, `setup_09_applied` | 8 |
+| `setup_10.png` / `.mp4` | `setup_10_navigation` (Up, Down, Stop) | 9 (the corner picture) |
+| `setup_11.png` / `.mp4` | `setup_11_safety_tooltip` (the 50 N tooltip) | 9 |
+
+With recordings, HyperFrames cuts each one to the part that matches the line being said (the recordings are longer than the shots), speeds up waiting parts, and zooms in on the part of the window as in the table below. The drawn pointer and click rings are then not needed where the real pointer shows.
+
 ## 3. Shot by shot
 
 | # | Time | Picture | Camera (zoom to) | Pointer | Overlays | Say |
