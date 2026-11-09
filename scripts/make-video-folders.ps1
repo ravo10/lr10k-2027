@@ -59,7 +59,7 @@ $videos = @(
 $sub = [ordered]@{
     'film'        = 'Camera clips (.mp4). Rename each clip to the name in _checklist.txt before dropping it here.'
     'screen'      = 'Screenshots (.png) and short screen recordings, same size and theme in all of them.'
-    'voice'       = 'A voice-over recording (.wav), if any. Not needed when you talk in the clips themselves.'
+    'voice'       = 'A voice-over (.wav), if any: one file, or one per shot (voice_<name>_01.wav, _02, ...). Not needed when you talk in the clips.'
     'hyperframes' = 'The HyperFrames project or composition files.'
     'export'      = 'The finished video, with the name the software expects.'
 }
@@ -101,6 +101,8 @@ function Test-ShotCovered($root, $prefix, $name) {
 function Test-KnownName($file, $v, $prefix) {
     $known = @($v.Film + $v.Screen + $v.Optional + $v.Voice + $v.Export)
     if ($known -contains $file.Name) { return $true }
+    # Voice-over in one file or one per shot: voice_gui.wav, voice_gui_01.wav, voice_gui_02.wav, ...
+    if ($file.Name -match ('^voice_' + $prefix + '(_\d\d)*\.wav$')) { return $true }
     if ($file.BaseName -match ('(^|_)' + $prefix + '(_\d\d)+$')) { return $true }
     foreach ($n in @($v.Film + $v.Optional)) {
         if ($file.BaseName.StartsWith([IO.Path]::GetFileNameWithoutExtension($n) + '_')) { return $true }
