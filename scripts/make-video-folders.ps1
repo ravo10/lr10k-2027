@@ -59,7 +59,7 @@ $videos = @(
 $sub = [ordered]@{
     'film'        = 'Camera clips (.mp4). Rename each clip to the name in _checklist.txt before dropping it here.'
     'screen'      = 'Screenshots (.png) and short screen recordings, same size and theme in all of them.'
-    'voice'       = 'The voice recording (.wav), one file for the whole video.'
+    'voice'       = 'A voice-over recording (.wav), if any. Not needed when you talk in the clips themselves.'
     'hyperframes' = 'The HyperFrames project or composition files.'
     'export'      = 'The finished video, with the name the software expects.'
 }
@@ -104,7 +104,7 @@ foreach ($v in $videos) {
         if ($v.Film.Count)     { $list += 'film\';     $v.Film     | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
         if ($v.Screen.Count)   { $list += 'screen\  (or screen recordings named by shot number in film\ or screen\, e.g. ' + $prefix + '_01_02_03.mp4 for shots 01 to 03)';   $v.Screen   | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
         if ($v.Optional.Count) { $list += 'Optional (film\ or screen\):'; $v.Optional | ForEach-Object { $list += "  [ ] $_" }; $list += '' }
-        $list += 'voice\';  $list += "  [ ] $($v.Voice)"; $list += ''
+        $list += 'voice\  (optional: only for a voice-over; not needed when you talk in the clips)';  $list += "  [ ] $($v.Voice)"; $list += ''
         $list += 'export\'; $list += "  [ ] $($v.Export)   (upload to the demo-videos-1.0 release when done)"
         Set-Content -Path (Join-Path $root '_checklist.txt') -Value $list -Encoding UTF8
         Write-Host "Made $root"
@@ -113,7 +113,6 @@ foreach ($v in $videos) {
         $missing = @()
         $missing += Get-Missing (Join-Path $root 'film')   $v.Film   | ForEach-Object { "film\$_" }
         $missing += @($v.Screen | Where-Object { -not (Test-ShotCovered $root $prefix $_) }) | ForEach-Object { "screen\$_" }
-        $missing += Get-Missing (Join-Path $root 'voice')  @($v.Voice) | ForEach-Object { "voice\$_" }
         $missing += Get-Missing (Join-Path $root 'export') @($v.Export) | ForEach-Object { "export\$_" }
 
         $known = @($v.Film + $v.Screen + $v.Optional + $v.Voice + $v.Export)
@@ -125,8 +124,8 @@ foreach ($v in $videos) {
             }
         }
 
-        $done = ($v.Film.Count + $v.Screen.Count + 2) - $missing.Count
-        Write-Host ("{0,-28} {1,3} of {2,3} files" -f $v.Folder, $done, ($v.Film.Count + $v.Screen.Count + 2))
+        $done = ($v.Film.Count + $v.Screen.Count + 1) - $missing.Count
+        Write-Host ("{0,-28} {1,3} of {2,3} files" -f $v.Folder, $done, ($v.Film.Count + $v.Screen.Count + 1))
         $missing | ForEach-Object { Write-Host "    missing: $_" }
         $unknown | ForEach-Object { Write-Host "    unknown name (rename it?): $_" -ForegroundColor Yellow }
         $totalMissing += $missing.Count
