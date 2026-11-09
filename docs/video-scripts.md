@@ -118,6 +118,8 @@ Goal: markers on, camera tracking, a test with optical strain.
 
 ## Ideas for more videos
 
+All six now have a script and a HyperFrames plan: [video-plan-extras.md](video-plan-extras.md).
+
 In order of how much they would help students:
 
 1. **Safety and the zero point** (60 s): the 50 N blocker, the load limit, Stop (F1), hands clear, what the warning sound means. Could be the first mandatory video.
