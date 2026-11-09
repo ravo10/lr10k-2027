@@ -57,7 +57,7 @@ Two ways:
 
 > Make a 75-second 1920×1080 tutorial video for the LR 10K tensile tester software from these screenshots, following the shot table in docs/video-plan-gui.md (paste section 2 and 3). Use smooth eased zooms to the given positions (x, y as fractions of the picture, zoom factor), a drawn mouse pointer with click rings, and the overlays title, step, box, key and end in the given style. Cross-fade between screenshots of the same layout so only the changed part seems to change. Lay the voice recording (voice_gui.wav) under it and time the shots to it; if there is no recording, use a calm, clear English text-to-speech voice reading the "Say" column. 0.5 s of silence at the start and end. Export MP4 (H.264).
 
-Save the result as `lr10k_gui.mp4` (the same name as before) and replace the asset in the `demo-videos-1.0` release, so `scripts/fetch-videos.ps1` gets the new one.
+Save the result as `LR10K_GUI.mp4` (the same name as before) and replace the asset in the `demo-videos-1.0` release, so `scripts/fetch-videos.ps1` gets the new one.
 
 ## 5. Checklist
 
@@ -65,4 +65,4 @@ Save the result as `lr10k_gui.mp4` (the same name as before) and replace the ass
 - [ ] Positions measured on the real screenshots and corrected in the table
 - [ ] Voice recorded (or text-to-speech chosen)
 - [ ] Rendered, watched once at full size: every box on its button, every text readable
-- [ ] `lr10k_gui.mp4` replaced in the release
+- [ ] `LR10K_GUI.mp4` replaced in the release

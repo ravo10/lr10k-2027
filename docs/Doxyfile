@@ -942,6 +942,9 @@ INPUT                  = developer.md \
                          extensometer-markers.md \
                          video-scripts.md \
                          video-plan-gui.md \
+                         video-plan-setup.md \
+                         video-plan-test.md \
+                         video-plan-extensometer.md \
                          architecture/README.md
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses

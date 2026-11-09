@@ -1,6 +1,6 @@
 # Tutorial video scripts
 
-Scripts for the training videos in the Help window (`videos/lr10k_*.mp4`). Each one is 60 to 90 seconds, shows one thing and is straight to the point.
+Scripts for the training videos in the Help window (`videos/LR10K_*.mp4`). Each one is 60 to 90 seconds, shows one thing and is straight to the point.
 
 ## How the scripts are written
 
@@ -57,6 +57,8 @@ Goal: a new user knows where everything is and which three windows matter.
 
 ## 2. Setup: Connect and set up the LR 10K (about 90 s)
 
+What to film, the screenshots of each click and the HyperFrames shot table: [video-plan-setup.md](video-plan-setup.md).
+
 Goal: connect, send a setup and check it, safely. In the app this one is mandatory.
 
 | Time | Picture | Say | On screen |
@@ -73,6 +75,8 @@ Goal: connect, send a setup and check it, safely. In the app this one is mandato
 ---
 
 ## 3. Completing a test: From specimen to saved results (about 90 s)
+
+What to film, the screenshots of each click and the HyperFrames shot table: [video-plan-test.md](video-plan-test.md).
 
 Goal: one complete test, in the right order. In the app this one is mandatory.
 
@@ -92,6 +96,8 @@ Goal: one complete test, in the right order. In the app this one is mandatory.
 ---
 
 ## 4. Using an extensometer: Measure strain with the camera (about 90 s)
+
+What to film, the screenshots of each click and the HyperFrames shot table: [video-plan-extensometer.md](video-plan-extensometer.md).
 
 Goal: markers on, camera tracking, a test with optical strain.
 
