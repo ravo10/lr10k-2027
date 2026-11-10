@@ -53,6 +53,8 @@ The Help menu's tutorial videos are not stored in git. Download them into `main\
 powershell -ExecutionPolicy Bypass -File scripts\fetch-videos.ps1
 ```
 
+Videos already in the folder are kept. When new videos have been uploaded to the release, add `-Force` to replace them (then rebuild the installer, which includes them).
+
 The app builds and runs without them; the Help buttons then open the download page instead.
 
 ## 3. Build
