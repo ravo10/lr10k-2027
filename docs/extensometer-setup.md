@@ -9,6 +9,7 @@ How to make and place the markers: [Extensometer markers](extensometer-markers.m
 | The holder on the LR 10K | From the front |
 |---|---|
 | <img src="extensometer/holder-on-lr10k.jpg" width="380" alt="The camera holder on the front panel of the LR 10K, the webcam pointing at the grips"> | <img src="extensometer/holder-front.jpg" width="380" alt="The holder's base screwed to the front panel, below the bottom grip"> |
+| <img src="extensometer/holder-side.jpg" width="380" alt="The holder from the side: the base on the front panel, the socket and the upright arm with the camera"> | <img src="extensometer/holder-camera.jpg" width="380" alt="The camera hanging on the top of the arm with its own clip, pointing at the grips"> |
 
 ## The camera
 
@@ -41,7 +42,7 @@ Everything is in `extensiometer-holder.zip` in the [release](https://github.com/
 
 The zip also has the SolidWorks files (`.SLDPRT` for each part and the assembly `assm-extensometer-holder.SLDASM`) if you want to change the holder, for example for another camera or another hole distance.
 
-In the photos the arm leans to the side because it was made too long; a shorter arm will follow.
+In the first two photos the arm leans to the side because it was made too long; a shorter arm will follow.
 
 Also needed: **2 M3 × 20 mm screws** for the base, **2 M3 nuts** (5.2 mm across the flats) inside the base, and **2 M5 nuts** (7.8 mm across the flats) inside the arm.
 
