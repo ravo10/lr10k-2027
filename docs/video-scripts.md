@@ -28,6 +28,8 @@ The overlays are the same few kinds in every video:
 
 Use the app's look: dark background, one blue accent (#2563EB), red only for warnings, and Calibri or Segoe UI. Keep each text to one line that can be read in 2 seconds. Leave 0.5 s of silence at the start and end of each video so the cuts are clean.
 
+Export for the release (the `demo-videos-1.0` assets): MP4, 1920 × 1080, 30 fps, H.264 High at CRF 21 capped at 5 Mbit/s, a keyframe every 2 s, fast start (playback can begin before the whole file is downloaded), AAC sound. Bring every clip's speech to the same loudness and the whole video to −16 LUFS (peaks under −1.5 dBTP). With HyperFrames: `npx hyperframes render -o export/LR10K_<NAME>.mp4 --fps 30 --crf 21 --max-bitrate 5M --keyframe-interval 2`. That gives about 0.5–0.6 MB per second of filmed video; a video made of screenshots is much smaller.
+
 Tips for one camera angle:
 - Film the machine shots first, all in one go, then the screen recordings.
 - Put the camera at chest height, a little to the side, so the grips and your hands are both in the picture.
