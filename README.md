@@ -66,7 +66,7 @@ Windows can be moved and docked anywhere by dragging their tab; *GUI Settings* >
 
 ## Quick start
 
-Before your first test: install or unzip the software (see [Getting the software](#getting-and-building-the-software)), connect the LR 10K to the PC with its serial cable (a USB-to-serial adapter works), switch the machine on, and start the software. New to the program? *Help* has short videos (*Setup*, *Completing a test*, *Using an extensometer*) and a written *Get Started* guide.
+Before your first test: install the software (see [Getting the software](#getting-and-building-the-software)), connect the LR 10K to the PC with its serial cable (a USB-to-serial adapter works), switch the machine on, and start the software. New to the program? *Help* has short videos (*Setup*, *Completing a test*, *Using an extensometer*) and a written *Get Started* guide.
 
 Both workflows start the same way; the extensometer only adds steps 4a-4d.
 
@@ -137,7 +137,7 @@ Then continue with step 5. If the markers are lost for more than half a second d
 
 ## Getting and building the software
 
-- **Download:** the ready-to-run program (a `.zip` to unpack, or the `.msi` installer) is attached to each version on the [Releases](https://github.com/ravo10/lr10k-2027/releases) page. At USN, ask the lab staff. Windows 10 or 11 (64-bit); nothing else needs installing. Settings and the window layout are kept in `%LOCALAPPDATA%\LR10K`.
+- **Download:** the Windows installer, `LLOYD.LR.10K.Unofficial.Control.Software.msi`, is attached to the **[installer-media-2.0 release](https://github.com/ravo10/lr10k-2027/releases/tag/installer-media-2.0)**. Download it and run it; the tutorial videos are included. At USN, ask the lab staff. Windows 10 or 11 (64-bit); nothing else needs installing. Settings and the window layout are kept in `%LOCALAPPDATA%\LR10K`.
 - **What you need:** the LR 10K connected to a serial (COM) port, directly or with a USB-to-serial adapter (at USN: a StarTech.com ICUSB2321F USB to RS232 adapter and a DB25 to DB9 adapter; see [Cable and adapter](docs/index.md#cable-and-adapter)). For the optical extensometer, any USB webcam Windows recognises (a 1080p or 4K camera gives finer strain), and two markers in a bright colour.
 - **Build from source:** Visual Studio 2026 (C++), vcpkg and OpenCV 4.12; step by step in [BUILDING.md](BUILDING.md).
 - **Tutorial videos:** too large for git, so they are assets of the [`demo-videos-1.0` release](https://github.com/ravo10/lr10k-2027/releases/tag/demo-videos-1.0). After cloning, download them into `main/LloydLR10KTensile/videos/` with the script below:
