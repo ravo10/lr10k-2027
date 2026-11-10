@@ -2,7 +2,7 @@
 
 The optical extensometer works with any USB webcam Windows recognises. This page describes the setup used at USN: the camera, the changes made to the LR 10K, and the 3D-printed holder that fixes the camera to the machine. A camera that is fixed to the machine stays square to the specimen and does not move during the test, which matters more for the strain than the resolution.
 
-The 3D models are attached to the **[extensiometer-holder-lr10k release](https://github.com/ravo10/lr10k-2027/releases/tag/extensiometer-holder-lr10k)**.
+The 3D models are attached to the **[extensiometer-holder-lr10k release](https://github.com/ravo10/lr10k-2027/releases/tag/extensiometer-holder-lr10k-1.0)**.
 
 How to make and place the markers: [Extensometer markers](extensometer-markers.md).
 
@@ -31,23 +31,29 @@ Measure the distance between the holes on the holder you print before you drill,
 
 ## The holder (3D models)
 
-The holder has three printed parts:
+Everything is in `extensiometer-holder.zip` in the [release](https://github.com/ravo10/lr10k-2027/releases/tag/extensiometer-holder-lr10k-1.0). The holder has three printed parts:
 
-| Part | File | What it is |
-|---|---|---|
-| Base | `extensiometer-holder.STL` | Screwed to the front panel with the two M3 screws; the arm sits in it |
-| Arm | `extensiometer-holder-top-bar.STL` | The long bar from the base up to the camera |
-| Camera seat | `extensiometer-holder-top.STL` | On top of the arm; the camera sits on it |
+| Part | File | Size (mm) | What it is |
+|---|---|---|---|
+| Base | `extensiometer-holder.STL` | 84 × 70 × 57 | Screwed to the front panel with the two M3 screws |
+| Socket | `extensiometer-holder-top.STL` | 94 × 30 × 92 | Fixed on the base; the arm sits in it |
+| Arm | `extensiometer-holder-top-bar.STL` | 20 × 60 × 280 | The bar from the socket up to the camera |
 
-The release also has the SolidWorks files (`.SLDPRT` for each part and the assembly `assm-extensometer-holder.SLDASM`) if you want to change the holder, for example for another camera or another hole distance.
+The zip also has the SolidWorks files (`.SLDPRT` for each part and the assembly `assm-extensometer-holder.SLDASM`) if you want to change the holder, for example for another camera or another hole distance.
+
+In the photos the arm leans to the side because it was made too long; a shorter arm will follow.
 
 Also needed: **2 M3 × 20 mm screws** for the base.
 
+### Printing
+
+The holder at USN is printed in **PLA**. For the base and the socket, **PETG is suggested, with PLA as the support material**: PETG is tougher, and PLA support comes off PETG easily. The arm can be printed in PLA.
+
 ## Mounting it
 
-1. Print the three parts (files in the [release](https://github.com/ravo10/lr10k-2027/releases/tag/extensiometer-holder-lr10k)).
+1. Print the three parts (`extensiometer-holder.zip` in the [release](https://github.com/ravo10/lr10k-2027/releases/tag/extensiometer-holder-lr10k-1.0)).
 2. Screw the base to the front panel with the two M3 × 20 mm screws.
-3. Put the arm in the base and the camera seat on the arm, and put the camera on the seat. Connect it to the PC.
+3. Fix the socket on the base, put the arm in the socket, and put the camera on top of the arm. Connect it to the PC.
 4. Clamp a specimen with markers, open *View* > *Extensometer* and choose the camera under *Hardware*.
 5. Check in the camera picture that the specimen is upright and in the middle, and that both markers are well inside the picture for the whole stretch. Even light, no reflections on the markers.
 6. Do not touch the camera or the holder during the test: if the camera moves, the markers seem to move.
