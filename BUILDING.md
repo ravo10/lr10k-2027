@@ -124,12 +124,15 @@ After changing a theme colour, `tools/theme_preview.cpp` draws the main window i
 
 ## 8. Publishing a release
 
-Users without Visual Studio download the program from the repository's *Releases* page, so attach the built files to each version:
+Users without Visual Studio download the installer from the repository's *Releases* page, so attach it to each version:
 
 1. Raise the version (`LR10KAppVersion` in `common.h`, `vcpkg.json`, the installer's *ProductVersion*, `CITATION.cff`) and add the changes to *Releases and changelog* in the README.
-2. Build **Release | x64**, run `scripts\package-release.ps1`, and build the installer (section 5).
-3. On GitHub: *Releases* > *Draft a new release*, tag `v2.0.0` (the version), title e.g. *LR 10K Control Software 2.0.0*, paste the changelog, and attach `dist\LR10K-Control-Software.zip` and the `.msi`. Optionally attach the `.pdb` as a separate file, so crash reports from that version can be read later.
-4. Test the downloaded `.zip` on a PC without Visual Studio before telling users about it.
+2. Download the newest tutorial videos (`scripts\fetch-videos.ps1 -Force`, section 2), so the installer includes them. Build **Release | x64**, then build the installer (section 5).
+3. On GitHub: *Releases* > *Draft a new release*, tag `installer-media-2.0` (`installer-media-` and the version without the last number), title e.g. *LR 10K Control Software 2.0.0*, describe the changes, and attach the `.msi`. Optionally attach the `.pdb` as a separate file, so crash reports from that version can be read later.
+4. Change the download link in the README (*Getting the software*) to the new tag.
+5. Test the downloaded `.msi` on a PC without Visual Studio before telling users about it.
+
+`scripts\package-release.ps1` also makes a `.zip` of the program folder (section 4), for a PC where you can't run an installer; it isn't attached to the release.
 
 ## Troubleshooting
 
