@@ -43,13 +43,13 @@ The zip also has the SolidWorks files (`.SLDPRT` for each part and the assembly 
 
 In the photos the arm leans to the side because it was made too long; a shorter arm will follow.
 
-Also needed: **2 M3 × 20 mm screws** for the base, and **2 M3 nuts** (5.2 mm across the flats) for the arm.
+Also needed: **2 M3 × 20 mm screws** for the base, **M3 nuts** (5.2 mm across the flats) inside the base, and **M5 nuts** (7.8 mm across the flats) inside the arm.
 
 ### Printing
 
 The holder at USN is printed in **PLA**. For the base and the socket, **PETG is suggested, with PLA as the support material**: PETG is tougher, and PLA support comes off PETG easily. The arm can be printed in PLA.
 
-The arm has **two M3 nuts printed into it**: add a pause (layer stop) at **8.6 mm** in the slicer for `extensiometer-holder-top-bar.STL`, put the nuts in their pockets when the printer stops, and let it print on over them.
+The arm has **M5 nuts printed into it**: add a pause (layer stop) at **8.6 mm** in the slicer for `extensiometer-holder-top-bar.STL`, put the nuts in their pockets when the printer stops, and let it print on over them.
 
 ## Mounting it
 
