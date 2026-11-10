@@ -49,11 +49,13 @@ Also needed: **2 M3 × 20 mm screws** for the base.
 
 The holder at USN is printed in **PLA**. For the base and the socket, **PETG is suggested, with PLA as the support material**: PETG is tougher, and PLA support comes off PETG easily. The arm can be printed in PLA.
 
+The arm has **nuts printed into it**: add a pause (layer stop) at **8.6 mm** in the slicer for `extensiometer-holder-top-bar.STL`, put the nuts in their pockets when the printer stops, and let it print on over them.
+
 ## Mounting it
 
 1. Print the three parts (`extensiometer-holder.zip` in the [release](https://github.com/ravo10/lr10k-2027/releases/tag/extensiometer-holder-lr10k-1.0)).
 2. Screw the base to the front panel with the two M3 × 20 mm screws.
-3. Fix the socket on the base, put the arm in the socket, and put the camera on top of the arm. Connect it to the PC.
+3. Fix the socket on the base, put the arm in the socket, and hang the camera on the top of the arm with the camera's own clip. Connect it to the PC.
 4. Clamp a specimen with markers, open *View* > *Extensometer* and choose the camera under *Hardware*.
 5. Check in the camera picture that the specimen is upright and in the middle, and that both markers are well inside the picture for the whole stretch. Even light, no reflections on the markers.
 6. Do not touch the camera or the holder during the test: if the camera moves, the markers seem to move.
