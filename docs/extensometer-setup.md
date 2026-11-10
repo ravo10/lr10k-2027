@@ -51,6 +51,8 @@ The holder at USN is printed in **PLA**. For the base and the socket, **PETG is 
 
 The arm has **two M5 nuts printed into it**: add a pause (layer stop) at **8.6 mm** in the slicer for `extensiometer-holder-top-bar.STL`, put the two nuts in their pockets when the printer stops, and let it print on over them.
 
+The two M3 nuts in the base are **pressed in after printing**.
+
 ## Mounting it
 
 1. Print the three parts (`extensiometer-holder.zip` in the [release](https://github.com/ravo10/lr10k-2027/releases/tag/extensiometer-holder-lr10k-1.0)).
