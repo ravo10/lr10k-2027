@@ -7,7 +7,11 @@ LR 10K Control Software
 
 ![The main window (USN theme)](docs/themes/theme_USN.png "The main window in the USN theme")
 
-https://github.com/user-attachments/assets/0c692877-fa54-477f-b41a-a947910a1258
+
+
+https://github.com/user-attachments/assets/1e7bd6c5-577c-48bb-ac2a-a7472cb92553
+
+
 
 The LR 10K's own PC software (*Lloyd Instrument Data Analysis Package Dpmat 2.2*) runs on DOS. This program replaces it: it talks to the machine over its serial (COM) port with the same commands, and adds what a lab course needs today, such as a live graph, automatic yield points, an optical extensometer, Excel reports and autosave.
 
