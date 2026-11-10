@@ -96,7 +96,7 @@ The extension is measured between two markers on the specimen, so only the speci
 
 Do steps 1-3 above, then:
 
-- **4a. Prepare.** Put two round markers on the specimen, across the part that will stretch: Ø5 mm dots of bright green (#00FF00) paper, 60 mm apart. The [marker guide](docs/extensometer-markers.md) shows how to make them with a laser cutter and place them with a 3D-printed guide (files in the [extensometer-tracking-marker release](https://github.com/ravo10/lr10k-2027/releases/tag/extensometer-tracking-marker-1.0)). Point a webcam at them (even light, no reflections, camera not moving).
+- **4a. Prepare.** Put two round markers on the specimen, across the part that will stretch: Ø5 mm dots of bright green (#00FF00) paper, 60 mm apart. The [marker guide](docs/extensometer-markers.md) shows how to make them with a laser cutter and place them with a 3D-printed guide (files in the [extensometer-tracking-marker release](https://github.com/ravo10/lr10k-2027/releases/tag/extensometer-tracking-marker-1.0)). Point a webcam at them (even light, no reflections, camera not moving); the camera and 3D-printed holder used at USN are in the [suggested extensometer setup](docs/extensometer-setup.md).
 - **4b. Open the extensometer.** *View* > *Extensometer*, switch the camera on, press **Pick from image** (*Color Segmentation*) and click the middle of a marker in the camera image; the *Mask (binary)* or *Side by side* tab shows what is found. Choose the camera's resolution under *Camera Properties* (older cameras: 800 x 600 or 1280 x 720; 4K cameras: up to 3840 x 2160).
 - **4c. Gauge length.** Measure the distance between the two markers as exactly as you can and type it as **L0**. *Tracking* must show **2 markers**.
 - **4d. Zero.** *Set zero point* (F6) also sets the optical zero (*Start Test* does it by default too). Turn on *Record* > *Record tests* in the extensometer window if you want a video of the test.
@@ -109,6 +109,7 @@ Then continue with step 5. If the markers are lost for more than half a second d
 |---|---|
 | Learn to use the software | *Help* in the software (videos and *Get Started*), and the **[user guide](docs/index.md)**: setup, tests, hotkeys, the automatic points, the extensometer, saving, autosave, problems |
 | Make and place extensometer markers | **[Marker guide](docs/extensometer-markers.md)**: size, colour, laser-cut sheet, placement guide and 3D-printable specimens |
+| Set up the extensometer camera | **[Suggested extensometer setup](docs/extensometer-setup.md)**: the webcam used at USN and a 3D-printed holder for the LR 10K |
 | Know what is in the Excel book | [User guide, *Saving*](docs/index.md#saving-a-successfully-completed-test--excel) |
 | Solve a problem (crash, will not start, connection) | [User guide, *Problems with the software*](docs/index.md#problems-with-the-software-crashing-etc) and the *Troubleshooting* table in [BUILDING.md](BUILDING.md#troubleshooting) |
 | Build the software or the installer | **[BUILDING.md](BUILDING.md)** |
@@ -186,7 +187,7 @@ Yes: *GUI Settings* > *LR 10K Simulation* > *Activate*.
 It is only tested with the LR 10K and version 5.0 of its built-in software. Other Lloyd machines of the same generation may use the same commands, but this is untested. If you try, record the traffic (*Log serial traffic to file*) and open an issue with the log.
 
 **Which webcam can I use for the extensometer?**
-Any USB webcam Windows recognises. Choose its resolution in the extensometer window; higher gives finer strain. A fixed focus or manual focus, and a stand that does not move, matter more than the resolution.
+Any USB webcam Windows recognises. Choose its resolution in the extensometer window; higher gives finer strain. A fixed focus or manual focus, and a stand that does not move, matter more than the resolution. At USN a Logitech BRIO 4K is used in a 3D-printed holder on the machine: see the [suggested extensometer setup](docs/extensometer-setup.md).
 
 **Where are my files?**
 Tests and Excel books go to the storage folder you choose (*File* > *Specify Storage Folder*). Settings, window layout and autosaves are in `%LOCALAPPDATA%\LR10K`; crash reports in *Documents\\LR10K crash reports*.

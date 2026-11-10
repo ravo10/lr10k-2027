@@ -940,6 +940,7 @@ INPUT                  = developer.md \
                          ../CONTRIBUTING.md \
                          index.md \
                          extensometer-markers.md \
+                         extensometer-setup.md \
                          video-scripts.md \
                          video-plan-gui.md \
                          video-plan-setup.md \

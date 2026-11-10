@@ -1,6 +1,6 @@
 # Extensometer markers
 
-The optical extensometer measures strain from the distance between **two coloured dots** on the specimen. How well the dots are made and placed decides how exact the strain is. This page describes the markers that are used at USN and how to make them.
+The optical extensometer measures strain from the distance between **two coloured dots** on the specimen. How well the dots are made and placed decides how exact the strain is. This page describes the markers that are used at USN and how to make them. The camera and its holder are in the [suggested extensometer setup](extensometer-setup.md).
 
 All the files are attached to the **[extensometer-tracking-marker release](https://github.com/ravo10/lr10k-2027/releases/tag/extensometer-tracking-marker-1.0)**:
 
