@@ -11,7 +11,7 @@ How to build the app from source on a new Windows PC, and how to package it for 
 | **OpenCV 4.12.0**, prebuilt for Windows | Optical extensometer (camera, video recording) | Not installed through vcpkg: building OpenCV from source takes a long time. |
 | **Git** | Clone the repository, and vcpkg needs it | |
 | *Optional:* **Microsoft Visual Studio Installer Projects 2022** extension, version **3.0.0 or newer** (also for Visual Studio 2026) | Only needed to build the `.msi` installer (`.vdproj`) | Without it, or with an older version, that project shows as *incompatible* or *unloaded*; the app still builds. See section 5. |
-| *Optional:* **GitHub CLI** (`gh`) | Download the tutorial videos from the private repository | Run `gh auth login` once. |
+| *Optional:* **GitHub CLI** (`gh`) | Download the tutorial videos (the script also works without it) | Run `gh auth login` once. |
 | *Optional:* **Doxygen** (and **Graphviz** for diagrams) | Build the developer documentation on your own PC | `winget install DimitriVanHeesch.Doxygen` and `winget install Graphviz.Graphviz`. See section 6. |
 
 Dear ImGui (1.92.5, docking), ImPlot (1.1), nlohmann/json and stb_image are in the repository; they need no installing.

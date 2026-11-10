@@ -5,9 +5,8 @@
 # Files already there are kept. After new videos are uploaded to the release, add -Force to replace them:
 #   powershell -ExecutionPolicy Bypass -File scripts\fetch-videos.ps1 -Force
 #
-# The repository is private, so the GitHub CLI (https://cli.github.com, then
-# "gh auth login") is used when available. Without it, a plain download only
-# works if the repository is public.
+# The GitHub CLI (https://cli.github.com) is used when it is installed;
+# without it the videos are downloaded directly from the public release.
 param([switch]$Force)
 $ErrorActionPreference = 'Stop'
 $repo = 'ravo10/lr10k-2027'
