@@ -43,7 +43,7 @@ Everything is in `extensiometer-holder.zip` in the [release](https://github.com/
 |---|---|---|---|
 | Base | `extensiometer-holder.STL` | 84 × 70 × 57 | Screwed to the front panel with the two M3 screws |
 | Socket | `extensiometer-holder-top.STL` | 94 × 30 × 92 | Fixed on the base; the arm sits in it |
-| Arm | `extensiometer-holder-top-bar.STL` | 20 × 60 × 280 | The bar from the socket up to the camera |
+| Arm | `extensiometer-holder-top-bar.STL` | 20 × 60 × 170 | The bar from the socket up to the camera |
 
 The zip also has the SolidWorks files (`.SLDPRT` for each part and the assembly `assm-extensometer-holder.SLDASM`) if you want to change the holder, for example for another camera or another hole distance.
 
