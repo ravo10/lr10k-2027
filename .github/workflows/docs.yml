@@ -1,7 +1,11 @@
-# Builds the Doxygen developer documentation and uploads it as a downloadable
-# workflow artifact (Actions -> Docs -> latest run -> "docs-html"; unzip and open index.html).
-# GitHub Pages is not used because it needs a paid plan for private repos.
-# On Windows the same pages are built by docs\build-docs.bat.
+# Builds the website on GitHub Pages (https://ravo10.github.io/lr10k-2027/):
+#   - the front page is the README, and the Markdown pages in docs/ are normal pages
+#     (copied by docs/site/stage.py and built with Jekyll, settings in docs/site/),
+#   - the Doxygen developer documentation is under /reference/.
+# The Doxygen pages are also kept as a downloadable workflow artifact
+# (Actions -> Docs -> latest run -> "docs-html"; unzip and open index.html).
+# One-time setup: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+# On Windows the Doxygen pages are built by docs\build-docs.bat.
 name: Docs
 
 on:
@@ -11,6 +15,11 @@ on:
 
 permissions:
   contents: read
+
+# One deployment at a time; a newer push replaces a waiting one
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -45,3 +54,31 @@ jobs:
           name: docs-html
           path: docs/html
           retention-days: 90
+      - name: Copy the README and the user documentation for the website
+        run: python3 docs/site/stage.py site-src
+      - name: Build the website with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: site-src
+          destination: _site
+      - name: Add the Doxygen pages under /reference/
+        run: |
+          sudo mkdir -p _site/reference
+          sudo cp -r docs/html/. _site/reference/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

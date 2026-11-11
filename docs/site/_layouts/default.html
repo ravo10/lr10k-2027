@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+{% seo %}
+    <link rel="stylesheet" href="{{ "/assets/css/style.css?v=" | append: site.github.build_revision | relative_url }}">
+    <style>
+      .site-nav { display: flex; flex-wrap: wrap; gap: 4px 20px; align-items: baseline;
+                  border-bottom: 1px solid #d0d7de; padding-bottom: 12px; margin-bottom: 24px; }
+      .site-nav .site-name { font-weight: 600; font-size: 18px; color: #1f2328; margin-right: auto; }
+      .site-nav a { white-space: nowrap; }
+      .markdown-body video { max-width: 100%; }
+      .markdown-body img { background: transparent; }
+    </style>
+  </head>
+  <body>
+    <div class="container-lg px-3 my-4 markdown-body">
+      <nav class="site-nav">
+        <a class="site-name" href="{{ "/" | relative_url }}">LR 10K Control Software</a>
+        <a href="{{ "/docs/" | relative_url }}">User documentation</a>
+        <a href="{{ "/docs/extensometer-setup.html" | relative_url }}">Extensometer setup</a>
+        <a href="{{ "/reference/" | relative_url }}">Developer reference</a>
+        <a href="https://github.com/ravo10/lr10k-2027/releases">Download</a>
+        <a href="https://github.com/ravo10/lr10k-2027">GitHub</a>
+      </nav>
+
+      {{ content }}
+
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-gray">
+        <a href="https://github.com/ravo10/lr10k-2027">Source code, issues and releases on GitHub</a>
+      </div>
+    </div>
+  </body>
+</html>

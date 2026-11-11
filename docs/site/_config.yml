@@ -1,0 +1,25 @@
+# Jekyll settings for the GitHub Pages website (https://ravo10.github.io/lr10k-2027/).
+# The Docs workflow copies the README and the user documentation next to this file
+# (docs/site/stage.py), builds it with Jekyll and adds the Doxygen pages under /reference/.
+title: LR 10K Control Software
+description: Modern Windows software for the LLOYD LR 10K tensile testing machine
+theme: jekyll-theme-primer
+plugins:
+  - jekyll-relative-links
+  - jekyll-readme-index
+  - jekyll-optional-front-matter
+  - jekyll-titles-from-headings
+  - jekyll-seo-tag
+relative_links:
+  enabled: true
+  collections: false
+titles_from_headings:
+  strip_title: false
+readme_index:
+  enabled: true
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+exclude:
+  - stage.py
