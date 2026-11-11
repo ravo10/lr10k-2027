@@ -54,8 +54,14 @@ jobs:
           name: docs-html
           path: docs/html
           retention-days: 90
+      - name: Get the website address from the Pages settings
+        id: pages
+        uses: actions/configure-pages@v5
       - name: Copy the README and the user documentation for the website
-        run: python3 docs/site/stage.py site-src
+        run: |
+          python3 docs/site/stage.py site-src
+          # Set the address explicitly, so the links never depend on Jekyll guessing it
+          printf 'url: "%s"\nbaseurl: "%s"\n' "${{ steps.pages.outputs.origin }}" "${{ steps.pages.outputs.base_path }}" >> site-src/_config.yml
       - name: Build the website with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
