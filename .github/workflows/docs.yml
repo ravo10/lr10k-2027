@@ -27,13 +27,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Doxygen
-        run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
+        run: |
+          # Ubuntu's package servers are sometimes unreachable from the runners. Then use the
+          # Doxygen release from GitHub instead, without Graphviz (no call and class diagrams).
+          if timeout 240 sudo apt-get -o Acquire::Retries=3 update \
+             && timeout 300 sudo apt-get -o Acquire::Retries=3 install -y doxygen graphviz; then
+            echo "LR10K_HAVE_DOT=YES" >> "$GITHUB_ENV"
+          else
+            echo "::warning::apt-get failed: using the Doxygen release from GitHub, without diagrams"
+            curl -fsSL https://github.com/doxygen/doxygen/releases/download/Release_1_15_0/doxygen-1.15.0.linux.bin.tar.gz | tar -xz -C "$RUNNER_TEMP"
+            echo "$RUNNER_TEMP/doxygen-1.15.0/bin" >> "$GITHUB_PATH"
+            echo "LR10K_HAVE_DOT=NO" >> "$GITHUB_ENV"
+          fi
       - name: Generate docs
         working-directory: docs
         run: |
           # The version shown on the pages: LR10KAppVersion in common.h
           export LR10K_VERSION="$(sed -n 's/.*LR10KAppVersion = "\([^"]*\)".*/\1/p' ../main/LloydLR10KTensile/common.h)"
-          export LR10K_HAVE_DOT=YES
           echo "Version: $LR10K_VERSION"
           doxygen Doxyfile
       - name: List the warnings in the run summary
