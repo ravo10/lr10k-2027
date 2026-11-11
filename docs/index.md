@@ -163,7 +163,7 @@ The communication input and outputs are "sniffed" with the use of the DOS softwa
 6. When the user wants to disconnect the LR 10K machine virtually.
 
 **To finish off, there are some software releated features which is replicated - like detecting a break in the part or calculating the cross area.**  
-The values underneath that is interpeted as a double value (8 bytes), is decrypted using the functions inside [LR10KBufferMessage.cpp](../main/LloydLR10KTensile/LR10KBufferMessage.cpp#L38).
+The values underneath that is interpeted as a double value (8 bytes), is decrypted using the functions inside [LR10KBufferMessage.cpp](https://github.com/ravo10/lr10k-2027/blob/main/main/LloydLR10KTensile/LR10KBufferMessage.cpp#L38).
 
 ### 1. First setup, HEX code:
 

@@ -97,7 +97,7 @@ struct AppMainWidgets {
     **/
     void CrucialPointsWindowDraw(TabControl::TabTestDataClass* tabData);
 
-    ///**
+    // /**
     //    @brief This window is used to get a Quick Report over the last test
     //            completed. It will contain i.e. yielding, tensile and
     //            full rupture load and extension.

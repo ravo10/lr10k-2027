@@ -859,7 +859,7 @@ namespace TabControl {
         **/
         bool CheckIfCrucialPointExsists(int pointID);
 
-        ///**
+        // /**
         //    @brief   Get only the crucial data points.
         //    @param  tabData - 
         //    @retval         - 

@@ -10,7 +10,7 @@ Five views of the LR 10K Control Software, drawn in SysML style. The same model 
 | 4 | [Activity (act)](#4-activity-diagram-act-running-a-test) | Running a test, with or without the optical extensometer |
 | 5 | [Sequence (sd)](#5-sequence-diagram-sd-connecting-to-the-lr-10k) | Connecting to the LR 10K: COM port, handshake, setup #1 and #2 |
 
-**Visio:** the same five diagrams, one per page, are in [lr10k-architecture.vsdx](lr10k-architecture.vsdx) (download it with the *Download raw file* button). It is made from the diagrams on this page; see [tools/architecture-vsdx](../../tools/architecture-vsdx/README.md) to make it again after a change.
+**Visio:** the same five diagrams, one per page, are in [lr10k-architecture.vsdx](lr10k-architecture.vsdx) (download it with the *Download raw file* button). It is made from the diagrams on this page; see [tools/architecture-vsdx](https://github.com/ravo10/lr10k-2027/tree/main/tools/architecture-vsdx) to make it again after a change.
 
 The diagrams are [Mermaid](https://mermaid.js.org), which GitHub draws on this page. Mermaid has no real SysML notation, so the SysML elements are shown with its closest shapes: blocks as classes marked `«block»`, ports as small boxes on the edge of a block, flows as labelled arrows.
 
@@ -336,4 +336,4 @@ sequenceDiagram
 
 ## Keeping the diagrams up to date
 
-When a part is added, moved or renamed (a new header in ARCHITECTURE.md, a new thread, a new state of a test), change both the `.sysml` model and the diagram here, then make the Visio file again ([tools/architecture-vsdx](../../tools/architecture-vsdx/README.md)). The model validates without errors or warnings with the SysML v2 Pilot Implementation 0.59.0, the official compiler. The *sysml-model* job in *Actions* > *Tests* checks it on every push (`tools/sysml-check/CheckSysml.java`) and fails on any error or warning; the *SysML v2 Co-Pilot* plugin for Claude, SysON and the Pilot's Jupyter kernel can check it too. Avoid SysML v2 keywords as names (`connection`, `connect`, `frame`, `filter`, `state`, `action`, ...) and built-in names such as `start` and `done`.
+When a part is added, moved or renamed (a new header in ARCHITECTURE.md, a new thread, a new state of a test), change both the `.sysml` model and the diagram here, then make the Visio file again ([tools/architecture-vsdx](https://github.com/ravo10/lr10k-2027/tree/main/tools/architecture-vsdx)). The model validates without errors or warnings with the SysML v2 Pilot Implementation 0.59.0, the official compiler. The *sysml-model* job in *Actions* > *Tests* checks it on every push (`tools/sysml-check/CheckSysml.java`) and fails on any error or warning; the *SysML v2 Co-Pilot* plugin for Claude, SysON and the Pilot's Jupyter kernel can check it too. Avoid SysML v2 keywords as names (`connection`, `connect`, `frame`, `filter`, `state`, `action`, ...) and built-in names such as `start` and `done`.
